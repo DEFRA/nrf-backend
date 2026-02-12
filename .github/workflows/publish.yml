@@ -30,7 +30,6 @@ jobs:
           cache: npm
       - run: |
           npm ci
-          npm run build:frontend
           npm test
 
       - name: Build and Publish
