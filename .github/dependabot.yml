@@ -28,9 +28,14 @@ updates:
       tools:
         patterns:
           - 'husky'
-          - 'vitest'
           - 'nodemon'
           - 'npm-run-all'
+
+      vitest:
+        patterns:
+          - 'vitest'
+          - 'vitest-*'
+          - '@vitest/*'
 
       types:
         patterns:
