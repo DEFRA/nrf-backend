@@ -9,3 +9,4 @@ coverage
 .cache
 .eslintcache
 .env
+.claude/settings.local.json
