@@ -10,6 +10,7 @@ updates:
     groups:
       build:
         patterns:
+          - '@babel/*'
           - 'autoprefixer'
 
       lint:
@@ -17,6 +18,7 @@ updates:
           - 'prettier'
           - 'stylelint'
           - 'stylelint-*'
+          - 'neostandard'
 
       logging:
         patterns:
@@ -24,6 +26,7 @@ updates:
           - '*-pino-format'
           - 'pino'
           - 'pino-*'
+          - 'aws-embedded-metrics'
 
       tools:
         patterns:
@@ -37,9 +40,23 @@ updates:
           - 'vitest-*'
           - '@vitest/*'
 
-      types:
+      hapi:
         patterns:
-          - '@types/*'
+          - '@hapi/*'
+          - 'hapi-*'
+          - '@defra/hapi-*'
+
+      config:
+        patterns:
+          - 'convict'
+          - 'convict-format-with-validator'
+
+      code:
+        patterns:
+          - 'https-proxy-agent'
+          - 'joi'
+          - 'node-fetch'
+          - 'undici'
 
     ignore:
       - dependency-name: 'eslint-*'
