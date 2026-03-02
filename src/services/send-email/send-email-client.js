@@ -1,0 +1,49 @@
+import { createNotifyClient } from './notify-client.js'
+
+export const sendEmail = async ({
+  recipientEmailAddress,
+  estimateReference,
+  amounts,
+  templateId,
+  logger
+}) => {
+  const notifyClient = createNotifyClient()
+  const emailContent = `Test content`
+  const options = {
+    personalisation: {
+      content: emailContent,
+      estimateReference,
+      levyAmount: amounts.levyAmount,
+      monitoringAmount: amounts.monitoringAmount,
+      maintenanceAmount: amounts.maintenanceAmount,
+      adminAmount: amounts.adminAmount
+    },
+    reference: estimateReference
+  }
+  try {
+    const result = await notifyClient.sendEmail(
+      templateId,
+      recipientEmailAddress,
+      options
+    )
+    if (!result?.id) {
+      throw new Error('No notification ID returned')
+    }
+    logger.info('Notify sendEmail responded', {
+      templateId,
+      notificationId: result.id
+    })
+    return {
+      notificationId: result.id,
+      sentDateTime: new Date().toISOString()
+    }
+  } catch (error) {
+    logger.error(
+      {
+        templateId
+      },
+      `Notify sendEmail failed: ${error.message}`
+    )
+    return null
+  }
+}
