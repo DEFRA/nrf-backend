@@ -1,12 +1,13 @@
 import { createNotifyClient } from './notify-client.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 
 export const sendEmail = async ({
   recipientEmailAddress,
   emailReference,
   emailBodyVariables,
-  templateId,
-  logger
+  templateId
 }) => {
+  const logger = createLogger()
   const notifyClient = createNotifyClient()
   const options = {
     personalisation: emailBodyVariables,

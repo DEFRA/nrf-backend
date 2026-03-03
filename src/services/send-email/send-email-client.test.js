@@ -1,6 +1,8 @@
 import { sendEmail } from './send-email-client.js'
 import { createNotifyClient } from './notify-client.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 vi.mock('./notify-client.js')
+vi.mock('../../common/helpers/logging/logger.js')
 
 describe('sendEmail', () => {
   let notifySendEmail
@@ -25,6 +27,7 @@ describe('sendEmail', () => {
       info: vi.fn(),
       error: vi.fn()
     }
+    vi.mocked(createLogger).mockReturnValue(logger)
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
     })
