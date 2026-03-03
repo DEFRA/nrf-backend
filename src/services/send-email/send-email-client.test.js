@@ -38,8 +38,7 @@ describe('sendEmail', () => {
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
-      templateId,
-      logger
+      templateId
     })
     expect(notifySendEmail).toHaveBeenCalledWith(
       templateId,
@@ -62,8 +61,7 @@ describe('sendEmail', () => {
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
-      templateId,
-      logger
+      templateId
     })
     expect(result).toEqual({
       notificationId,
@@ -82,8 +80,7 @@ describe('sendEmail', () => {
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
-      templateId,
-      logger
+      templateId
     })
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
@@ -102,8 +99,7 @@ describe('sendEmail', () => {
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
-      templateId,
-      logger
+      templateId
     })
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
