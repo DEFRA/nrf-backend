@@ -7,16 +7,20 @@ describe('sendEmail', () => {
   let logger
   const recipientEmailAddress = 'barry@builders.com'
   const estimateReference = 'AN2191'
-  const amounts = {
+  const templateId = 'test-template-id'
+  const emailBodyVariables = {
+    estimateReference,
     levyAmount: '£3500',
     monitoringAmount: '£250',
     maintenanceAmount: '£560',
     adminAmount: '£80'
   }
-  const templateId = 'test-template-id'
+  const notificationId = '201b576e-c09b-467b-9dfa-9c3b689ee730'
 
   beforeEach(() => {
-    notifySendEmail = vi.fn()
+    notifySendEmail = vi.fn().mockResolvedValue({
+      id: notificationId
+    })
     logger = {
       info: vi.fn(),
       error: vi.fn()
@@ -29,8 +33,8 @@ describe('sendEmail', () => {
   it('calls the notify sendEmail function', async () => {
     await sendEmail({
       recipientEmailAddress,
-      estimateReference,
-      amounts,
+      emailReference: estimateReference,
+      emailBodyVariables,
       templateId,
       logger
     })
@@ -40,7 +44,6 @@ describe('sendEmail', () => {
       {
         personalisation: {
           adminAmount: '£80',
-          content: 'Test content',
           estimateReference: 'AN2191',
           levyAmount: '£3500',
           maintenanceAmount: '£560',
@@ -52,14 +55,10 @@ describe('sendEmail', () => {
   })
 
   it('returns a sent date & time and the notification ID, and logs, if successful', async () => {
-    const notificationId = '201b576e-c09b-467b-9dfa-9c3b689ee730'
-    notifySendEmail.mockResolvedValue({
-      id: notificationId
-    })
     const result = await sendEmail({
       recipientEmailAddress,
-      estimateReference,
-      amounts,
+      emailReference: estimateReference,
+      emailBodyVariables,
       templateId,
       logger
     })
@@ -78,8 +77,8 @@ describe('sendEmail', () => {
     notifySendEmail.mockRejectedValue(error)
     const result = await sendEmail({
       recipientEmailAddress,
-      estimateReference,
-      amounts,
+      emailReference: estimateReference,
+      emailBodyVariables,
       templateId,
       logger
     })
@@ -98,8 +97,8 @@ describe('sendEmail', () => {
     })
     const result = await sendEmail({
       recipientEmailAddress,
-      estimateReference,
-      amounts,
+      emailReference: estimateReference,
+      emailBodyVariables,
       templateId,
       logger
     })

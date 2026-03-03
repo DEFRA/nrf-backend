@@ -2,23 +2,15 @@ import { createNotifyClient } from './notify-client.js'
 
 export const sendEmail = async ({
   recipientEmailAddress,
-  estimateReference,
-  amounts,
+  emailReference,
+  emailBodyVariables,
   templateId,
   logger
 }) => {
   const notifyClient = createNotifyClient()
-  const emailContent = `Test content`
   const options = {
-    personalisation: {
-      content: emailContent,
-      estimateReference,
-      levyAmount: amounts.levyAmount,
-      monitoringAmount: amounts.monitoringAmount,
-      maintenanceAmount: amounts.maintenanceAmount,
-      adminAmount: amounts.adminAmount
-    },
-    reference: estimateReference
+    personalisation: emailBodyVariables,
+    reference: emailReference
   }
   try {
     const result = await notifyClient.sendEmail(
