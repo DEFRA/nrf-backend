@@ -132,6 +132,22 @@ const config = convict({
       default: 'x-cdp-request-id',
       env: 'TRACING_HEADER'
     }
+  },
+  notify: {
+    apiKey: {
+      doc: 'API key for Notify',
+      format: String,
+      default: '#',
+      env: 'NOTIFY_API_KEY'
+    },
+    templateIds: {
+      quote: {
+        doc: 'Notify template ID for quote email',
+        format: String,
+        default: 'af6368ca-b1ee-4199-a9da-8fabb0a2d5e8',
+        env: 'NOTIFY_TEMPLATE_ID_QUOTE'
+      }
+    }
   }
 })
 
