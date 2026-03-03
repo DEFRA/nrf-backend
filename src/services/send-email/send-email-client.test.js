@@ -21,7 +21,7 @@ describe('sendEmail', () => {
 
   beforeEach(() => {
     notifySendEmail = vi.fn().mockResolvedValue({
-      id: notificationId
+      data: { id: notificationId }
     })
     logger = {
       info: vi.fn(),

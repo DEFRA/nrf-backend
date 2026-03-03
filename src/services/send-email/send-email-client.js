@@ -19,15 +19,16 @@ export const sendEmail = async ({
       recipientEmailAddress,
       options
     )
-    if (!result?.id) {
+    const notificationId = result?.data?.id
+    if (!notificationId) {
       throw new Error('No notification ID returned')
     }
     logger.info('Notify sendEmail responded', {
       templateId,
-      notificationId: result.id
+      notificationId
     })
     return {
-      notificationId: result.id,
+      notificationId,
       sentDateTime: new Date().toISOString()
     }
   } catch (error) {
