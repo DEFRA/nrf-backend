@@ -1,10 +1,16 @@
 import convict from 'convict'
 import convictFormatWithValidator from 'convict-format-with-validator'
+import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
+const isDevelopment = process.env.NODE_ENV === 'development'
+
+if (isDevelopment) {
+  configDotenv()
+}
 
 const config = convict({
   serviceVersion: {
@@ -98,7 +104,7 @@ const config = convict({
     apiKey: {
       doc: 'API key for Notify',
       format: String,
-      default: '#',
+      default: '',
       env: 'NOTIFY_API_KEY'
     },
     templateIds: {

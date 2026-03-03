@@ -50,6 +50,7 @@ updates:
         patterns:
           - 'convict'
           - 'convict-format-with-validator'
+          - 'dotenv'
 
       code:
         patterns:
