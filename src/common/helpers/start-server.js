@@ -1,9 +1,11 @@
 import { config } from '../../config.js'
+import { syncDatabase } from '../../services/db/sequelize.js'
 
 import { createServer } from '../../server.js'
 
 async function startServer() {
   const server = await createServer()
+  await syncDatabase()
   await server.start()
 
   server.logger.info('Server started successfully')

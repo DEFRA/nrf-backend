@@ -100,6 +100,59 @@ const config = convict({
       env: 'TRACING_HEADER'
     }
   },
+  s3: {
+    endpoint: {
+      doc: 'S3 endpoint URL. Set for LocalStack, null for real AWS.',
+      format: String,
+      nullable: true,
+      default: null,
+      env: 'S3_ENDPOINT'
+    },
+    bucketName: {
+      doc: 'S3 bucket name',
+      format: String,
+      default: '',
+      env: 'S3_BUCKET_NAME'
+    },
+    forcePathStyle: {
+      doc: 'Force path style for S3 (required for LocalStack)',
+      format: Boolean,
+      default: true,
+      env: 'S3_FORCE_PATH_STYLE'
+    }
+  },
+  db: {
+    host: {
+      doc: 'Database host',
+      format: String,
+      default: 'localhost',
+      env: 'DATABASE_HOST'
+    },
+    port: {
+      doc: 'Database port',
+      format: 'port',
+      default: 5432,
+      env: 'DATABASE_PORT'
+    },
+    database: {
+      doc: 'Database name',
+      format: String,
+      default: 'nrf',
+      env: 'DATABASE_NAME'
+    },
+    username: {
+      doc: 'Database username',
+      format: String,
+      default: 'postgres',
+      env: 'DATABASE_USERNAME'
+    },
+    password: {
+      doc: 'Database password',
+      format: String,
+      default: 'postgres',
+      env: 'DATABASE_PASSWORD'
+    }
+  },
   notify: {
     apiKey: {
       doc: 'API key for Notify',

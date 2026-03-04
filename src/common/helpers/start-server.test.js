@@ -1,5 +1,12 @@
 import hapi from '@hapi/hapi'
 
+vi.mock('../../services/db/sequelize.js', () => ({
+  getSequelize: vi.fn().mockReturnValue({
+    define: vi.fn().mockReturnValue({})
+  }),
+  syncDatabase: vi.fn().mockResolvedValue()
+}))
+
 describe('#startServer', () => {
   let createServerSpy
   let hapiServerSpy
