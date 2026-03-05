@@ -17,7 +17,7 @@
     <sql>
       ALTER TABLE quotes ADD COLUMN reference VARCHAR(10) GENERATED ALWAYS AS (
         'NRF-' || LPAD(((id::bigint * 2654435761) % 1000000)::text, 6, '0')
-      ) STORED;
+      ) STORED UNIQUE;
     </sql>
   </changeSet>
 </databaseChangeLog>

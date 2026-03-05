@@ -37,9 +37,18 @@ describe('Get quote endpoint', () => {
   it('should return 404 when the quote reference does not exist', async () => {
     const response = await sendGetRequest({
       server: getServer(),
-      reference: 'NOTFOUND00'
+      reference: 'NRF-999999'
     })
 
     expect(response.statusCode).toBe(404)
+  })
+
+  it('should return 400 when the reference format is invalid', async () => {
+    const response = await sendGetRequest({
+      server: getServer(),
+      reference: 'INVALID'
+    })
+
+    expect(response.statusCode).toBe(400)
   })
 })
