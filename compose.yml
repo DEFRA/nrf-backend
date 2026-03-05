@@ -22,13 +22,36 @@ services:
     networks:
       - cdp-tenant
 
-  redis:
-    image: redis:7.2.3-alpine3.18
-    ports:
-      - '6379:6379'
-    restart: always
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_DB: nrf_backend
     networks:
       - cdp-tenant
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/data
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 10s
+      retries: 5
+      start_period: 1s
+      timeout: 10s
+
+  liquibase:
+    image: arm64v8/liquibase:4.27.0-alpine
+    networks:
+      - cdp-tenant
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./changelog:/liquibase/changelog
+    command: --url=jdbc:postgresql://postgres:5432/nrf_backend --username=postgres --password=password --changelog-file=changelog/db.changelog.xml update
 
   ################################################################################
 
@@ -63,15 +86,21 @@ services:
       - '3001:3001'
     links:
       - 'localstack:localstack'
+      - 'postgres:postgres'
     depends_on:
       localstack:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      liquibase:
+        condition: service_started
     env_file:
       - 'compose/aws.env'
     environment:
       PORT: 3001
       NODE_ENV: development
       LOCALSTACK_ENDPOINT: http://localstack:4566
+      DB_HOST: postgres
     networks:
       - cdp-tenant
     volumes:
@@ -79,6 +108,9 @@ services:
       - ./package.json:/home/node/package.json
 
 ################################################################################
+
+volumes:
+  postgres-data:
 
 networks:
   cdp-tenant:

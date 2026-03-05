@@ -7,6 +7,8 @@ convict.addFormats(convictFormatWithValidator)
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
+const postgresPortDefault = 5432
+const postgresPortTest = 5433
 
 if (isDevelopment) {
   configDotenv()
@@ -114,6 +116,56 @@ const config = convict({
         default: 'af6368ca-b1ee-4199-a9da-8fabb0a2d5e8',
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
       }
+    }
+  },
+  postgres: {
+    host: {
+      doc: 'host for postgres',
+      format: String,
+      default: 'localhost',
+      env: 'DB_HOST'
+    },
+    port: {
+      doc: 'port for postgres',
+      format: Number,
+      default: isTest ? postgresPortTest : postgresPortDefault,
+      env: 'DB_PORT'
+    },
+    database: {
+      doc: 'database for postgres',
+      format: String,
+      default: 'nrf_backend',
+      env: 'DB_DATABASE'
+    },
+    user: {
+      doc: 'user for postgres',
+      format: String,
+      default: 'postgres',
+      env: 'DB_USER'
+    },
+    ssl: {
+      doc: 'connect using SSL',
+      format: Boolean,
+      default: isProduction,
+      env: 'DB_SSL'
+    },
+    useIAM: {
+      doc: 'enable iam authentication for postgres',
+      format: Boolean,
+      default: isProduction,
+      env: 'DB_IAM_AUTHENTICATION'
+    },
+    localPassword: {
+      doc: 'password for local development. used when iamAuthentication is not enabled',
+      format: String,
+      default: 'password',
+      env: 'DB_LOCAL_PASSWORD'
+    },
+    region: {
+      doc: 'AWS region',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
     }
   }
 })

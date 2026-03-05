@@ -8,12 +8,12 @@ export const sendEmail = async ({
   templateId
 }) => {
   const logger = createLogger()
-  const notifyClient = createNotifyClient()
-  const options = {
-    personalisation: emailBodyVariables,
-    reference: emailReference
-  }
   try {
+    const notifyClient = createNotifyClient()
+    const options = {
+      personalisation: emailBodyVariables,
+      reference: emailReference
+    }
     const result = await notifyClient.sendEmail(
       templateId,
       recipientEmailAddress,

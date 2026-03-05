@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: postgres
+      POSTGRES_DB: nrf_backend
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres-test-data:/data
+    restart: always
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 10s
+      retries: 5
+      start_period: 1s
+      timeout: 10s
+    networks:
+      - cdp-tenant
+
+  liquibase:
+    image: liquibase/liquibase:4.27.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./changelog:/liquibase/changelog
+    command: --url=jdbc:postgresql://postgres:5432/nrf_backend --username=postgres --password=password --changelog-file=changelog/db.changelog.xml update
+    networks:
+      - cdp-tenant
+
+volumes:
+  postgres-test-data:
+
+networks:
+  cdp-tenant:
+    driver: bridge

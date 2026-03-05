@@ -14,8 +14,16 @@ const sendPostRequest = ({ server, payload }) => {
 
 describe('Submit quote endpoint', () => {
   const getServer = setupTestServer()
+  let notifySendEmail
 
-  it('should return 201', async () => {
+  beforeEach(() => {
+    notifySendEmail = vi.fn()
+    vi.mocked(createNotifyClient).mockReturnValue({
+      sendEmail: notifySendEmail
+    })
+  })
+
+  it('should return 201 with the quote reference and a location header', async () => {
     const response = await sendPostRequest({
       server: getServer(),
       payload: {
@@ -23,13 +31,12 @@ describe('Submit quote endpoint', () => {
       }
     })
     expect(response.statusCode).toBe(201)
+    const { reference } = JSON.parse(response.payload)
+    expect(reference).toMatch(/NRF-\d{6}/)
+    expect(response.headers.location).toBe(`/quote/${reference}`)
   })
 
   it('should send a quote email', async () => {
-    const notifySendEmail = vi.fn()
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: notifySendEmail
-    })
     await sendPostRequest({
       server: getServer(),
       payload: {

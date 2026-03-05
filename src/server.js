@@ -9,6 +9,7 @@ import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
+import { postgres } from './common/helpers/postgres.js'
 
 async function createServer() {
   setupProxy()
@@ -49,7 +50,8 @@ async function createServer() {
     requestTracing,
     secureContext,
     pulse,
-    router
+    router,
+    { plugin: postgres.plugin, options: config.get('postgres') }
   ])
 
   return server
