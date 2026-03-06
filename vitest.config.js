@@ -5,6 +5,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    env: {
+      DB_PORT: '5433'
+    },
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
@@ -12,6 +15,7 @@ export default defineConfig({
       include: ['src/**'],
       exclude: [...configDefaults.exclude, 'coverage']
     },
-    setupFiles: ['.vite/setup-files.js']
+    setupFiles: ['.vite/setup-files.js'],
+    globalSetup: ['.vite/global-setup.js']
   }
 })
