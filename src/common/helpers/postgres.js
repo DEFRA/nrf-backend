@@ -9,7 +9,7 @@ import Joi from 'joi'
  * If it's not set then it returns the value set in localPassword, allowing for local development.
  * @param {{ host: string, port: number, user: string, region: string, useIAM: boolean, localPassword: string|null }} options
  */
-function createPasswordProvider(options) {
+async function createPasswordProvider(options) {
   if (options.useIAM) {
     return async () => {
       const signer = new Signer({
@@ -19,7 +19,8 @@ function createPasswordProvider(options) {
         credentials: fromNodeProviderChain(),
         region: options.region
       })
-      return signer.getAuthToken()
+      const token = await signer.getAuthToken()
+      return token
     }
   }
 
@@ -42,7 +43,7 @@ export const postgres = {
       if (error) {
         throw new Error(error)
       }
-      const passwordProvider = createPasswordProvider(value)
+      const passwordProvider = await createPasswordProvider(value)
 
       const poolConfig = {
         user: value.user,
