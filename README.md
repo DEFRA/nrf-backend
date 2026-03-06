@@ -171,11 +171,32 @@ A local environment with:
 
 - Localstack for AWS services (S3, SQS)
 - Redis
+- CDP Uploader
+- Caddy (reverse proxy)
 - This service.
 - A commented out frontend example.
 
+Caddy sits in front of the compose services for local development, providing a single entry point on port 4000 that proxies requests to the appropriate service.
+For example this ensures requests to the /scan-and-upload/ URL are routed correctly to the cdp-uploader local service.
+
 ```bash
 docker compose up --build -d
+```
+
+### Integration tests
+
+With the compose stack running, you can run integration tests against the live services:
+
+```bash
+npm run test:int
+```
+
+Tests are located in the `int-tests/` directory.
+
+To override the backend URL:
+
+```bash
+INT_TEST_BASE_URL=http://localhost:3001 npm run test:int
 ```
 
 ### Dependabot

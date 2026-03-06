@@ -43,7 +43,7 @@ services:
       timeout: 10s
 
   liquibase:
-    image: arm64v8/liquibase:4.27.0-alpine
+    image: liquibase/liquibase:4.27-alpine
     networks:
       - cdp-tenant
     depends_on:
@@ -101,11 +101,60 @@ services:
       NODE_ENV: development
       LOCALSTACK_ENDPOINT: http://localstack:4566
       DB_HOST: postgres
+      CDP_UPLOADER_URL: http://cdp-uploader:7337
     networks:
       - cdp-tenant
     volumes:
       - ./src:/home/node/src
       - ./package.json:/home/node/package.json
+
+  redis:
+    image: redis:7.2.3-alpine3.18
+    ports:
+      - '6379:6379'
+    restart: always
+    networks:
+      - cdp-tenant
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./compose/Caddyfile:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      - cdp-uploader
+    networks:
+      - cdp-tenant
+
+  cdp-uploader:
+    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-latest}
+    ports:
+      - '7337:7337'
+    links:
+      - 'localstack:localstack'
+      - 'redis:redis'
+    depends_on:
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - 'compose/aws.env'
+    environment:
+      PORT: 7337
+      NODE_ENV: development
+      REDIS_HOST: redis
+      USE_SINGLE_INSTANCE_CACHE: true
+      MOCK_VIRUS_SCAN_ENABLED: true
+      MOCK_VIRUS_RESULT_DELAY: 3
+      SQS_ENDPOINT: http://localstack:4566
+      S3_ENDPOINT: http://localstack:4566
+      CONSUMER_BUCKETS: ${CDP_UPLOADER_BUCKET:-boundaries}
+    networks:
+      - cdp-tenant
 
 ################################################################################
 
