@@ -2,9 +2,9 @@ import { execSync } from 'node:child_process'
 
 const COMPOSE = 'docker compose -f compose.test.yml -p nrf-backend-test'
 
-function isPostgresRunning() {
+function isServiceRunning(service) {
   try {
-    const result = execSync(`${COMPOSE} ps -q postgres`, { stdio: 'pipe' })
+    const result = execSync(`${COMPOSE} ps -q ${service}`, { stdio: 'pipe' })
     return result.toString().trim().length > 0
   } catch {
     return false
@@ -24,13 +24,15 @@ function isSchemaReady() {
 }
 
 export default async function setup() {
-  const postgresAlreadyRunning = isPostgresRunning()
-
-  if (!postgresAlreadyRunning) {
+  if (!isServiceRunning('postgres')) {
     execSync(`${COMPOSE} up -d postgres --wait`, { stdio: 'inherit' })
   }
 
   if (!isSchemaReady()) {
     execSync(`${COMPOSE} up liquibase`, { stdio: 'inherit' })
+  }
+
+  if (!isServiceRunning('cdp-uploader')) {
+    execSync(`${COMPOSE} up -d cdp-uploader --wait`, { stdio: 'inherit' })
   }
 }

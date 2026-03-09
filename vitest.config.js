@@ -5,9 +5,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
-    exclude: [...configDefaults.exclude, 'int-tests'],
     env: {
-      DB_PORT: '5433'
+      DB_PORT: '5433',
+      CDP_UPLOADER_URL: 'http://localhost:7338'
     },
     coverage: {
       provider: 'v8',
