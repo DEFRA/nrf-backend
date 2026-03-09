@@ -20,11 +20,33 @@ describe('#startServer', () => {
   })
 
   describe('When server starts', () => {
+    let server
+
+    afterEach(async () => {
+      await server?.stop()
+    })
+
     test('Should start up server as expected', async () => {
-      await startServerImport.startServer()
+      server = await startServerImport.startServer()
 
       expect(createServerSpy).toHaveBeenCalled()
       expect(hapiServerSpy).toHaveBeenCalled()
+    })
+
+    test('Should handle CDP Uploader health check failure', async () => {
+      global.fetchMock.mockResponseOnce('', { status: 503 })
+
+      server = await startServerImport.startServer()
+
+      expect(server).toBeDefined()
+    })
+
+    test('Should handle CDP Uploader health check network error', async () => {
+      global.fetchMock.mockRejectOnce(new Error('ECONNREFUSED'))
+
+      server = await startServerImport.startServer()
+
+      expect(server).toBeDefined()
     })
   })
 

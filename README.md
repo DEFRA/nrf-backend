@@ -2,28 +2,29 @@
 
 Core delivery platform Node.js Backend Template.
 
-- [Requirements](#requirements)
-  - [Node.js](#nodejs)
-- [Local development](#local-development)
-  - [Setup](#setup)
-  - [Development](#development)
-  - [Testing](#testing)
-  - [Production](#production)
-  - [Npm scripts](#npm-scripts)
-  - [Update dependencies](#update-dependencies)
-  - [Formatting](#formatting)
-    - [Windows prettier issue](#windows-prettier-issue)
-- [API endpoints](#api-endpoints)
-- [Development helpers](#development-helpers)
-  - [Proxy](#proxy)
-- [Docker](#docker)
-  - [Development image](#development-image)
-  - [Production image](#production-image)
-  - [Docker Compose](#docker-compose)
-  - [Dependabot](#dependabot)
-  - [SonarCloud](#sonarcloud)
-- [Licence](#licence)
-  - [About the licence](#about-the-licence)
+- [nrf-backend](#nrf-backend)
+  - [Requirements](#requirements)
+    - [Node.js](#nodejs)
+  - [Local development](#local-development)
+    - [Setup](#setup)
+    - [Development](#development)
+    - [Testing](#testing)
+    - [Production](#production)
+    - [Npm scripts](#npm-scripts)
+    - [Update dependencies](#update-dependencies)
+    - [Formatting](#formatting)
+      - [Windows prettier issue](#windows-prettier-issue)
+  - [API endpoints](#api-endpoints)
+  - [Development helpers](#development-helpers)
+    - [Proxy](#proxy)
+  - [Docker](#docker)
+    - [Development image](#development-image)
+    - [Production image](#production-image)
+    - [Docker Compose](#docker-compose)
+    - [Dependabot](#dependabot)
+    - [SonarCloud](#sonarcloud)
+  - [Licence](#licence)
+    - [About the licence](#about-the-licence)
 
 ## Requirements
 
@@ -171,8 +172,13 @@ A local environment with:
 
 - Localstack for AWS services (S3, SQS)
 - Redis
+- CDP Uploader
+- Caddy (reverse proxy)
 - This service.
 - A commented out frontend example.
+
+Caddy sits in front of the compose services for local development, providing a single entry point on port 4000 that proxies requests to the appropriate service.
+For example this ensures requests to the /scan-and-upload/ URL are routed correctly to the cdp-uploader local service.
 
 ```bash
 docker compose up --build -d
