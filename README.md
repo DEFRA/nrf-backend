@@ -106,11 +106,26 @@ git config --global core.autocrlf false
 
 ## API endpoints
 
-| Endpoint             | Description                    |
-| :------------------- | :----------------------------- |
-| `GET: /health`       | Health                         |
-| `GET: /example    `  | Example API (remove as needed) |
-| `GET: /example/<id>` | Example API (remove as needed) |
+| Endpoint                         | Description                |
+| :------------------------------- | :------------------------- |
+| `GET: /health`                   | Health check               |
+| `POST: /upload/initiate`         | Initiate a file upload     |
+| `GET: /upload/{uploadId}/status` | Check upload status        |
+| `POST: /quote`                   | Submit a new quote request |
+| `GET: /quote/{reference}`        | Get a quote by reference   |
+
+### API documentation
+
+Swagger UI is available at `/docs` when the server is running.
+The OpenAPI spec is generated from `@openapi` JSDoc annotations in the route and controller files.
+
+### Keeping Swagger docs in sync
+
+A Claude Code skill is provided to audit and fix the `@openapi` annotations so they match the actual endpoint implementations. Run it from the project root with:
+
+```
+/sync-swagger
+```
 
 ## Development helpers
 

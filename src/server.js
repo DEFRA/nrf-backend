@@ -1,9 +1,11 @@
 import Hapi from '@hapi/hapi'
+import Inert from '@hapi/inert'
 
 import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { router } from './plugins/router.js'
+import { swagger } from './plugins/swagger.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
@@ -44,12 +46,16 @@ async function createServer() {
   // requestTracing - trace header logging and propagation
   // secureContext  - loads CA certificates from environment config
   // pulse          - provides shutdown handlers
+  // Inert          - static file serving (used by swagger UI)
+  // swagger        - OpenAPI spec and Swagger UI
   // router         - routes used in the app
   await server.register([
     requestLogger,
     requestTracing,
     secureContext,
     pulse,
+    Inert,
+    swagger,
     router,
     { plugin: postgres.plugin, options: config.get('postgres') }
   ])
