@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     clearMocks: true,
+    exclude: [...configDefaults.exclude, 'int-tests'],
     env: {
       DB_PORT: '5433'
     },
