@@ -14,7 +14,8 @@ Core delivery platform Node.js Backend Template.
     - [Update dependencies](#update-dependencies)
     - [Formatting](#formatting)
       - [Windows prettier issue](#windows-prettier-issue)
-  - [API endpoints](#api-endpoints)
+    - [API documentation](#api-documentation)
+    - [Keeping Swagger docs in sync](#keeping-swagger-docs-in-sync)
   - [Development helpers](#development-helpers)
     - [Proxy](#proxy)
   - [Docker](#docker)
@@ -104,16 +105,6 @@ If you are having issues with formatting of line breaks on Windows update your g
 git config --global core.autocrlf false
 ```
 
-## API endpoints
-
-| Endpoint                         | Description                |
-| :------------------------------- | :------------------------- |
-| `GET: /health`                   | Health check               |
-| `POST: /upload/initiate`         | Initiate a file upload     |
-| `GET: /upload/{uploadId}/status` | Check upload status        |
-| `POST: /quote`                   | Submit a new quote request |
-| `GET: /quote/{reference}`        | Get a quote by reference   |
-
 ### API documentation
 
 Swagger UI is available at `/docs` when the server is running.
@@ -121,9 +112,11 @@ The OpenAPI spec is generated from `@openapi` JSDoc annotations in the route and
 
 ### Keeping Swagger docs in sync
 
-A Claude Code skill is provided to audit and fix the `@openapi` annotations so they match the actual endpoint implementations. Run it from the project root with:
+An AI (Claude Code) skill is provided to audit and fix the `@openapi` annotations so they match the actual endpoint implementations.
 
-```
+Run it from the project root with:
+
+```shell
 /sync-swagger
 ```
 
