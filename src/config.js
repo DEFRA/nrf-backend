@@ -118,6 +118,35 @@ const config = convict({
       }
     }
   },
+  s3: {
+    endpoint: {
+      doc: 'S3 endpoint URL (e.g. LocalStack URL for dev)',
+      format: String,
+      nullable: true,
+      default: null,
+      env: 'S3_ENDPOINT'
+    },
+    forcePathStyle: {
+      doc: 'Force path-style S3 URLs (required for LocalStack)',
+      format: Boolean,
+      default: false,
+      env: 'S3_FORCE_PATH_STYLE'
+    },
+    region: {
+      doc: 'AWS region for S3',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
+    }
+  },
+  impactAssessor: {
+    url: {
+      doc: 'URL of the nrf-impact-assessor service',
+      format: String,
+      default: 'http://localhost:8085',
+      env: 'NRF_IMPACT_ASSESSOR_URL'
+    }
+  },
   cdpUploader: {
     url: {
       doc: 'Endpoint for the CDP Uploader service. Auto-derived from ENVIRONMENT if not set.',

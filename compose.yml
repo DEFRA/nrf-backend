@@ -100,8 +100,11 @@ services:
       PORT: 3001
       NODE_ENV: development
       LOCALSTACK_ENDPOINT: http://localstack:4566
+      S3_ENDPOINT: http://localstack:4566
+      S3_FORCE_PATH_STYLE: true
       DB_HOST: postgres
       CDP_UPLOADER_URL: http://cdp-uploader:7337
+      NRF_IMPACT_ASSESSOR_URL: http://nrf-impact-assessor:8085
     networks:
       - cdp-tenant
     volumes:

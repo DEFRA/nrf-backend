@@ -11,16 +11,20 @@ function isServiceRunning(service) {
   }
 }
 
-function isSchemaReady() {
+function runLiquibase() {
   try {
-    execSync(
-      `${COMPOSE} exec -T postgres psql -U postgres -d nrf_backend -c "SELECT 1 FROM quotes LIMIT 1"`,
-      { stdio: 'pipe' }
-    )
+    execSync(`${COMPOSE} up liquibase`, { stdio: 'inherit' })
     return true
   } catch {
     return false
   }
+}
+
+function resetDatabase() {
+  execSync(
+    `${COMPOSE} exec -T postgres psql -U postgres -d nrf_backend -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"`,
+    { stdio: 'inherit' }
+  )
 }
 
 export default async function setup() {
@@ -28,8 +32,9 @@ export default async function setup() {
     execSync(`${COMPOSE} up -d postgres --wait`, { stdio: 'inherit' })
   }
 
-  if (!isSchemaReady()) {
-    execSync(`${COMPOSE} up liquibase`, { stdio: 'inherit' })
+  if (!runLiquibase()) {
+    resetDatabase()
+    runLiquibase()
   }
 
   if (!isServiceRunning('cdp-uploader')) {
