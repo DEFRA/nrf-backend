@@ -12,8 +12,8 @@ describe('Upload routes', () => {
   describe('POST /upload/initiate', () => {
     it('should return the upload result', async () => {
       vi.mocked(initiateUploadService).mockResolvedValue({
-        uploadId: 'abc-123',
-        uploadUrl: '/upload/abc-123'
+        uploadId: 'f6b667d8-998f-4f55-8a20-204c0c289147',
+        uploadUrl: '/upload/f6b667d8-998f-4f55-8a20-204c0c289147'
       })
 
       const response = await getServer().inject({
@@ -29,8 +29,10 @@ describe('Upload routes', () => {
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.payload)
-      expect(body.uploadId).toBe('abc-123')
-      expect(body.uploadUrl).toBe('/upload/abc-123')
+      expect(body.uploadId).toBe('f6b667d8-998f-4f55-8a20-204c0c289147')
+      expect(body.uploadUrl).toBe(
+        '/upload/f6b667d8-998f-4f55-8a20-204c0c289147'
+      )
       expect(initiateUploadService).toHaveBeenCalledWith({
         redirect: 'http://localhost:3000/done',
         s3Bucket: 'boundaries',
@@ -48,13 +50,15 @@ describe('Upload routes', () => {
 
       const response = await getServer().inject({
         method: 'GET',
-        url: '/upload/abc-123/status'
+        url: '/upload/f6b667d8-998f-4f55-8a20-204c0c289147/status'
       })
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.payload)
       expect(body.uploadStatus).toBe('ready')
-      expect(getUploadStatus).toHaveBeenCalledWith('abc-123')
+      expect(getUploadStatus).toHaveBeenCalledWith(
+        'f6b667d8-998f-4f55-8a20-204c0c289147'
+      )
     })
   })
 })

@@ -3,6 +3,44 @@ import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/queries.js'
 
+/**
+ * @openapi
+ * /quote:
+ *   post:
+ *     tags:
+ *       - Quote
+ *     summary: Create a quote and send confirmation email
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - emailAddress
+ *             properties:
+ *               emailAddress:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       201:
+ *         description: Quote created
+ *         headers:
+ *           Location:
+ *             schema:
+ *               type: string
+ *             description: URL of the created quote
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 reference:
+ *                   type: string
+ *                   example: NRF-000001
+ *       400:
+ *         description: Validation error
+ */
 export const postController = {
   options: {
     payload: {
