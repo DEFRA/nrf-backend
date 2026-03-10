@@ -7,7 +7,9 @@ export default defineConfig({
     clearMocks: true,
     env: {
       DB_PORT: '5433',
-      CDP_UPLOADER_URL: 'http://localhost:7338'
+      CDP_UPLOADER_URL: 'http://localhost:7338',
+      S3_ENDPOINT: 'http://localhost:4567',
+      S3_FORCE_PATH_STYLE: 'true'
     },
     coverage: {
       provider: 'v8',

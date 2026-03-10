@@ -10,31 +10,24 @@ const uploadId = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 describe('POST /quote/check-boundary/{id}', () => {
   const getServer = setupTestServer()
 
-  it('should return 202 with the job info', async () => {
+  it('should return 200 with the boundary check result', async () => {
     vi.mocked(downloadBoundaryFile).mockResolvedValue({
       buffer: Buffer.from('test content'),
       filename: 'boundary.geojson',
       contentType: 'application/geo+json'
     })
 
-    vi.mocked(submitBoundaryCheck).mockResolvedValue({
-      job_id: 'job-123',
-      status: 'pending',
-      poll_url: '/assess/job-123'
-    })
+    const assessorResult = { valid: true, area_hectares: 12.5 }
+    vi.mocked(submitBoundaryCheck).mockResolvedValue(assessorResult)
 
     const response = await getServer().inject({
       method: 'POST',
       url: `/quote/check-boundary/${uploadId}`
     })
 
-    expect(response.statusCode).toBe(202)
+    expect(response.statusCode).toBe(200)
     const body = JSON.parse(response.payload)
-    expect(body).toEqual({
-      jobId: 'job-123',
-      status: 'pending',
-      pollUrl: '/assess/job-123'
-    })
+    expect(body).toEqual(assessorResult)
 
     expect(downloadBoundaryFile).toHaveBeenCalledWith(uploadId)
     expect(submitBoundaryCheck).toHaveBeenCalledWith(

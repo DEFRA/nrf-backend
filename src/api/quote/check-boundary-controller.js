@@ -18,19 +18,12 @@ import { submitBoundaryCheck } from '../../services/impact-assessor/impact-asses
  *           type: string
  *           format: uuid
  *     responses:
- *       202:
- *         description: Boundary check submitted
+ *       200:
+ *         description: Boundary check result
  *         content:
  *           application/json:
  *             schema:
  *               type: object
- *               properties:
- *                 jobId:
- *                   type: string
- *                 status:
- *                   type: string
- *                 pollUrl:
- *                   type: string
  *       400:
  *         description: Validation error
  *       422:
@@ -64,12 +57,6 @@ export const checkBoundaryController = {
 
     const result = await submitBoundaryCheck(file.buffer, file.filename)
 
-    return h
-      .response({
-        jobId: result.job_id,
-        status: result.status,
-        pollUrl: result.poll_url
-      })
-      .code(202)
+    return h.response(result).code(200)
   }
 }
