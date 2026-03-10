@@ -105,11 +105,17 @@ services:
       DB_HOST: postgres
       CDP_UPLOADER_URL: http://cdp-uploader:7337
       NRF_IMPACT_ASSESSOR_URL: http://nrf-impact-assessor:8085
+      USE_SWAGGER: true
     networks:
       - cdp-tenant
     volumes:
       - ./src:/home/node/src
       - ./package.json:/home/node/package.json
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://0.0.0.0:3001/health']
+      interval: 5s
+      start_period: 10s
+      retries: 3
 
   redis:
     image: redis:7.2.3-alpine3.18
@@ -128,7 +134,10 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
-      - cdp-uploader
+      cdp-uploader:
+        condition: service_started
+      nrf-backend:
+        condition: service_healthy
     networks:
       - cdp-tenant
 
