@@ -13,6 +13,9 @@
       <column name="id" type="INT" autoIncrement="true">
         <constraints primaryKey="true" nullable="false"/>
       </column>
+      <column name="email_address" type="VARCHAR(320)">
+        <constraints nullable="false"/>
+      </column>
     </createTable>
     <sql>
       ALTER TABLE quotes ADD COLUMN reference VARCHAR(10) GENERATED ALWAYS AS (

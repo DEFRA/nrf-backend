@@ -58,10 +58,11 @@ export const postController = {
     }
   },
   handler: async (request, h) => {
-    const quote = await dbCreateQuote({ db: request.pg })
+    const { emailAddress } = request.payload
+    const quote = await dbCreateQuote({ db: request.pg, emailAddress })
     const emailSendResult = await sendQuoteEmail({
       nrfQuoteReference: quote.reference,
-      recipientEmailAddress: request.payload.emailAddress
+      recipientEmailAddress: emailAddress
     })
 
     request.logger.info(
