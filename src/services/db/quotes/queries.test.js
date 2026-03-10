@@ -5,10 +5,14 @@ describe('dbCreateQuote', () => {
     const mockRow = { id: 1, reference: 'NRF-000001' }
     const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
 
-    const result = await dbCreateQuote({ db })
+    const result = await dbCreateQuote({
+      db,
+      emailAddress: 'developer@housebuilder.com'
+    })
 
     expect(db.query).toHaveBeenCalledWith(
-      'INSERT INTO quotes DEFAULT VALUES RETURNING id, reference'
+      'INSERT INTO quotes (email_address) VALUES ($1) RETURNING id, reference',
+      ['developer@housebuilder.com']
     )
     expect(result).toEqual(mockRow)
   })

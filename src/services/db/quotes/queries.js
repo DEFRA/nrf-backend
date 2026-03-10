@@ -1,6 +1,7 @@
-export const dbCreateQuote = async ({ db }) => {
+export const dbCreateQuote = async ({ db, emailAddress }) => {
   const { rows } = await db.query(
-    'INSERT INTO quotes DEFAULT VALUES RETURNING id, reference'
+    'INSERT INTO quotes (email_address) VALUES ($1) RETURNING id, reference',
+    [emailAddress]
   )
   return rows[0]
 }
