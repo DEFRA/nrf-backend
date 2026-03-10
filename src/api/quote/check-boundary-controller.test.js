@@ -43,7 +43,7 @@ describe('POST /quote/check-boundary/{id}', () => {
     )
   })
 
-  it('should return 404 when no boundary file is found', async () => {
+  it('should return 422 when no boundary file is found', async () => {
     vi.mocked(downloadBoundaryFile).mockRejectedValue(
       new Error('No boundary file found')
     )
@@ -53,7 +53,7 @@ describe('POST /quote/check-boundary/{id}', () => {
       url: `/quote/check-boundary/${uploadId}`
     })
 
-    expect(response.statusCode).toBe(404)
+    expect(response.statusCode).toBe(422)
   })
 
   it('should return 400 for an invalid UUID', async () => {

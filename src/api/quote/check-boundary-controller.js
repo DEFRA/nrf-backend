@@ -33,7 +33,7 @@ import { submitBoundaryCheck } from '../../services/impact-assessor/impact-asses
  *                   type: string
  *       400:
  *         description: Validation error
- *       404:
+ *       422:
  *         description: Boundary file not found
  */
 export const checkBoundaryController = {
@@ -55,7 +55,7 @@ export const checkBoundaryController = {
       request.logger.error(
         `Failed to download boundary file for ${id}: ${error.message}`
       )
-      return Boom.notFound(`No boundary file found for upload ${id}`)
+      return Boom.badData(`No boundary file found for upload ${id}`)
     }
 
     request.logger.info(
