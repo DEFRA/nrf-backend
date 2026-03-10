@@ -46,19 +46,20 @@ async function createServer() {
   // requestTracing - trace header logging and propagation
   // secureContext  - loads CA certificates from environment config
   // pulse          - provides shutdown handlers
-  // Inert          - static file serving (used by swagger UI)
-  // swagger        - OpenAPI spec and Swagger UI
   // router         - routes used in the app
   await server.register([
     requestLogger,
     requestTracing,
     secureContext,
     pulse,
-    Inert,
-    swagger,
     router,
     { plugin: postgres.plugin, options: config.get('postgres') }
   ])
+
+  // Register Swagger documentation (after router so inert is available)
+  if (config.get('useSwagger')) {
+    await server.register([Inert, swagger])
+  }
 
   return server
 }
