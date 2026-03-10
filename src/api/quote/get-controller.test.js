@@ -1,8 +1,15 @@
 import { routePath } from '../../routes/quote.js'
-import { dbGetQuote } from '../../services/db/quotes/queries.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
-vi.mock('../../services/db/quotes/queries.js')
+vi.mock('../../services/send-email/notify-client.js')
+
+const sendPostRequest = ({ server, payload }) => {
+  return server.inject({
+    method: 'POST',
+    url: routePath,
+    payload
+  })
+}
 
 const sendGetRequest = ({ server, reference }) => {
   return server.inject({
@@ -15,8 +22,11 @@ describe('Get quote endpoint', () => {
   const getServer = setupTestServer()
 
   it('should return 200 with the quote reference', async () => {
-    const reference = 'NRF-000001'
-    vi.mocked(dbGetQuote).mockResolvedValue({ id: 1, reference })
+    const postResponse = await sendPostRequest({
+      server: getServer(),
+      payload: { emailAddress: 'developer@housebuilder.com' }
+    })
+    const { reference } = JSON.parse(postResponse.payload)
 
     const response = await sendGetRequest({ server: getServer(), reference })
 
@@ -25,8 +35,6 @@ describe('Get quote endpoint', () => {
   })
 
   it('should return 404 when the quote reference does not exist', async () => {
-    vi.mocked(dbGetQuote).mockResolvedValue(null)
-
     const response = await sendGetRequest({
       server: getServer(),
       reference: 'NRF-999999'
