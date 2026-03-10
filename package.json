@@ -9,8 +9,8 @@
     "npm": ">=11"
   },
   "scripts": {
-    "dev": "NODE_ENV=development npm run server:watch",
-    "dev:debug": "NODE_ENV=development npm run server:debug",
+    "dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
+    "dev:debug": "NODE_ENV=development USE_SWAGGER=true npm run server:debug",
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
