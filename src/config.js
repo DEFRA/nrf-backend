@@ -22,6 +22,12 @@ const config = convict({
     default: null,
     env: 'SERVICE_VERSION'
   },
+  useSwagger: {
+    doc: 'Enable Swagger API documentation at /docs',
+    format: Boolean,
+    default: false,
+    env: 'USE_SWAGGER'
+  },
   host: {
     doc: 'The IP address to bind',
     format: 'ipaddress',

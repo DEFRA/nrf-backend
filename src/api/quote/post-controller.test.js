@@ -1,8 +1,10 @@
 import { routePath } from '../../routes/quote.js'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { dbCreateQuote } from '../../services/db/quotes/queries.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
+vi.mock('../../services/db/quotes/queries.js')
 
 const sendPostRequest = ({ server, payload }) => {
   return server.inject({
@@ -20,6 +22,10 @@ describe('Submit quote endpoint', () => {
     notifySendEmail = vi.fn()
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
+    })
+    vi.mocked(dbCreateQuote).mockResolvedValue({
+      id: 1,
+      reference: 'NRF-000001'
     })
   })
 
