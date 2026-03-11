@@ -139,6 +139,35 @@ const config = convict({
       env: 'CDP_UPLOADER_BUCKET'
     }
   },
+  impactAssessor: {
+    url: {
+      doc: 'Endpoint for the nrf-impact-assessor service',
+      format: String,
+      default: 'http://localhost:8085',
+      env: 'IMPACT_ASSESSOR_URL'
+    }
+  },
+  s3: {
+    endpoint: {
+      doc: 'S3 endpoint URL (for localstack in development)',
+      format: String,
+      nullable: true,
+      default: isDevelopment ? 'http://localhost:4566' : null,
+      env: 'S3_ENDPOINT'
+    },
+    forcePathStyle: {
+      doc: 'Use path-style addressing for S3 (required for localstack)',
+      format: Boolean,
+      default: isDevelopment,
+      env: 'S3_FORCE_PATH_STYLE'
+    },
+    region: {
+      doc: 'AWS region for S3',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
+    }
+  },
   postgres: {
     host: {
       doc: 'host for postgres',
