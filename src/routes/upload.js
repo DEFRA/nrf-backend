@@ -47,7 +47,7 @@ const initiateUpload = {
   options: {
     validate: {
       payload: joi.object({
-        redirect: joi.string().uri().required(),
+        redirect: joi.string().uri({ relativeOnly: true }).required(),
         s3Bucket: joi.string().required(),
         s3Path: joi.string().optional(),
         metadata: joi.object().optional()

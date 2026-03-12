@@ -10,7 +10,7 @@ describe('Upload routes (integration)', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: 'http://localhost:3000/upload-complete',
+          redirect: '/quote/upload-received',
           s3Bucket: 'boundaries',
           s3Path: 'test-uploads',
           metadata: { source: 'integration-test' }
@@ -30,7 +30,7 @@ describe('Upload routes (integration)', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: 'http://localhost:3000/upload-complete',
+          redirect: '/quote/upload-received',
           s3Bucket: 'boundaries',
           s3Path: 'test-uploads'
         }
