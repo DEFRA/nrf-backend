@@ -37,7 +37,8 @@ async function uploadFileAndWaitUntilReady(server, fileBuffer, filename) {
 
   await undiciFetch(`${CDP_UPLOADER_URL}${uploadUrl}`, {
     method: 'POST',
-    body: form
+    body: form,
+    redirect: 'manual'
   })
 
   // Poll until status is 'ready'
