@@ -1,20 +1,46 @@
 import { dbCreateQuote, dbGetQuote } from './queries.js'
 
 describe('dbCreateQuote', () => {
-  it('should insert a new quote and return it', async () => {
-    const mockRow = { id: 1, reference: 'NRF-000001' }
+  const mockRow = { id: 1, reference: 'NRF-000001' }
+
+  it('should insert a new quote with all fields and return it', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
 
     const result = await dbCreateQuote({
       db,
-      emailAddress: 'developer@housebuilder.com'
+      quoteData: {
+        email: 'developer@housebuilder.com',
+        boundaryEntryType: 'draw',
+        developmentTypes: ['housing'],
+        residentialBuildingCount: 10,
+        peopleCount: undefined
+      }
     })
 
     expect(db.query).toHaveBeenCalledWith(
-      'INSERT INTO quotes (email_address) VALUES ($1) RETURNING id, reference',
-      ['developer@housebuilder.com']
+      expect.stringContaining('INSERT INTO quotes'),
+      ['developer@housebuilder.com', 'draw', ['housing'], 10, null]
     )
     expect(result).toEqual(mockRow)
+  })
+
+  it('should pass null for optional fields when not provided', async () => {
+    const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
+
+    await dbCreateQuote({
+      db,
+      quoteData: {
+        email: 'developer@housebuilder.com',
+        boundaryEntryType: 'upload',
+        developmentTypes: ['other-residential'],
+        peopleCount: 5
+      }
+    })
+
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO quotes'),
+      ['developer@housebuilder.com', 'upload', ['other-residential'], null, 5]
+    )
   })
 })
 

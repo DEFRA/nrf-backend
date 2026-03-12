@@ -13,6 +13,14 @@ const sendPostRequest = ({ server, payload }) => {
   })
 }
 
+const validPayload = {
+  boundaryEntryType: 'draw',
+  developmentTypes: ['housing', 'other-residential'],
+  residentialBuildingCount: 10,
+  peopleCount: 5,
+  email: 'developer@housebuilder.com'
+}
+
 describe('Submit quote endpoint', () => {
   const getServer = setupTestServer()
   let notifySendEmail
@@ -27,34 +35,68 @@ describe('Submit quote endpoint', () => {
   it('should return 201 with the quote reference and a location header', async () => {
     const response = await sendPostRequest({
       server: getServer(),
-      payload: {
-        emailAddress: 'developer@housebuilder.com'
-      }
+      payload: validPayload
     })
     expect(response.statusCode).toBe(statusCodes.created)
     const { reference } = JSON.parse(response.payload)
     expect(reference).toMatch(/NRF-\d{6}/)
-    expect(response.headers.location).toBe(`/quote/${reference}`)
+    expect(response.headers.location).toBe(`/quotes/${reference}`)
   })
 
   it('should send a quote email', async () => {
     await sendPostRequest({
       server: getServer(),
-      payload: {
-        emailAddress: 'developer@housebuilder.com'
-      },
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      payload: validPayload
     })
     expect(notifySendEmail).toHaveBeenCalled()
   })
 
-  it('should return 400 if emailAddress is missing', async () => {
-    const response = await sendPostRequest({
-      server: getServer(),
-      payload: {}
+  describe('Request payload validation', () => {
+    it('should return 400 if email is missing', async () => {
+      const { email: _, ...rest } = validPayload
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: rest
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
     })
-    expect(response.statusCode).toBe(statusCodes.badRequest)
+
+    it('should return 400 if boundaryEntryType is missing', async () => {
+      const { boundaryEntryType: _, ...rest } = validPayload
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: rest
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
+
+    it('should return 400 if developmentTypes is missing', async () => {
+      const { developmentTypes: _, ...rest } = validPayload
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: rest
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
+
+    it('should return 400 if residentialBuildingCount is missing when developmentTypes includes housing', async () => {
+      const { residentialBuildingCount: _, ...rest } = validPayload
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: rest
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
+
+    it('should return 400 if residentialBuildingCount is sent without housing in developmentTypes', async () => {
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: {
+          ...validPayload,
+          developmentTypes: ['other-residential']
+        }
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
   })
 })

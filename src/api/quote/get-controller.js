@@ -4,7 +4,7 @@ import { dbGetQuote } from '../../services/db/quotes/queries.js'
 
 /**
  * @openapi
- * /quote/{reference}:
+ * /quotes/{reference}:
  *   get:
  *     tags:
  *       - Quote

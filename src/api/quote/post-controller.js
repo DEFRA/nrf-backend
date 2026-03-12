@@ -1,11 +1,11 @@
-import joi from 'joi'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/queries.js'
+import { quoteSchema } from './validation/validation-schema.js'
 
 /**
  * @openapi
- * /quote:
+ * /quotes:
  *   post:
  *     tags:
  *       - Quote
@@ -17,9 +17,28 @@ import { dbCreateQuote } from '../../services/db/quotes/queries.js'
  *           schema:
  *             type: object
  *             required:
- *               - emailAddress
+ *               - boundaryEntryType
+ *               - developmentTypes
+ *               - email
  *             properties:
- *               emailAddress:
+ *               boundaryEntryType:
+ *                 type: string
+ *                 enum: [draw, upload]
+ *               developmentTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [housing, other-residential]
+ *               residentialBuildingCount:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 999999
+ *                 description: Required when developmentTypes includes housing
+ *               peopleCount:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Required when developmentTypes includes other-residential
+ *               email:
  *                 type: string
  *                 format: email
  *     responses:
@@ -48,21 +67,17 @@ export const postController = {
     },
     validate: {
       query: false,
-      payload: joi.object({
-        emailAddress: joi.string().email().required().messages({
-          'string.empty': 'EMAIL_ADDRESS_REQUIRED',
-          'string.email': 'EMAIL_ADDRESS_INVALID',
-          'any.required': 'EMAIL_ADDRESS_REQUIRED'
-        })
-      })
+      payload: quoteSchema
     }
   },
   handler: async (request, h) => {
-    const { emailAddress } = request.payload
-    const quote = await dbCreateQuote({ db: request.pg, emailAddress })
+    const quote = await dbCreateQuote({
+      db: request.pg,
+      quoteData: request.payload
+    })
     const emailSendResult = await sendQuoteEmail({
       nrfQuoteReference: quote.reference,
-      recipientEmailAddress: emailAddress
+      recipientEmailAddress: request.payload.email
     })
 
     request.logger.info(
@@ -70,7 +85,7 @@ export const postController = {
     )
     return h
       .response({ reference: quote.reference })
-      .header('Location', `/quote/${quote.reference}`)
+      .header('Location', `/quotes/${quote.reference}`)
       .code(statusCodes.created)
   }
 }
