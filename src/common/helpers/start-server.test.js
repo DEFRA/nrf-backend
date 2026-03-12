@@ -1,4 +1,5 @@
 import hapi from '@hapi/hapi'
+import { statusCodes } from '../constants/status-codes.js'
 
 describe('#startServer', () => {
   let createServerSpy
@@ -34,7 +35,9 @@ describe('#startServer', () => {
     })
 
     test('Should handle CDP Uploader health check failure', async () => {
-      global.fetchMock.mockResponseOnce('', { status: 503 })
+      global.fetchMock.mockResponseOnce('', {
+        status: statusCodes.serviceUnavailable
+      })
 
       server = await startServerImport.startServer()
 

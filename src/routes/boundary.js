@@ -4,6 +4,7 @@ import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { checkBoundary } from '../services/impact-assessor/impact-assessor.js'
 import { config } from '../config.js'
+import { statusCodes } from '../common/constants/status-codes.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 
 const logger = createLogger()
@@ -57,7 +58,9 @@ const checkBoundaryRoute = {
     const uploadDetails = await getUploadDetails(uploadId)
 
     if (uploadDetails.error) {
-      return h.response({ error: uploadDetails.error }).code(404)
+      return h
+        .response({ error: uploadDetails.error })
+        .code(statusCodes.notFound)
     }
 
     if (uploadDetails.uploadStatus !== 'ready') {
@@ -65,7 +68,7 @@ const checkBoundaryRoute = {
         .response({
           error: `Upload is not ready (status: ${uploadDetails.uploadStatus})`
         })
-        .code(400)
+        .code(statusCodes.badRequest)
     }
 
     // 2. Extract file info from upload details
@@ -75,7 +78,9 @@ const checkBoundaryRoute = {
       logger.error(
         `No file info in upload details - uploadId: ${uploadId}, form: ${JSON.stringify(form)}`
       )
-      return h.response({ error: 'No file found for this upload' }).code(404)
+      return h
+        .response({ error: 'No file found for this upload' })
+        .code(statusCodes.notFound)
     }
 
     const bucket = fileInfo.s3Bucket ?? config.get('cdpUploader.bucket')
@@ -88,7 +93,9 @@ const checkBoundaryRoute = {
       logger.error(
         `Failed to download file from S3 - bucket: ${bucket}, key: ${fileInfo.s3Key}, message: ${error?.message}`
       )
-      return h.response({ error: 'Failed to retrieve uploaded file' }).code(502)
+      return h
+        .response({ error: 'Failed to retrieve uploaded file' })
+        .code(statusCodes.badGateway)
     }
 
     // 4. Send to impact assessor for boundary check
@@ -97,7 +104,7 @@ const checkBoundaryRoute = {
     const result = await checkBoundary(fileData.body, filename, contentType)
 
     if (result.error) {
-      const statusCode = result.statusCode ?? 502
+      const statusCode = result.statusCode ?? statusCodes.badGateway
       return h.response({ error: result.error }).code(statusCode)
     }
 

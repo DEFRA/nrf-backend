@@ -1,3 +1,4 @@
+import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 
 describe('Upload routes (integration)', () => {
@@ -16,7 +17,7 @@ describe('Upload routes (integration)', () => {
         }
       })
 
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
       expect(body.uploadId).toBeDefined()
       expect(body.uploadUrl).toBeDefined()
@@ -35,7 +36,7 @@ describe('Upload routes (integration)', () => {
         }
       })
 
-      expect(initiateRes.statusCode).toBe(200)
+      expect(initiateRes.statusCode).toBe(statusCodes.ok)
       const { uploadId } = JSON.parse(initiateRes.payload)
 
       const statusRes = await getServer().inject({
@@ -43,7 +44,7 @@ describe('Upload routes (integration)', () => {
         url: `/upload/${uploadId}/status`
       })
 
-      expect(statusRes.statusCode).toBe(200)
+      expect(statusRes.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(statusRes.payload)
       expect(['initiated', 'pending', 'ready']).toContain(body.uploadStatus)
     })

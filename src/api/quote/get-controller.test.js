@@ -1,4 +1,5 @@
 import { routePath } from '../../routes/quote.js'
+import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -30,7 +31,7 @@ describe('Get quote endpoint', () => {
 
     const response = await sendGetRequest({ server: getServer(), reference })
 
-    expect(response.statusCode).toBe(200)
+    expect(response.statusCode).toBe(statusCodes.ok)
     expect(JSON.parse(response.payload)).toEqual({ reference })
   })
 
@@ -40,7 +41,7 @@ describe('Get quote endpoint', () => {
       reference: 'NRF-999999'
     })
 
-    expect(response.statusCode).toBe(404)
+    expect(response.statusCode).toBe(statusCodes.notFound)
   })
 
   it('should return 400 when the reference format is invalid', async () => {
@@ -49,6 +50,6 @@ describe('Get quote endpoint', () => {
       reference: 'INVALID'
     })
 
-    expect(response.statusCode).toBe(400)
+    expect(response.statusCode).toBe(statusCodes.badRequest)
   })
 })

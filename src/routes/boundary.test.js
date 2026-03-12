@@ -1,6 +1,7 @@
 import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { checkBoundary } from '../services/impact-assessor/impact-assessor.js'
+import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js')
@@ -43,7 +44,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
       expect(body.type).toBe('FeatureCollection')
       expect(getUploadDetails).toHaveBeenCalledWith(uploadId)
@@ -69,7 +70,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(404)
+      expect(response.statusCode).toBe(statusCodes.notFound)
     })
 
     it('should return 400 when upload is not ready', async () => {
@@ -82,7 +83,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(400)
+      expect(response.statusCode).toBe(statusCodes.badRequest)
     })
 
     it('should return 404 when no file info in upload details', async () => {
@@ -96,7 +97,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(404)
+      expect(response.statusCode).toBe(statusCodes.notFound)
     })
 
     it('should return 502 when S3 download fails', async () => {
@@ -118,7 +119,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(502)
+      expect(response.statusCode).toBe(statusCodes.badGateway)
     })
 
     it('should return error from impact assessor', async () => {
@@ -141,7 +142,7 @@ describe('Boundary routes', () => {
 
       vi.mocked(checkBoundary).mockResolvedValue({
         error: 'Unsupported file format',
-        statusCode: 400
+        statusCode: statusCodes.badRequest
       })
 
       const response = await getServer().inject({
@@ -149,7 +150,7 @@ describe('Boundary routes', () => {
         url: `/boundary/check/${uploadId}`
       })
 
-      expect(response.statusCode).toBe(400)
+      expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Unsupported file format')
     })

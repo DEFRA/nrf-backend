@@ -1,4 +1,5 @@
 import { checkBoundary } from './impact-assessor.js'
+import { statusCodes } from '../../common/constants/status-codes.js'
 
 describe('impact-assessor service', () => {
   const originalFetch = globalThis.fetch
@@ -37,7 +38,7 @@ describe('impact-assessor service', () => {
     it('should return error on non-ok response', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
-        status: 400,
+        status: statusCodes.badRequest,
         json: () => Promise.resolve({ detail: 'Unsupported file format: .txt' })
       })
 
@@ -49,7 +50,7 @@ describe('impact-assessor service', () => {
 
       expect(result).toEqual({
         error: 'Unsupported file format: .txt',
-        statusCode: 400
+        statusCode: statusCodes.badRequest
       })
     })
 

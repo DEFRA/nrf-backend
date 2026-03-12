@@ -1,5 +1,6 @@
 import { routePath } from '../../routes/quote.js'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -30,7 +31,7 @@ describe('Submit quote endpoint', () => {
         emailAddress: 'developer@housebuilder.com'
       }
     })
-    expect(response.statusCode).toBe(201)
+    expect(response.statusCode).toBe(statusCodes.created)
     const { reference } = JSON.parse(response.payload)
     expect(reference).toMatch(/NRF-\d{6}/)
     expect(response.headers.location).toBe(`/quote/${reference}`)
@@ -54,6 +55,6 @@ describe('Submit quote endpoint', () => {
       server: getServer(),
       payload: {}
     })
-    expect(response.statusCode).toBe(400)
+    expect(response.statusCode).toBe(statusCodes.badRequest)
   })
 })
