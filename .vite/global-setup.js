@@ -37,6 +37,10 @@ export default async function setup() {
     runLiquibase()
   }
 
+  if (!isServiceRunning('localstack')) {
+    execSync(`${COMPOSE} up -d localstack --wait`, { stdio: 'inherit' })
+  }
+
   if (!isServiceRunning('cdp-uploader')) {
     execSync(`${COMPOSE} up -d cdp-uploader --wait`, { stdio: 'inherit' })
   }
