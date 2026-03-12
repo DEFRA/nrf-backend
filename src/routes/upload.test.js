@@ -21,7 +21,7 @@ describe('Upload routes', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: 'http://localhost:3000/done',
+          redirect: '/quote/upload-received',
           s3Bucket: 'boundaries',
           s3Path: 'test-uploads',
           metadata: { source: 'test' }
@@ -35,7 +35,7 @@ describe('Upload routes', () => {
         '/upload/f6b667d8-998f-4f55-8a20-204c0c289147'
       )
       expect(initiateUploadService).toHaveBeenCalledWith({
-        redirect: 'http://localhost:3000/done',
+        redirect: '/quote/upload-received',
         s3Bucket: 'boundaries',
         s3Path: 'test-uploads',
         metadata: { source: 'test' }
