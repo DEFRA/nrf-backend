@@ -2,6 +2,8 @@ import { fetch as undiciFetch, FormData } from 'undici'
 
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
+import * as cdpUploaderService from '../services/cdp-uploader/cdp-uploader.js'
+import * as s3Client from '../services/s3/s3-client.js'
 
 vi.mock('../services/impact-assessor/impact-assessor.js')
 
@@ -159,5 +161,143 @@ describe('Boundary routes', () => {
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Unsupported file format')
     }, 30_000)
+
+    it('should default to 502 when impact assessor returns error without status code', async () => {
+      vi.mocked(checkBoundary).mockResolvedValue({
+        error: 'Service unavailable'
+      })
+
+      const uploadId = await uploadFileAndWaitUntilReady(
+        getServer(),
+        Buffer.from('test content'),
+        'test.geojson'
+      )
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: `/boundary/check/${uploadId}`
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badGateway)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('Service unavailable')
+    }, 30_000)
+
+    it('should return 404 when no file info in upload details', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {}
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.notFound)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('No file found for this upload')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return 502 when S3 download fails', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/test.geojson',
+            s3Bucket: 'boundaries',
+            filename: 'test.geojson',
+            contentType: 'application/geo+json'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockRejectedValue(
+        new Error('S3 error')
+      )
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badGateway)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('Failed to retrieve uploaded file')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should fall back to config bucket when s3Bucket is not in upload details', async () => {
+      const mockGeojson = { type: 'FeatureCollection', features: [] }
+      vi.mocked(checkBoundary).mockResolvedValue({ geojson: mockGeojson })
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/test.geojson',
+            filename: 'test.geojson',
+            contentType: 'application/geo+json'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('{}'),
+        contentType: 'application/geo+json',
+        filename: 'test.geojson'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(s3Client.downloadFromS3).toHaveBeenCalledWith(
+        'boundaries',
+        'uploads/test.geojson'
+      )
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should fall back to S3 metadata for filename and contentType', async () => {
+      const mockGeojson = { type: 'FeatureCollection', features: [] }
+      vi.mocked(checkBoundary).mockResolvedValue({ geojson: mockGeojson })
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/test.geojson',
+            s3Bucket: 'boundaries'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('{}'),
+        contentType: 'application/geo+json',
+        filename: 'test.geojson'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(checkBoundary).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'test.geojson',
+        'application/geo+json'
+      )
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
   })
 })
