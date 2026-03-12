@@ -105,3 +105,32 @@ export async function getUploadStatus(uploadId) {
     }
   }
 }
+
+/**
+ * Get the full upload details from CDP Uploader, including file info.
+ * @param {string} uploadId - The upload ID
+ * @returns {Promise<{uploadStatus: string, form?: object, error?: string}>}
+ */
+export async function getUploadDetails(uploadId) {
+  const baseUrl = getCdpUploaderUrl()
+  const url = `${baseUrl}/status/${uploadId}`
+
+  logger.info(`Fetching upload details - url: ${url}, uploadId: ${uploadId}`)
+
+  try {
+    const { payload } = await Wreck.get(url, { json: true })
+
+    return payload
+  } catch (error) {
+    const statusCode = error?.output?.statusCode
+    const responsePayload = error?.data?.payload
+    logger.error(
+      `Error fetching upload details - url: ${url}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
+    )
+    return {
+      uploadStatus: 'error',
+      error: 'Unable to fetch upload details',
+      statusCode
+    }
+  }
+}

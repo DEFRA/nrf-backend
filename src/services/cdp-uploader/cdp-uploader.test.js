@@ -9,7 +9,7 @@ vi.mock('@hapi/wreck', () => ({
   }
 }))
 
-const { getCdpUploaderUrl, initiateUpload, getUploadStatus } =
+const { getCdpUploaderUrl, initiateUpload, getUploadStatus, getUploadDetails } =
   await import('./cdp-uploader.js')
 
 describe('getCdpUploaderUrl', () => {
@@ -150,6 +150,63 @@ describe('getUploadStatus', () => {
     expect(result).toEqual({
       uploadStatus: 'error',
       error: 'Unable to check upload status'
+    })
+  })
+})
+
+describe('getUploadDetails', () => {
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  it('should return the full payload from the uploader', async () => {
+    const mockPayload = {
+      uploadStatus: 'ready',
+      form: {
+        file: {
+          s3Key: 'uploads/test.geojson',
+          s3Bucket: 'boundaries',
+          filename: 'test.geojson',
+          contentType: 'application/geo+json'
+        }
+      }
+    }
+
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: mockPayload })
+
+    const result = await getUploadDetails('abc-123')
+
+    expect(result).toEqual(mockPayload)
+    expect(Wreck.get).toHaveBeenCalledWith(
+      'http://localhost:7337/status/abc-123',
+      { json: true }
+    )
+  })
+
+  it('should return error with status code when Wreck.get throws', async () => {
+    const error = new Error('Not Found')
+    error.output = { statusCode: 404 }
+    vi.mocked(Wreck.get).mockRejectedValue(error)
+
+    const result = await getUploadDetails('abc-123')
+
+    expect(result).toEqual({
+      uploadStatus: 'error',
+      error: 'Unable to fetch upload details',
+      statusCode: 404
+    })
+  })
+
+  it('should return undefined status code when error has no output', async () => {
+    vi.mocked(Wreck.get).mockRejectedValue(new Error('Connection refused'))
+
+    const result = await getUploadDetails('abc-123')
+
+    expect(result).toEqual({
+      uploadStatus: 'error',
+      error: 'Unable to fetch upload details',
+      statusCode: undefined
     })
   })
 })

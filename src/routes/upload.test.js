@@ -2,6 +2,7 @@ import {
   initiateUpload as initiateUploadService,
   getUploadStatus
 } from '../services/cdp-uploader/cdp-uploader.js'
+import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js')
@@ -27,7 +28,7 @@ describe('Upload routes', () => {
         }
       })
 
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
       expect(body.uploadId).toBe('f6b667d8-998f-4f55-8a20-204c0c289147')
       expect(body.uploadUrl).toBe(
@@ -53,7 +54,7 @@ describe('Upload routes', () => {
         url: '/upload/f6b667d8-998f-4f55-8a20-204c0c289147/status'
       })
 
-      expect(response.statusCode).toBe(200)
+      expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
       expect(body.uploadStatus).toBe('ready')
       expect(getUploadStatus).toHaveBeenCalledWith(
