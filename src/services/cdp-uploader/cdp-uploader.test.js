@@ -184,14 +184,29 @@ describe('getUploadDetails', () => {
     )
   })
 
-  it('should return error when Wreck.get throws', async () => {
+  it('should return error with status code when Wreck.get throws', async () => {
+    const error = new Error('Not Found')
+    error.output = { statusCode: 404 }
+    vi.mocked(Wreck.get).mockRejectedValue(error)
+
+    const result = await getUploadDetails('abc-123')
+
+    expect(result).toEqual({
+      uploadStatus: 'error',
+      error: 'Unable to fetch upload details',
+      statusCode: 404
+    })
+  })
+
+  it('should return undefined status code when error has no output', async () => {
     vi.mocked(Wreck.get).mockRejectedValue(new Error('Connection refused'))
 
     const result = await getUploadDetails('abc-123')
 
     expect(result).toEqual({
       uploadStatus: 'error',
-      error: 'Unable to fetch upload details'
+      error: 'Unable to fetch upload details',
+      statusCode: undefined
     })
   })
 })

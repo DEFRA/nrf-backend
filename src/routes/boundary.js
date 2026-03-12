@@ -58,9 +58,8 @@ const checkBoundaryRoute = {
     const uploadDetails = await getUploadDetails(uploadId)
 
     if (uploadDetails.error) {
-      return h
-        .response({ error: uploadDetails.error })
-        .code(statusCodes.notFound)
+      const statusCode = uploadDetails.statusCode ?? statusCodes.notFound
+      return h.response({ error: uploadDetails.error }).code(statusCode)
     }
 
     if (uploadDetails.uploadStatus !== 'ready') {

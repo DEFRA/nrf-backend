@@ -129,7 +129,8 @@ export async function getUploadDetails(uploadId) {
     )
     return {
       uploadStatus: 'error',
-      error: 'Unable to fetch upload details'
+      error: 'Unable to fetch upload details',
+      statusCode
     }
   }
 }
