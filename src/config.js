@@ -141,9 +141,10 @@ const config = convict({
   },
   impactAssessor: {
     url: {
-      doc: 'Endpoint for the nrf-impact-assessor service',
+      doc: 'Endpoint for the nrf-impact-assessor service. Auto-derived from ENVIRONMENT if not set.',
       format: String,
-      default: 'http://localhost:8085',
+      default: null,
+      nullable: true,
       env: 'IMPACT_ASSESSOR_URL'
     }
   },

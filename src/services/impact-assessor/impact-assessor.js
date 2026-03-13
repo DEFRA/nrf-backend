@@ -4,6 +4,25 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 const logger = createLogger()
 
 /**
+ * Get the impact assessor base URL
+ * @returns {string}
+ */
+export function getImpactAssessorUrl() {
+  const explicitUrl = config.get('impactAssessor.url')
+  if (explicitUrl) {
+    return explicitUrl
+  }
+
+  const environment = process.env.ENVIRONMENT
+  if (environment) {
+    return `https://nrf-impact-assessor.${environment}.cdp-int.defra.cloud`
+  }
+
+  // Local development fallback
+  return 'http://localhost:8085'
+}
+
+/**
  * Send a geometry file to the impact assessor's /check-boundary endpoint
  * @param {Buffer} fileBuffer - The file content
  * @param {string} filename - The original filename
@@ -11,7 +30,7 @@ const logger = createLogger()
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
 export async function checkBoundary(fileBuffer, filename, contentType) {
-  const baseUrl = config.get('impactAssessor.url')
+  const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/check-boundary`
 
   logger.info(
