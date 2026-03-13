@@ -4,11 +4,19 @@ import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 
-const sendPostRequest = ({ server, payload }) => {
+const validPayload = {
+  boundaryEntryType: 'draw',
+  developmentTypes: ['housing', 'other-residential'],
+  residentialBuildingCount: 10,
+  peopleCount: 5,
+  email: 'developer@housebuilder.com'
+}
+
+const sendPostRequest = ({ server }) => {
   return server.inject({
     method: 'POST',
     url: routePath,
-    payload
+    payload: validPayload
   })
 }
 
@@ -23,10 +31,7 @@ describe('Get quote endpoint', () => {
   const getServer = setupTestServer()
 
   it('should return 200 with the quote reference', async () => {
-    const postResponse = await sendPostRequest({
-      server: getServer(),
-      payload: { emailAddress: 'developer@housebuilder.com' }
-    })
+    const postResponse = await sendPostRequest({ server: getServer() })
     const { reference } = JSON.parse(postResponse.payload)
 
     const response = await sendGetRequest({ server: getServer(), reference })

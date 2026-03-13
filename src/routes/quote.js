@@ -1,7 +1,7 @@
 import { postController } from '../api/quote/post-controller.js'
 import { getController } from '../api/quote/get-controller.js'
 
-const routePath = '/quote'
+const routePath = '/quotes'
 
 const quote = [
   {
