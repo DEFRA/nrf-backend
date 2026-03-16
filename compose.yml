@@ -109,6 +109,16 @@ services:
     volumes:
       - ./src:/home/node/src
       - ./package.json:/home/node/package.json
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /home/node/src
+          ignore:
+            - "**/*.test.js"
+        - action: rebuild
+          path: ./package.json
+          target: /home/node/package.json
 
   redis:
     image: redis:7.2.3-alpine3.18
