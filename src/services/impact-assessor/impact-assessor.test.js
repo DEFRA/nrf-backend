@@ -74,6 +74,27 @@ describe('checkBoundary', () => {
     )
   })
 
+  it('should append proj query parameter when provided', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ type: 'FeatureCollection', features: [] })
+    })
+
+    await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json',
+      { proj: 'EPSG:4326' }
+    )
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:8085/check-boundary?proj=EPSG%3A4326',
+      expect.objectContaining({
+        method: 'POST'
+      })
+    )
+  })
+
   it('should return error on non-ok response', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,

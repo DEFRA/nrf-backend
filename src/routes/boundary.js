@@ -27,6 +27,15 @@ const logger = createLogger()
  *         schema:
  *           type: string
  *           format: uuid
+ *       - in: query
+ *         name: proj
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - EPSG:4326
+ *             - EPSG:27700
+ *         description: Output projection for geometry
  *     responses:
  *       200:
  *         description: Boundary geometry as GeoJSON
@@ -48,11 +57,15 @@ const checkBoundaryRoute = {
     validate: {
       params: joi.object({
         uploadId: joi.string().uuid().required()
+      }),
+      query: joi.object({
+        proj: joi.string().valid('EPSG:4326', 'EPSG:27700').optional()
       })
     }
   },
   handler: async (request, h) => {
     const { uploadId } = request.params
+    const { proj } = request.query
 
     // 1. Get upload details from CDP Uploader
     const uploadDetails = await getUploadDetails(uploadId)
@@ -100,7 +113,9 @@ const checkBoundaryRoute = {
     // 4. Send to impact assessor for boundary check
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
-    const result = await checkBoundary(fileData.body, filename, contentType)
+    const result = await checkBoundary(fileData.body, filename, contentType, {
+      proj
+    })
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
