@@ -32,7 +32,10 @@ const logger = createLogger()
  *         required: false
  *         schema:
  *           type: string
- *         description: Output projection for geometry (e.g. 'EPSG:4326')
+ *           enum:
+ *             - EPSG:4326
+ *             - EPSG:27700
+ *         description: Output projection for geometry
  *     responses:
  *       200:
  *         description: Boundary geometry as GeoJSON
@@ -56,7 +59,7 @@ const checkBoundaryRoute = {
         uploadId: joi.string().uuid().required()
       }),
       query: joi.object({
-        proj: joi.string().optional()
+        proj: joi.string().valid('EPSG:4326', 'EPSG:27700').optional()
       })
     }
   },
