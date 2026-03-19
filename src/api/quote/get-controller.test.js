@@ -3,6 +3,7 @@ import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
+vi.mock('../../services/sns/publish-event.js')
 
 const validPayload = {
   boundaryEntryType: 'draw',

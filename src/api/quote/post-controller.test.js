@@ -1,9 +1,11 @@
 import { routePath } from '../../routes/quote.js'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { publishEvent } from '../../services/sns/publish-event.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
 vi.mock('../../services/send-email/notify-client.js')
+vi.mock('../../services/sns/publish-event.js')
 
 const sendPostRequest = ({ server, payload }) => {
   return server.inject({
@@ -26,10 +28,13 @@ describe('Submit quote endpoint', () => {
   let notifySendEmail
 
   beforeEach(() => {
-    notifySendEmail = vi.fn()
+    notifySendEmail = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 'notify-id-123' } })
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
     })
+    vi.mocked(publishEvent).mockResolvedValue(true)
   })
 
   it('should return 201 with the quote reference and a location header', async () => {
@@ -41,6 +46,20 @@ describe('Submit quote endpoint', () => {
     const { reference } = JSON.parse(response.payload)
     expect(reference).toMatch(/NRF-\d{6}/)
     expect(response.headers.location).toBe(`/quotes/${reference}`)
+  })
+
+  it('should publish an SNS event with the quote payload', async () => {
+    await sendPostRequest({
+      server: getServer(),
+      payload: validPayload
+    })
+    expect(publishEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        topicArn: expect.any(String),
+        data: validPayload
+      }),
+      expect.anything()
+    )
   })
 
   it('should send a quote email', async () => {

@@ -9,6 +9,7 @@ const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
 const postgresPortDefault = 5432
 const postgresPortTest = 5433
+const localStack = 'http://localhost:4566'
 
 if (isDevelopment) {
   configDotenv()
@@ -143,7 +144,7 @@ const config = convict({
     url: {
       doc: 'Endpoint for the nrf-impact-assessor service. Auto-derived from ENVIRONMENT if not set.',
       format: String,
-      default: null,
+      default: 'http://localhost:8085',
       nullable: true,
       env: 'IMPACT_ASSESSOR_URL'
     }
@@ -153,7 +154,7 @@ const config = convict({
       doc: 'S3 endpoint URL (for localstack in development)',
       format: String,
       nullable: true,
-      default: isDevelopment ? 'http://localhost:4566' : null,
+      default: isDevelopment ? localStack : null,
       env: 'S3_ENDPOINT'
     },
     forcePathStyle: {
@@ -161,12 +162,6 @@ const config = convict({
       format: Boolean,
       default: isDevelopment,
       env: 'S3_FORCE_PATH_STYLE'
-    },
-    region: {
-      doc: 'AWS region for S3',
-      format: String,
-      default: 'eu-west-2',
-      env: 'AWS_REGION'
     }
   },
   postgres: {
@@ -217,6 +212,33 @@ const config = convict({
       format: String,
       default: 'eu-west-2',
       env: 'AWS_REGION'
+    }
+  },
+  aws: {
+    region: {
+      doc: 'AWS region',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
+    }
+  },
+  sns: {
+    endpoint: {
+      doc: 'AWS SNS endpoint (from cdp-app-config defaults)',
+      format: String,
+      default: localStack,
+      env: 'SNS_ENDPOINT'
+    },
+    topic: {
+      nrfQuoteEstimateRequest: {
+        arn: {
+          doc: 'AWS SNS Topic ARN for quote estimate events',
+          format: String,
+          default:
+            'arn:aws:sns:eu-west-2:756547862786:nrf_quote_estimate_request',
+          env: 'SNS_TOPIC_ARN_QUOTE_ESTIMATE_REQUEST'
+        }
+      }
     }
   }
 })
