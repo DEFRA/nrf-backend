@@ -10,7 +10,7 @@ let client
 function getS3Client() {
   if (!client) {
     const options = {
-      region: config.get('s3.region')
+      region: config.get('aws.region')
     }
 
     const endpoint = config.get('s3.endpoint')
