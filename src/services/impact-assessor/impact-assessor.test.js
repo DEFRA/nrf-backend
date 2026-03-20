@@ -95,7 +95,7 @@ describe('checkBoundary', () => {
     )
   })
 
-  it('should return error on non-ok response', async () => {
+  it('should return error on non-ok response with detail', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: statusCodes.badRequest,
@@ -111,6 +111,35 @@ describe('checkBoundary', () => {
     expect(result).toEqual({
       error: 'Unsupported file format: .txt',
       statusCode: statusCodes.badRequest
+    })
+  })
+
+  it('should return error and geometry on non-ok response with error and geometry', async () => {
+    const mockGeometry = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badRequest,
+      json: () =>
+        Promise.resolve({
+          error: 'Invalid geometry',
+          geometry: mockGeometry
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result).toEqual({
+      error: 'Invalid geometry',
+      statusCode: statusCodes.badRequest,
+      geometry: mockGeometry
     })
   })
 
