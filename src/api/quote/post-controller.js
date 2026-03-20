@@ -2,6 +2,8 @@ import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/queries.js'
 import { quoteSchema } from './validation/validation-schema.js'
+import { publishEvent } from '../../services/sns/publish-event.js'
+import { config } from '../../config.js'
 
 /**
  * @openapi
@@ -75,6 +77,13 @@ export const postController = {
       db: request.pg,
       quoteData: request.payload
     })
+    await publishEvent(
+      {
+        topicArn: config.get('sns.topic.nrfQuoteEstimateRequest.arn'),
+        data: request.payload
+      },
+      request.logger
+    )
     const emailSendResult = await sendQuoteEmail({
       nrfQuoteReference: quote.reference,
       recipientEmailAddress: request.payload.email
