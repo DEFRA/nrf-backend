@@ -33,7 +33,7 @@ jobs:
           npm test
 
       - name: Set git hash
-        run: echo "${{ github.sha }}" > src/.git-hash
+        run: echo "${{ github.sha }}" > .git-hash
 
       - name: Build and Publish
         uses: DEFRA/cdp-build-action/build@main

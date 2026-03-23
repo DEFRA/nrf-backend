@@ -5,7 +5,7 @@ function getGitHash() {
     return process.env.GIT_HASH
   }
   try {
-    return readFileSync('src/.git-hash', 'utf-8').trim()
+    return readFileSync('.git-hash', 'utf-8').trim()
   } catch {
     return 'unknown'
   }
