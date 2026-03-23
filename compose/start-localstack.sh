@@ -30,4 +30,8 @@ aws --endpoint-url=http://localhost:4566 sqs create-queue --region $AWS_REGION -
 # Add your own queues here
 # aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name your-queue
 
+echo "[INIT SCRIPT] Creating SNS topics" >&2
+
+aws --endpoint-url=http://localhost:4566 sns create-topic --name nrf-quote-estimate-request
+
 echo "[INIT SCRIPT] LocalStack setup complete" >&2

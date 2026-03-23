@@ -234,7 +234,8 @@ const config = convict({
         arn: {
           doc: 'AWS SNS Topic ARN for quote estimate events',
           format: String,
-          default: '',
+          default:
+            'arn:aws:sns:eu-west-2:000000000000:nrf-quote-estimate-request',
           env: 'SNS_TOPIC_ARN_QUOTE_ESTIMATE_REQUEST'
         }
       }
