@@ -1,11 +1,11 @@
-import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 
 function getGitHash() {
   if (process.env.GIT_HASH) {
     return process.env.GIT_HASH
   }
   try {
-    return execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim()
+    return readFileSync('src/.git-hash', 'utf-8').trim()
   } catch {
     return 'unknown'
   }
