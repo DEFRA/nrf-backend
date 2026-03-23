@@ -16,3 +16,18 @@ describe('GET /version', () => {
     expect(typeof body.version).toBe('string')
   })
 })
+
+describe('getGitHash', () => {
+  it('should return GIT_HASH env var when set', async () => {
+    vi.stubEnv('GIT_HASH', 'abc123')
+
+    vi.resetModules()
+    const { version } = await import('./version.js')
+
+    expect(version.handler(null, { response: (v) => v })).toEqual({
+      version: 'abc123'
+    })
+
+    vi.unstubAllEnvs()
+  })
+})
