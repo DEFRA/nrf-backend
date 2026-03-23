@@ -9,6 +9,60 @@ import { createLogger } from '../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+async function getFileFromUpload(uploadId, h) {
+  const uploadDetails = await getUploadDetails(uploadId)
+
+  if (uploadDetails.error) {
+    const statusCode = uploadDetails.statusCode ?? statusCodes.notFound
+    return {
+      error: h.response({ error: uploadDetails.error }).code(statusCode)
+    }
+  }
+
+  if (uploadDetails.uploadStatus !== 'ready') {
+    return {
+      error: h
+        .response({
+          error: `Upload is not ready (status: ${uploadDetails.uploadStatus})`
+        })
+        .code(statusCodes.badRequest)
+    }
+  }
+
+  const form = uploadDetails.form
+  const fileInfo = form?.file
+  if (!fileInfo?.s3Key) {
+    logger.error(
+      `No file info in upload details - uploadId: ${uploadId}, form: ${JSON.stringify(form)}`
+    )
+    return {
+      error: h
+        .response({ error: 'No file found for this upload' })
+        .code(statusCodes.notFound)
+    }
+  }
+
+  return { fileInfo }
+}
+
+async function downloadFile(fileInfo, h) {
+  const bucket = fileInfo.s3Bucket ?? config.get('cdpUploader.bucket')
+
+  try {
+    const fileData = await downloadFromS3(bucket, fileInfo.s3Key)
+    return { fileData }
+  } catch (error) {
+    logger.error(
+      `Failed to download file from S3 - bucket: ${bucket}, key: ${fileInfo.s3Key}, message: ${error?.message}`
+    )
+    return {
+      error: h
+        .response({ error: 'Failed to retrieve uploaded file' })
+        .code(statusCodes.badGateway)
+    }
+  }
+}
+
 /**
  * @openapi
  * /boundary/check/{uploadId}:
@@ -67,50 +121,18 @@ const checkBoundaryRoute = {
     const { uploadId } = request.params
     const { proj } = request.query
 
-    // 1. Get upload details from CDP Uploader
-    const uploadDetails = await getUploadDetails(uploadId)
-
-    if (uploadDetails.error) {
-      const statusCode = uploadDetails.statusCode ?? statusCodes.notFound
-      return h.response({ error: uploadDetails.error }).code(statusCode)
+    const upload = await getFileFromUpload(uploadId, h)
+    if (upload.error) {
+      return upload.error
     }
 
-    if (uploadDetails.uploadStatus !== 'ready') {
-      return h
-        .response({
-          error: `Upload is not ready (status: ${uploadDetails.uploadStatus})`
-        })
-        .code(statusCodes.badRequest)
+    const download = await downloadFile(upload.fileInfo, h)
+    if (download.error) {
+      return download.error
     }
 
-    // 2. Extract file info from upload details
-    const form = uploadDetails.form
-    const fileInfo = form?.file
-    if (!fileInfo?.s3Key) {
-      logger.error(
-        `No file info in upload details - uploadId: ${uploadId}, form: ${JSON.stringify(form)}`
-      )
-      return h
-        .response({ error: 'No file found for this upload' })
-        .code(statusCodes.notFound)
-    }
-
-    const bucket = fileInfo.s3Bucket ?? config.get('cdpUploader.bucket')
-
-    // 3. Download file from S3
-    let fileData
-    try {
-      fileData = await downloadFromS3(bucket, fileInfo.s3Key)
-    } catch (error) {
-      logger.error(
-        `Failed to download file from S3 - bucket: ${bucket}, key: ${fileInfo.s3Key}, message: ${error?.message}`
-      )
-      return h
-        .response({ error: 'Failed to retrieve uploaded file' })
-        .code(statusCodes.badGateway)
-    }
-
-    // 4. Send to impact assessor for boundary check
+    const { fileInfo } = upload
+    const { fileData } = download
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
     const result = await checkBoundary(fileData.body, filename, contentType, {
@@ -119,7 +141,11 @@ const checkBoundaryRoute = {
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
-      return h.response({ error: result.error }).code(statusCode)
+      const response = { error: result.error }
+      if (result.geometry) {
+        response.geometry = result.geometry
+      }
+      return h.response(response).code(statusCode)
     }
 
     return h.response(result.geojson)

@@ -57,11 +57,16 @@ export async function checkBoundary(
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}))
-      const detail = errorBody.detail ?? `HTTP ${response.status}`
+      const detail =
+        errorBody.error ?? errorBody.detail ?? `HTTP ${response.status}`
       logger.error(
         `Boundary check failed - url: ${url}, status: ${response.status}, detail: ${detail}`
       )
-      return { error: detail, statusCode: response.status }
+      return {
+        error: detail,
+        statusCode: response.status,
+        ...(errorBody.geometry && { geometry: errorBody.geometry })
+      }
     }
 
     const geojson = await response.json()
