@@ -33,7 +33,9 @@ COPY --from=development /home/node/src ./src/
 RUN npm ci --omit=dev
 
 ARG PORT
+ARG GIT_HASH=unknown
 ENV PORT=${PORT}
+ENV GIT_HASH=${GIT_HASH}
 EXPOSE ${PORT}
 
 CMD [ "node", "src" ]
