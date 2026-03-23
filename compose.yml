@@ -82,6 +82,8 @@ services:
     build:
       context: .
       target: development
+      args:
+        GIT_HASH: ${GIT_HASH:-unknown}
     ports:
       - '3001:3001'
     links:
@@ -99,7 +101,6 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: development
-      GIT_HASH: ${GIT_HASH:-unknown}
       LOCALSTACK_ENDPOINT: http://localstack:4566
       S3_ENDPOINT: http://localstack:4566
       IMPACT_ASSESSOR_URL: http://host.docker.internal:8085

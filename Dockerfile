@@ -8,7 +8,9 @@ LABEL uk.gov.defra.ffc.parent-image=defradigital/node-development:${PARENT_VERSI
 
 ARG PORT
 ARG PORT_DEBUG
+ARG GIT_HASH=unknown
 ENV PORT=${PORT}
+ENV GIT_HASH=${GIT_HASH}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
