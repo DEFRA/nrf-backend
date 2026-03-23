@@ -16,7 +16,7 @@ EXPOSE ${PORT} ${PORT_DEBUG}
 COPY --chown=node:node package*.json ./
 RUN npm install
 COPY --chown=node:node ./src ./src
-COPY --chown=node:node .git-has[h] ./
+COPY --chmod=444 .git-has[h] ./
 
 CMD [ "npm", "run", "docker:dev" ]
 
@@ -32,7 +32,7 @@ USER node
 
 COPY --from=development /home/node/package*.json ./
 COPY --from=development /home/node/src ./src/
-COPY --from=development /home/node/.git-has[h] ./
+COPY --from=development --chmod=444 /home/node/.git-has[h] ./
 
 RUN npm ci --omit=dev
 
