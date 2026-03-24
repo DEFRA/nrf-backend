@@ -143,7 +143,7 @@ const checkBoundaryRoute = {
       const statusCode = result.statusCode ?? statusCodes.badGateway
       const response = { error: result.error }
       if (result.boundaryGeojsonFull) {
-        response.boundary_geojson_full = result.boundaryGeojsonFull
+        response.boundaryGeojsonFull = result.boundaryGeojsonFull
       }
       return h.response(response).code(statusCode)
     }

@@ -114,7 +114,7 @@ describe('checkBoundary', () => {
     })
   })
 
-  it('should return error and geometry on non-ok response with error and boundary_geojson_full', async () => {
+  it('should return error and geometry on non-ok response with error and boundaryGeojsonFull', async () => {
     const mockGeometry = {
       type: 'FeatureCollection',
       features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
@@ -126,7 +126,7 @@ describe('checkBoundary', () => {
       json: () =>
         Promise.resolve({
           error: 'Invalid geometry',
-          boundary_geojson_full: mockGeometry
+          boundaryGeojsonFull: mockGeometry
         })
     })
 

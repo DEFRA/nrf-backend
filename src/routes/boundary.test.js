@@ -202,7 +202,7 @@ describe('Boundary routes', () => {
       expect(body.error).toBe('Unsupported file format')
     }, 30_000)
 
-    it('should include boundary_geojson_full in error response when available', async () => {
+    it('should include boundaryGeojsonFull in error response when available', async () => {
       const mockGeometry = {
         type: 'FeatureCollection',
         features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
@@ -228,7 +228,7 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Invalid geometry')
-      expect(body.boundary_geojson_full).toEqual(mockGeometry)
+      expect(body.boundaryGeojsonFull).toEqual(mockGeometry)
     }, 30_000)
 
     it('should default to 502 when impact assessor returns error without status code', async () => {
