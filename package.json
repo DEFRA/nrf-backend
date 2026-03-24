@@ -9,9 +9,10 @@
     "npm": ">=11"
   },
   "scripts": {
-    "dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
-    "dev:debug": "NODE_ENV=development USE_SWAGGER=true npm run server:debug",
-    "docker:dev": "npm run dev",
+    "dev": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) NODE_ENV=development USE_SWAGGER=true npm run server:watch",
+    "dev:debug": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) NODE_ENV=development USE_SWAGGER=true npm run server:debug",
+    "compose:dev": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) docker compose up --build --watch",
+    "docker:dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
     "git:pre-commit-hook": "npm run format:check && npm run lint && npm test",
@@ -63,6 +64,7 @@
     "@babel/preset-env": "^7.29.2",
     "@vitest/coverage-v8": "^4.1.0",
     "autoprefixer": "^10.4.27",
+    "cross-env": "^10.1.0",
     "eslint": "^9.29.0",
     "husky": "^9.1.7",
     "neostandard": "^0.13.0",
