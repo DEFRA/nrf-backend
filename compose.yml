@@ -82,6 +82,8 @@ services:
     build:
       context: .
       target: development
+      args:
+        GIT_HASH: ${GIT_HASH:-unknown}
     ports:
       - '3001:3001'
     links:
