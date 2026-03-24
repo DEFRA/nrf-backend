@@ -18,9 +18,7 @@ export async function publishEvent(
         Message: JSON.stringify(data)
       })
     )
-    logger?.info?.(
-      `Published event to SNS topic: ${topicArn} data: ${JSON.stringify(data, null, 2)}`
-    )
+    logger?.info?.(`Published event to SNS topic: ${topicArn}`)
     return true
   } catch (error) {
     logger?.error?.(

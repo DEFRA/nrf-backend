@@ -102,6 +102,7 @@ services:
       LOCALSTACK_ENDPOINT: http://localstack:4566
       S3_ENDPOINT: http://localstack:4566
       IMPACT_ASSESSOR_URL: http://host.docker.internal:8085
+      SNS_ENDPOINT: http://localstack:4566
       DB_HOST: postgres
       CDP_UPLOADER_URL: http://cdp-uploader:7337
     networks:
