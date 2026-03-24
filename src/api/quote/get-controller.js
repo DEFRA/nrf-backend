@@ -58,6 +58,9 @@ export const getController = {
       return Boom.notFound()
     }
 
-    return h.response({ reference: quote.reference })
+    return h.response({
+      reference: quote.reference,
+      boundaryGeodata: quote.boundary_geodata
+    })
   }
 }

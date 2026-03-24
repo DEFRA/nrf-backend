@@ -5,6 +5,7 @@ const MAX_EMAIL_LENGTH = 254
 
 export const quoteSchema = joi.object({
   boundaryEntryType: joi.string().valid('draw', 'upload').required(),
+  boundaryGeojson: joi.object().required(),
   developmentTypes: joi
     .array()
     .items(joi.string().valid('housing', 'other-residential'))

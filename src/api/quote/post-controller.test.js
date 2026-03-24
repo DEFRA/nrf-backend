@@ -3,6 +3,7 @@ import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
+import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
@@ -20,7 +21,8 @@ const validPayload = {
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
   peopleCount: 5,
-  email: 'developer@housebuilder.com'
+  email: 'developer@housebuilder.com',
+  boundaryGeojson
 }
 
 describe('Submit quote endpoint', () => {

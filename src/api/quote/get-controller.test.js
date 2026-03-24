@@ -1,12 +1,14 @@
 import { routePath } from '../../routes/quote.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
+import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
 
 const validPayload = {
   boundaryEntryType: 'draw',
+  boundaryGeojson,
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
   peopleCount: 5,
@@ -38,7 +40,10 @@ describe('Get quote endpoint', () => {
     const response = await sendGetRequest({ server: getServer(), reference })
 
     expect(response.statusCode).toBe(statusCodes.ok)
-    expect(JSON.parse(response.payload)).toEqual({ reference })
+    expect(JSON.parse(response.payload)).toEqual({
+      reference,
+      boundaryGeodata: expect.any(String)
+    })
   })
 
   it('should return 404 when the quote reference does not exist', async () => {
