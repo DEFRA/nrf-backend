@@ -65,7 +65,9 @@ export async function checkBoundary(
       return {
         error: detail,
         statusCode: response.status,
-        ...(errorBody.geometry && { geometry: errorBody.geometry })
+        ...(errorBody.boundary_geojson_full && {
+          boundaryGeojsonFull: errorBody.boundary_geojson_full
+        })
       }
     }
 

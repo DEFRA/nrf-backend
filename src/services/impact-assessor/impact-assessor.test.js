@@ -126,7 +126,7 @@ describe('checkBoundary', () => {
       json: () =>
         Promise.resolve({
           error: 'Invalid geometry',
-          geometry: mockGeometry
+          boundary_geojson_full: mockGeometry
         })
     })
 
@@ -139,7 +139,7 @@ describe('checkBoundary', () => {
     expect(result).toEqual({
       error: 'Invalid geometry',
       statusCode: statusCodes.badRequest,
-      geometry: mockGeometry
+      boundaryGeojsonFull: mockGeometry
     })
   })
 

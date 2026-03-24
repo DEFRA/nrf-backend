@@ -211,7 +211,7 @@ describe('Boundary routes', () => {
       vi.mocked(checkBoundary).mockResolvedValue({
         error: 'Invalid geometry',
         statusCode: statusCodes.badRequest,
-        geometry: mockGeometry
+        boundaryGeojsonFull: mockGeometry
       })
 
       const uploadId = await uploadFileAndWaitUntilReady(
@@ -228,7 +228,7 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Invalid geometry')
-      expect(body.geometry).toEqual(mockGeometry)
+      expect(body.boundary_geojson_full).toEqual(mockGeometry)
     }, 30_000)
 
     it('should default to 502 when impact assessor returns error without status code', async () => {
