@@ -1,5 +1,6 @@
 import { postController } from '../api/quote/post-controller.js'
 import { getController } from '../api/quote/get-controller.js'
+import { patchController } from '../api/quote/patch-controller.js'
 
 const routePath = '/quotes'
 
@@ -13,6 +14,11 @@ const quote = [
     method: 'GET',
     path: `${routePath}/{reference}`,
     ...getController
+  },
+  {
+    method: 'PATCH',
+    path: `${routePath}/{reference}`,
+    ...patchController
   }
 ]
 
