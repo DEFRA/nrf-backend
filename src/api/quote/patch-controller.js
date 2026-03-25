@@ -1,8 +1,10 @@
 import Boom from '@hapi/boom'
-import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/queries.js'
 import { dbSaveEdpResults } from '../../services/db/quote_edp_results/queries.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
+import { getCurrentISODateTime } from '../../common/helpers/date-time.js'
+import { patchSchema } from './validation/patch-schema.js'
+import { referenceParamSchema } from './validation/reference-param-schema.js'
 
 /**
  * @openapi
@@ -25,6 +27,40 @@ import { statusCodes } from '../../common/constants/status-codes.js'
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - edps
+ *             properties:
+ *               edps:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - edpId
+ *                     - edpName
+ *                     - edpType
+ *                     - impact
+ *                     - levyGbp
+ *                   properties:
+ *                     edpId:
+ *                       type: integer
+ *                     edpName:
+ *                       type: string
+ *                     edpType:
+ *                       type: string
+ *                       enum: [NUTRIENT]
+ *                     impact:
+ *                       type: object
+ *                       required:
+ *                         - nitrogenTotal
+ *                         - phosphorusTotal
+ *                       properties:
+ *                         nitrogenTotal:
+ *                           $ref: '#/components/schemas/ImpactMeasurement'
+ *                         phosphorusTotal:
+ *                           $ref: '#/components/schemas/ImpactMeasurement'
+ *                     levyGbp:
+ *                       type: number
+ *                       format: float
  *     responses:
  *       200:
  *         description: Quote updated
@@ -33,44 +69,11 @@ import { statusCodes } from '../../common/constants/status-codes.js'
  *       404:
  *         description: Quote not found
  */
-const impactMeasurementSchema = joi.object({
-  amount: joi.number().precision(2).required(),
-  unit: joi.string().valid('mg/I TP').required(),
-  band: joi.number().integer().min(1).max(4).required()
-})
-
 export const patchController = {
   options: {
     validate: {
-      params: joi.object({
-        reference: joi
-          .string()
-          .pattern(/^NRF-\d{6}$/)
-          .required()
-          .messages({
-            'string.pattern.base': 'REFERENCE_INVALID',
-            'any.required': 'REFERENCE_REQUIRED'
-          })
-      }),
-      payload: joi.object({
-        edps: joi
-          .array()
-          .items(
-            joi.object({
-              edpId: joi.number().integer().required(),
-              edpName: joi.string().required(),
-              edpType: joi.string().valid('NUTRIENT').required(),
-              impact: joi
-                .object({
-                  nitrogenTotal: impactMeasurementSchema.required(),
-                  phosphorusTotal: impactMeasurementSchema.required()
-                })
-                .required(),
-              levyGbp: joi.number().precision(2).required()
-            })
-          )
-          .required()
-      })
+      params: referenceParamSchema,
+      payload: patchSchema
     }
   },
   handler: async (request, h) => {
@@ -86,7 +89,8 @@ export const patchController = {
     await dbSaveEdpResults({
       db: request.pg,
       quoteId: quote.id,
-      edps: request.payload.edps
+      edps: request.payload.edps,
+      createdAt: getCurrentISODateTime()
     })
 
     return h.response().code(statusCodes.ok)

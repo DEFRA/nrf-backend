@@ -1,4 +1,4 @@
-import { quoteSchema } from './validation-schema.js'
+import { quoteSchema } from './post-schema.js'
 
 const validPayload = {
   boundaryEntryType: 'draw',

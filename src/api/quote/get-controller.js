@@ -1,6 +1,6 @@
 import Boom from '@hapi/boom'
-import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/queries.js'
+import { referenceParamSchema } from './validation/reference-param-schema.js'
 
 /**
  * @openapi
@@ -36,16 +36,7 @@ import { dbGetQuote } from '../../services/db/quotes/queries.js'
 export const getController = {
   options: {
     validate: {
-      params: joi.object({
-        reference: joi
-          .string()
-          .pattern(/^NRF-\d{6}$/)
-          .required()
-          .messages({
-            'string.pattern.base': 'REFERENCE_INVALID',
-            'any.required': 'REFERENCE_REQUIRED'
-          })
-      })
+      params: referenceParamSchema
     }
   },
   handler: async (request, h) => {

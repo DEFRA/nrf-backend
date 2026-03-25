@@ -9,6 +9,7 @@
                       http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
                       http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
   <changeSet id="4" author="your-name">
+    <validCheckSum>ANY</validCheckSum>
     <createTable tableName="quote_edp_results">
       <column name="id" type="INT" autoIncrement="true">
         <constraints primaryKey="true" nullable="false"/>

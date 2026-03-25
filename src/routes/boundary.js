@@ -81,7 +81,7 @@ async function downloadFile(fileInfo, h) {
  *         schema:
  *           type: string
  *           format: uuid
- *         description: Output projection for geometry
+ *         description: The ID of the upload to check
  *     responses:
  *       200:
  *         description: Boundary geometry as GeoJSON
