@@ -36,7 +36,7 @@ services:
       - postgres-data:/data
     restart: always
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
       interval: 10s
       retries: 5
       start_period: 1s
@@ -118,7 +118,7 @@ services:
           path: ./src
           target: /home/node/src
           ignore:
-            - "**/*.test.js"
+            - '**/*.test.js'
         - action: rebuild
           path: ./package.json
           target: /home/node/package.json
