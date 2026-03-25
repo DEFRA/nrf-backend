@@ -81,14 +81,6 @@ async function downloadFile(fileInfo, h) {
  *         schema:
  *           type: string
  *           format: uuid
- *       - in: query
- *         name: proj
- *         required: false
- *         schema:
- *           type: string
- *           enum:
- *             - EPSG:4326
- *             - EPSG:27700
  *         description: Output projection for geometry
  *     responses:
  *       200:
@@ -111,15 +103,11 @@ const checkBoundaryRoute = {
     validate: {
       params: joi.object({
         uploadId: joi.string().uuid().required()
-      }),
-      query: joi.object({
-        proj: joi.string().valid('EPSG:4326', 'EPSG:27700').optional()
       })
     }
   },
   handler: async (request, h) => {
     const { uploadId } = request.params
-    const { proj } = request.query
 
     const upload = await getFileFromUpload(uploadId, h)
     if (upload.error) {
@@ -135,9 +123,7 @@ const checkBoundaryRoute = {
     const { fileData } = download
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
-    const result = await checkBoundary(fileData.body, filename, contentType, {
-      proj
-    })
+    const result = await checkBoundary(fileData.body, filename, contentType)
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
