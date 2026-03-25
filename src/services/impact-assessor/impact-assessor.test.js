@@ -49,14 +49,15 @@ describe('checkBoundary', () => {
   })
 
   it('should return geojson on success', async () => {
-    const mockGeojson = {
-      type: 'FeatureCollection',
-      features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
+    const mockResponse = {
+      boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+      boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+      intersectingEdps: ['edp-1']
     }
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(mockGeojson)
+      json: () => Promise.resolve(mockResponse)
     })
 
     const result = await checkBoundary(
@@ -65,30 +66,15 @@ describe('checkBoundary', () => {
       'application/geo+json'
     )
 
-    expect(result).toEqual({ geojson: mockGeojson })
+    expect(result).toEqual({
+      geojson: {
+        boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
+        boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
+        intersectingEdps: mockResponse.intersectingEdps
+      }
+    })
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://localhost:8085/check-boundary',
-      expect.objectContaining({
-        method: 'POST'
-      })
-    )
-  })
-
-  it('should append proj query parameter when provided', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ type: 'FeatureCollection', features: [] })
-    })
-
-    await checkBoundary(
-      Buffer.from('test'),
-      'test.geojson',
-      'application/geo+json',
-      { proj: 'EPSG:4326' }
-    )
-
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:8085/check-boundary?proj=EPSG%3A4326',
       expect.objectContaining({
         method: 'POST'
       })

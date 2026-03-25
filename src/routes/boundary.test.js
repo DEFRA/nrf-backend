@@ -103,47 +103,7 @@ describe('Boundary routes', () => {
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
         expect.stringContaining('test-boundary.geojson'),
-        expect.any(String),
-        { proj: undefined }
-      )
-    }, 30_000)
-
-    it('should pass proj query parameter to impact assessor', async () => {
-      const mockGeojson = {
-        type: 'FeatureCollection',
-        features: []
-      }
-
-      vi.mocked(checkBoundary).mockResolvedValue({ geojson: mockGeojson })
-
-      const testGeojson = JSON.stringify({
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [-1.5, 52.0] },
-            properties: {}
-          }
-        ]
-      })
-
-      const uploadId = await uploadFileAndWaitUntilReady(
-        getServer(),
-        Buffer.from(testGeojson),
-        'test-boundary.geojson'
-      )
-
-      const response = await getServer().inject({
-        method: 'POST',
-        url: `/boundary/check/${uploadId}?proj=EPSG:4326`
-      })
-
-      expect(response.statusCode).toBe(statusCodes.ok)
-      expect(checkBoundary).toHaveBeenCalledWith(
-        expect.any(Buffer),
-        expect.stringContaining('test-boundary.geojson'),
-        expect.any(String),
-        { proj: 'EPSG:4326' }
+        expect.any(String)
       )
     }, 30_000)
 
@@ -362,8 +322,7 @@ describe('Boundary routes', () => {
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
         'test.geojson',
-        'application/geo+json',
-        { proj: undefined }
+        'application/geo+json'
       )
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()

@@ -27,19 +27,11 @@ export function getImpactAssessorUrl() {
  * @param {Buffer} fileBuffer - The file content
  * @param {string} filename - The original filename
  * @param {string} contentType - The file's content type
- * @param {object} [options] - Optional parameters
- * @param {string} [options.proj] - Output projection (e.g. 'EPSG:4326')
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
-export async function checkBoundary(
-  fileBuffer,
-  filename,
-  contentType,
-  { proj } = {}
-) {
+export async function checkBoundary(fileBuffer, filename, contentType) {
   const baseUrl = getImpactAssessorUrl()
-  const query = proj ? `?proj=${encodeURIComponent(proj)}` : ''
-  const url = `${baseUrl}/check-boundary${query}`
+  const url = `${baseUrl}/check-boundary`
 
   logger.info(
     `Sending boundary check - url: ${url}, filename: ${filename}, size: ${fileBuffer.length}`
@@ -70,7 +62,18 @@ export async function checkBoundary(
     }
 
     const geojson = await response.json()
-    return { geojson }
+    const {
+      boundaryGeometryOriginal,
+      boundaryGeometryWgs84,
+      intersectingEdps
+    } = geojson
+    return {
+      geojson: {
+        boundaryGeometryOriginal,
+        boundaryGeometryWgs84,
+        intersectingEdps
+      }
+    }
   } catch (error) {
     logger.error(
       `Error calling impact assessor - url: ${url}, message: ${error?.message}`

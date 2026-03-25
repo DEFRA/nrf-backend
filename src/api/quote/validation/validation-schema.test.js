@@ -2,6 +2,7 @@ import { quoteSchema } from './validation-schema.js'
 
 const validPayload = {
   boundaryEntryType: 'draw',
+  boundaryGeojson: { type: 'Feature', geometry: {} },
   developmentTypes: ['housing'],
   residentialBuildingCount: 10,
   email: 'developer@housebuilder.com'
@@ -37,6 +38,27 @@ describe('quoteSchema', () => {
       const { boundaryEntryType: _, ...rest } = validPayload
       const { error } = validate(rest)
       expect(error).toBeDefined()
+    })
+  })
+
+  describe('boundaryGeojson', () => {
+    it('is required', () => {
+      const { boundaryGeojson: _, ...rest } = validPayload
+      const { error } = validate(rest)
+      expect(error).toBeDefined()
+    })
+
+    it('must be an object', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryGeojson: 'not-an-object'
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('accepts a valid object', () => {
+      const { error } = validate(validPayload)
+      expect(error).toBeUndefined()
     })
   })
 
