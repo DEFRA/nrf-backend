@@ -14,12 +14,30 @@ describe('dbSaveEdpResults', () => {
     }
   ]
 
+  it('should delete existing records for the quoteId before inserting', async () => {
+    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
+
+    await dbSaveEdpResults({
+      db,
+      quoteId: 1,
+      edps,
+      createdAt: '2024-01-01T00:00:00.000Z'
+    })
+
+    expect(db.query).toHaveBeenNthCalledWith(
+      1,
+      'DELETE FROM quote_edp_results WHERE quote_id = $1',
+      [1]
+    )
+  })
+
   it('should insert a row for each EDP', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
-    await dbSaveEdpResults({ db, quoteId: 1, edps })
+    const createdAt = '2024-01-01T00:00:00.000Z'
+    await dbSaveEdpResults({ db, quoteId: 1, edps, createdAt })
 
-    expect(db.query).toHaveBeenCalledTimes(1)
+    expect(db.query).toHaveBeenCalledTimes(2)
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO quote_edp_results'),
       [
@@ -28,7 +46,8 @@ describe('dbSaveEdpResults', () => {
         'Norfolk Fens east',
         'NUTRIENT',
         JSON.stringify(edps[0].impact),
-        100
+        100,
+        createdAt
       ]
     )
   })
@@ -51,6 +70,6 @@ describe('dbSaveEdpResults', () => {
 
     await dbSaveEdpResults({ db, quoteId: 2, edps: multipleEdps })
 
-    expect(db.query).toHaveBeenCalledTimes(2)
+    expect(db.query).toHaveBeenCalledTimes(3) // 1 delete + 2 inserts
   })
 })
