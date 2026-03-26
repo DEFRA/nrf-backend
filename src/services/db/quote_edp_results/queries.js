@@ -1,4 +1,5 @@
 export const dbSaveEdpResults = async ({ db, quoteId, edps, createdAt }) => {
+  await db.query('DELETE FROM quote_edp_results WHERE quote_id = $1', [quoteId])
   for (const edp of edps) {
     const { edpId, edpName, edpType, impact, levyGbp } = edp
     await db.query(
