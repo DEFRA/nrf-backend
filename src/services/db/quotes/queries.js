@@ -35,7 +35,7 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
 
 export const dbGetQuote = async ({ db, reference }) => {
   const { rows } = await db.query(
-    'SELECT *, ST_AsText (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
+    'SELECT *, ST_AsGeoJSON (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
     [reference]
   )
   return rows[0] ?? null

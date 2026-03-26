@@ -127,7 +127,7 @@ describe('dbGetQuote', () => {
     const result = await dbGetQuote({ db, reference: 'NRF-000001' })
 
     expect(db.query).toHaveBeenCalledWith(
-      'SELECT *, ST_AsText (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
+      'SELECT *, ST_AsGeoJSON (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
       ['NRF-000001']
     )
     expect(result).toEqual(mockRow)

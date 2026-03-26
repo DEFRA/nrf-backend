@@ -1,7 +1,7 @@
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/queries.js'
-import { quoteSchema } from './validation/validation-schema.js'
+import { quoteSchema } from './validation/post-schema.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
 import { config } from '../../config.js'
 
