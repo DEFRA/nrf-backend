@@ -51,7 +51,8 @@ export const getController = {
 
     return h.response({
       reference: quote.reference,
-      boundaryGeodata: quote.boundary_geodata
+      boundaryGeodata: quote.boundary_geodata,
+      emailSendRequestAt: quote.email_send_request_at
     })
   }
 }
