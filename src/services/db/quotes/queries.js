@@ -33,6 +33,14 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
   return rows[0]
 }
 
+export const dbUpdateQuoteWithEmailSent = async ({ db, reference, data }) => {
+  const { emailSendRequestAt } = data
+  await db.query(
+    'UPDATE quotes SET email_send_request_at = $1 WHERE reference = $2',
+    [emailSendRequestAt, reference]
+  )
+}
+
 export const dbGetQuote = async ({ db, reference }) => {
   const { rows } = await db.query(
     'SELECT *, ST_AsGeoJSON (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',

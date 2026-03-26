@@ -73,8 +73,8 @@ describe('sendEmail', () => {
     })
   })
 
-  it('returns null and logs, if unsuccessful', async () => {
-    const error = new Error('Notify sendEmail failed')
+  it('returns null and logs the error message, if unsuccessful', async () => {
+    const error = new Error('something went wrong')
     notifySendEmail.mockRejectedValue(error)
     const result = await sendEmail({
       recipientEmailAddress,
@@ -87,7 +87,30 @@ describe('sendEmail', () => {
       {
         templateId
       },
-      `Notify sendEmail failed: ${error.message}`
+      `Error thrown in sendEmail: ${error.message}`
+    )
+  })
+
+  it('returns null and logs the errors array, if the notify client returns errors', async () => {
+    const errors = [
+      { error: 'BadRequestError', message: 'Invalid email address' }
+    ]
+    const error = Object.assign(new Error('notify error'), {
+      response: { data: { errors } }
+    })
+    notifySendEmail.mockRejectedValue(error)
+    const result = await sendEmail({
+      recipientEmailAddress,
+      emailReference: estimateReference,
+      emailBodyVariables,
+      templateId
+    })
+    expect(result).toBeNull()
+    expect(logger.error).toHaveBeenCalledWith(
+      {
+        templateId
+      },
+      `Notify client sendEmail failed: ${JSON.stringify(errors)}`
     )
   })
 
@@ -106,7 +129,7 @@ describe('sendEmail', () => {
       {
         templateId
       },
-      `Notify sendEmail failed: No notification ID returned`
+      `Error thrown in sendEmail: No notification ID returned`
     )
   })
 })

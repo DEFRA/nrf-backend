@@ -1,10 +1,14 @@
 import Boom from '@hapi/boom'
-import { dbGetQuote } from '../../services/db/quotes/queries.js'
+import {
+  dbGetQuote,
+  dbUpdateQuoteWithEmailSent
+} from '../../services/db/quotes/queries.js'
 import { dbSaveEdpResults } from '../../services/db/quote_edp_results/queries.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { getCurrentISODateTime } from '../../common/helpers/date-time.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
+import { sendQuoteEmail } from './helpers/send-quote-email.js'
 
 /**
  * @openapi
@@ -92,6 +96,19 @@ export const patchController = {
       edps: request.payload.edps,
       createdAt: getCurrentISODateTime()
     })
+
+    const emailResult = await sendQuoteEmail({
+      nrfQuoteReference: quote.reference,
+      recipientEmailAddress: quote.email_address
+    })
+
+    if (emailResult?.sentDateTime) {
+      await dbUpdateQuoteWithEmailSent({
+        db: request.pg,
+        reference: quote.reference,
+        data: { emailSendRequestAt: emailResult.sentDateTime }
+      })
+    }
 
     return h.response().code(statusCodes.ok)
   }

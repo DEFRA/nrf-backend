@@ -1,4 +1,5 @@
 import { routePath } from '../../routes/quote.js'
+import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
@@ -42,8 +43,24 @@ const sendPatchRequest = ({ server, reference, payload }) =>
     payload
   })
 
+const sendGetRequest = ({ server, reference }) =>
+  server.inject({
+    method: 'GET',
+    url: `${routePath}/${reference}`
+  })
+
 describe('Patch quote endpoint', () => {
   const getServer = setupTestServer()
+  let notifySendEmail
+
+  beforeEach(() => {
+    notifySendEmail = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 'notify-id-123' } })
+    vi.mocked(createNotifyClient).mockReturnValue({
+      sendEmail: notifySendEmail
+    })
+  })
 
   it('should return 200 when EDP results are saved successfully', async () => {
     const postResponse = await createQuote(getServer())
@@ -56,6 +73,36 @@ describe('Patch quote endpoint', () => {
     })
 
     expect(response.statusCode).toBe(statusCodes.ok)
+  })
+
+  it('should send a quote email', async () => {
+    const postResponse = await createQuote(getServer())
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendPatchRequest({
+      server: getServer(),
+      reference,
+      payload: validEdpsPayload
+    })
+
+    expect(notifySendEmail).toHaveBeenCalled()
+  })
+
+  it('should write the email sent date to the database', async () => {
+    const postResponse = await createQuote(getServer())
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendPatchRequest({
+      server: getServer(),
+      reference,
+      payload: validEdpsPayload
+    })
+
+    const getResponse = await sendGetRequest({ server: getServer(), reference })
+    const { emailSendRequestAt } = JSON.parse(getResponse.payload)
+
+    expect(emailSendRequestAt).not.toBeNull()
+    expect(new Date(emailSendRequestAt).getTime()).not.toBeNaN()
   })
 
   it('should return 404 when the quote reference does not exist', async () => {
