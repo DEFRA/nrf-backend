@@ -41,8 +41,13 @@ describe('Get quote endpoint', () => {
 
     expect(response.statusCode).toBe(statusCodes.ok)
     expect(JSON.parse(response.payload)).toEqual({
+      id: expect.any(Number),
       reference,
-      boundaryGeodata: expect.any(String)
+      createdAt: expect.any(String),
+      development: expect.any(Object),
+      boundary: expect.any(Object),
+      email: expect.objectContaining({ sendRequestAt: null }),
+      edps: []
     })
   })
 

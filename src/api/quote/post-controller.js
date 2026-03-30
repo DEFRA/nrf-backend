@@ -1,7 +1,6 @@
-import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
-import { dbCreateQuote } from '../../services/db/quotes/queries.js'
-import { quoteSchema } from './validation/validation-schema.js'
+import { dbCreateQuote } from '../../services/db/quotes/create-quote.js'
+import { quoteSchema } from './validation/post-schema.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
 import { config } from '../../config.js'
 
@@ -83,14 +82,6 @@ export const postController = {
         data: request.payload
       },
       request.logger
-    )
-    const emailSendResult = await sendQuoteEmail({
-      nrfQuoteReference: quote.reference,
-      recipientEmailAddress: request.payload.email
-    })
-
-    request.logger.info(
-      `Quote email successfully sent for nrfReference: ${quote.reference}. Notify ID: ${emailSendResult?.notificationId}`
     )
     return h
       .response({ reference: quote.reference })

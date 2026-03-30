@@ -1,4 +1,4 @@
-ARG PARENT_VERSION=2.8.5-node22.16.0
+ARG PARENT_VERSION=3.0.4-node24.14.0
 ARG PORT=3000
 ARG PORT_DEBUG=9229
 
@@ -8,9 +8,7 @@ LABEL uk.gov.defra.ffc.parent-image=defradigital/node-development:${PARENT_VERSI
 
 ARG PORT
 ARG PORT_DEBUG
-ARG GIT_HASH=unknown
 ENV PORT=${PORT}
-ENV GIT_HASH=${GIT_HASH}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
@@ -37,9 +35,7 @@ COPY --from=development --chmod=444 /home/node/.git-has[h] ./
 RUN npm ci --omit=dev
 
 ARG PORT
-ARG GIT_HASH=unknown
 ENV PORT=${PORT}
-ENV GIT_HASH=${GIT_HASH}
 EXPOSE ${PORT}
 
 CMD [ "node", "src" ]

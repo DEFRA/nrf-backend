@@ -100,7 +100,7 @@ describe('checkBoundary', () => {
     })
   })
 
-  it('should return error and geometry on non-ok response with error and geometry', async () => {
+  it('should return error and geometry on non-ok response with error and boundaryGeometryWgs84', async () => {
     const mockGeometry = {
       type: 'FeatureCollection',
       features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
@@ -112,7 +112,7 @@ describe('checkBoundary', () => {
       json: () =>
         Promise.resolve({
           error: 'Invalid geometry',
-          geometry: mockGeometry
+          boundaryGeometryWgs84: mockGeometry
         })
     })
 
@@ -125,7 +125,7 @@ describe('checkBoundary', () => {
     expect(result).toEqual({
       error: 'Invalid geometry',
       statusCode: statusCodes.badRequest,
-      geometry: mockGeometry
+      boundaryGeometryWgs84: mockGeometry
     })
   })
 

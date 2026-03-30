@@ -24,7 +24,6 @@ import {
  *             properties:
  *               redirect:
  *                 type: string
- *                 format: uri
  *               s3Bucket:
  *                 type: string
  *               s3Path:

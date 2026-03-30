@@ -8,6 +8,7 @@ npm-debug.log
 coverage
 .cache
 .eslintcache
+.git-hash
 .env
 .claude/settings.local.json
 .git-hash

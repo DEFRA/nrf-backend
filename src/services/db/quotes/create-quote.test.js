@@ -1,4 +1,4 @@
-import { dbCreateQuote, dbGetQuote } from './queries.js'
+import { dbCreateQuote } from './create-quote.js'
 
 vi.mock('../../../common/helpers/date-time.js', () => ({
   getCurrentISODateTime: vi.fn().mockReturnValue('2026-03-23T00:00:00.000Z')
@@ -45,7 +45,6 @@ describe('dbCreateQuote', () => {
         'draw',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
-        JSON.stringify(mockBoundaryGeojson.intersectingEdps),
         ['housing'],
         10,
         null,
@@ -76,7 +75,6 @@ describe('dbCreateQuote', () => {
         'upload',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
-        JSON.stringify(mockBoundaryGeojson.intersectingEdps),
         ['other-residential'],
         null,
         5,
@@ -116,28 +114,5 @@ describe('dbCreateQuote', () => {
       expect.stringContaining('INSERT INTO quotes'),
       expect.arrayContaining([4326])
     )
-  })
-})
-
-describe('dbGetQuote', () => {
-  it('should return the quote when found', async () => {
-    const mockRow = { id: 1, reference: 'NRF-000001' }
-    const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
-
-    const result = await dbGetQuote({ db, reference: 'NRF-000001' })
-
-    expect(db.query).toHaveBeenCalledWith(
-      'SELECT *, ST_AsText (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
-      ['NRF-000001']
-    )
-    expect(result).toEqual(mockRow)
-  })
-
-  it('should return null when the quote is not found', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
-
-    const result = await dbGetQuote({ db, reference: 'NRF-000001' })
-
-    expect(result).toBeNull()
   })
 })

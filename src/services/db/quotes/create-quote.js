@@ -10,20 +10,20 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     email
   } = quoteData
   const createdAt = getCurrentISODateTime()
-  const { boundaryGeometryOriginal, intersectingEdps } = boundaryGeojson
+  const crsWgs84 = 4326
+  const { boundaryGeometryOriginal } = boundaryGeojson
   const crsFromGeometry =
     boundaryGeometryOriginal.crs?.properties?.name.split('::')?.[1]
-  const crs = Number.parseInt(crsFromGeometry, 10) || 4326
+  const crs = crsFromGeometry ? Number.parseInt(crsFromGeometry, 10) : crsWgs84
   const { rows } = await db.query(
-    `INSERT INTO quotes (email_address, boundary_entry_type, boundary_geodata, boundary_edp_intersections, development_types, residential_building_count, people_count, created_at)
-     VALUES ($1, $2, ST_SetSRID(ST_GeomFromGeoJSON($3), $4), $5, $6, $7, $8, $9)
+    `INSERT INTO quotes (email_address, boundary_entry_type, boundary_geodata, development_types, residential_building_count, people_count, created_at)
+     VALUES ($1, $2, ST_SetSRID(ST_GeomFromGeoJSON($3), $4), $5, $6, $7, $8)
      RETURNING id, reference`,
     [
       email,
       boundaryEntryType,
       JSON.stringify(boundaryGeometryOriginal),
       crs,
-      JSON.stringify(intersectingEdps),
       developmentTypes,
       residentialBuildingCount ?? null,
       peopleCount ?? null,
@@ -31,12 +31,4 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     ]
   )
   return rows[0]
-}
-
-export const dbGetQuote = async ({ db, reference }) => {
-  const { rows } = await db.query(
-    'SELECT *, ST_AsText (ST_Transform(boundary_geodata, 4326)) AS boundary_geodata FROM quotes WHERE reference = $1',
-    [reference]
-  )
-  return rows[0] ?? null
 }

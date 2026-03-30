@@ -32,11 +32,14 @@ export const sendEmail = async ({
       sentDateTime: new Date().toISOString()
     }
   } catch (error) {
+    const errors = error?.response?.data?.errors
     logger.error(
       {
         templateId
       },
-      `Notify sendEmail failed: ${error.message}`
+      errors
+        ? `Notify client sendEmail failed: ${JSON.stringify(errors)}`
+        : `Error thrown in sendEmail: ${error.message}`
     )
     return null
   }

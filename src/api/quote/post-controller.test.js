@@ -1,5 +1,4 @@
 import { routePath } from '../../routes/quote.js'
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
@@ -27,15 +26,8 @@ const validPayload = {
 
 describe('Submit quote endpoint', () => {
   const getServer = setupTestServer()
-  let notifySendEmail
 
   beforeEach(() => {
-    notifySendEmail = vi
-      .fn()
-      .mockResolvedValue({ data: { id: 'notify-id-123' } })
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: notifySendEmail
-    })
     vi.mocked(publishEvent).mockResolvedValue(true)
   })
 
@@ -62,14 +54,6 @@ describe('Submit quote endpoint', () => {
       }),
       expect.anything()
     )
-  })
-
-  it('should send a quote email', async () => {
-    await sendPostRequest({
-      server: getServer(),
-      payload: validPayload
-    })
-    expect(notifySendEmail).toHaveBeenCalled()
   })
 
   describe('Request payload validation', () => {
