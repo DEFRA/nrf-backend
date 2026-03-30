@@ -1,5 +1,5 @@
 import Boom from '@hapi/boom'
-import { dbGetQuote } from '../../services/db/quotes/queries.js'
+import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 
 /**
@@ -49,10 +49,6 @@ export const getController = {
       return Boom.notFound()
     }
 
-    return h.response({
-      reference: quote.reference,
-      boundaryGeodata: quote.boundary_geodata,
-      emailSendRequestAt: quote.email_send_request_at
-    })
+    return h.response(quote)
   }
 }

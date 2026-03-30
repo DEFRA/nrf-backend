@@ -1,9 +1,16 @@
 import joi from 'joi'
 
+const currencySchema = joi.number().precision(2).min(0).required()
+
+const bandSchema = joi.number().integer().min(1).max(4).required()
+
 const impactMeasurementSchema = joi.object({
   amount: joi.number().precision(2).required(),
   unit: joi.string().valid('mg/I TP').required(),
-  band: joi.number().integer().min(1).max(4).required()
+  band: joi.object({
+    min: bandSchema,
+    max: bandSchema
+  })
 })
 
 export const patchSchema = joi.object({
@@ -20,7 +27,12 @@ export const patchSchema = joi.object({
             phosphorusTotal: impactMeasurementSchema.required()
           })
           .required(),
-        levyGbp: joi.number().precision(2).required()
+        levyGbp: joi
+          .object({
+            min: currencySchema,
+            max: currencySchema
+          })
+          .required()
       })
     )
     .required()
