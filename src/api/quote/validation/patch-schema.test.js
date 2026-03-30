@@ -1,6 +1,10 @@
 import { patchSchema } from './patch-schema.js'
 
-const validImpactMeasurement = { amount: 1.5, unit: 'mg/I TP', band: 2 }
+const validImpactMeasurement = {
+  amount: 1.5,
+  unit: 'mg/I TP',
+  band: { min: 1, max: 2 }
+}
 
 const validEdp = {
   edpId: 1,
@@ -10,7 +14,7 @@ const validEdp = {
     nitrogenTotal: validImpactMeasurement,
     phosphorusTotal: validImpactMeasurement
   },
-  levyGbp: 99.99
+  levyGbp: { min: 10.0, max: 99.99 }
 }
 
 const validPayload = { edps: [validEdp] }
@@ -141,7 +145,10 @@ describe('patchSchema', () => {
             {
               ...validEdp,
               impact: {
-                nitrogenTotal: { ...validImpactMeasurement, band: 5 },
+                nitrogenTotal: {
+                  ...validImpactMeasurement,
+                  band: { min: 1, max: 5 }
+                },
                 phosphorusTotal: validImpactMeasurement
               }
             }
@@ -156,7 +163,10 @@ describe('patchSchema', () => {
             {
               ...validEdp,
               impact: {
-                nitrogenTotal: { ...validImpactMeasurement, band: 0 },
+                nitrogenTotal: {
+                  ...validImpactMeasurement,
+                  band: { min: 0, max: 1 }
+                },
                 phosphorusTotal: validImpactMeasurement
               }
             }
@@ -171,7 +181,10 @@ describe('patchSchema', () => {
             {
               ...validEdp,
               impact: {
-                nitrogenTotal: { ...validImpactMeasurement, band: 1.5 },
+                nitrogenTotal: {
+                  ...validImpactMeasurement,
+                  band: { min: 1.5, max: 2 }
+                },
                 phosphorusTotal: validImpactMeasurement
               }
             }
@@ -189,9 +202,32 @@ describe('patchSchema', () => {
       expect(error).toBeDefined()
     })
 
+    it('requires min', () => {
+      const { error } = validate({
+        edps: [{ ...validEdp, levyGbp: { max: 99.99 } }]
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('requires max', () => {
+      const { error } = validate({
+        edps: [{ ...validEdp, levyGbp: { min: 10.0 } }]
+      })
+      expect(error).toBeDefined()
+    })
+
     it('accepts decimal values to 2 places', () => {
-      const { error } = validate({ edps: [{ ...validEdp, levyGbp: 10.55 }] })
+      const { error } = validate({
+        edps: [{ ...validEdp, levyGbp: { min: 10.55, max: 99.99 } }]
+      })
       expect(error).toBeUndefined()
+    })
+
+    it('rejects negative values', () => {
+      const { error } = validate({
+        edps: [{ ...validEdp, levyGbp: { min: -1, max: 99.99 } }]
+      })
+      expect(error).toBeDefined()
     })
   })
 })
