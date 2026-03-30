@@ -128,8 +128,8 @@ const checkBoundaryRoute = {
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
       const response = { error: result.error }
-      if (result.geometry) {
-        response.geometry = result.geometry
+      if (result.boundaryGeometryWgs84) {
+        response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
       }
       return h.response(response).code(statusCode)
     }
