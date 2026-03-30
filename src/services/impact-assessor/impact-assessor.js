@@ -57,7 +57,9 @@ export async function checkBoundary(fileBuffer, filename, contentType) {
       return {
         error: detail,
         statusCode: response.status,
-        ...(errorBody.geometry && { geometry: errorBody.geometry })
+        ...(errorBody.boundaryGeometryWgs84 && {
+          boundaryGeometryWgs84: errorBody.boundaryGeometryWgs84
+        })
       }
     }
 
