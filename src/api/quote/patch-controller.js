@@ -1,8 +1,6 @@
 import Boom from '@hapi/boom'
-import {
-  dbGetQuote,
-  dbUpdateQuoteWithEmailSent
-} from '../../services/db/quotes/queries.js'
+import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
+import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
 import { dbSaveEdpResults } from '../../services/db/quote_edp_results/queries.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { getCurrentISODateTime } from '../../common/helpers/date-time.js'
@@ -89,17 +87,26 @@ export const patchController = {
     if (!quote) {
       return Boom.notFound()
     }
-
+    const {
+      id,
+      reference,
+      email: { address },
+      development
+    } = quote
+    const { edps } = request.payload
     await dbSaveEdpResults({
       db: request.pg,
-      quoteId: quote.id,
-      edps: request.payload.edps,
+      quoteId: id,
+      edps,
       createdAt: getCurrentISODateTime()
     })
 
     const emailResult = await sendQuoteEmail({
-      nrfQuoteReference: quote.reference,
-      recipientEmailAddress: quote.email_address
+      nrfQuoteReference: reference,
+      recipientEmailAddress: address,
+      edps,
+      development,
+      wasteWaterTreatmentWorks: ['Nearby one']
     })
 
     if (emailResult?.sentDateTime) {

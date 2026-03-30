@@ -46,6 +46,12 @@ const config = convict({
     format: String,
     default: 'nrf-backend'
   },
+  frontEndBaseUrl: {
+    doc: 'Base URL for the front end application',
+    format: String,
+    default: 'http://localhost:3000',
+    env: 'FRONTEND_BASE_URL'
+  },
   cdpEnvironment: {
     doc: 'The CDP environment the app is running in. With the addition of "local" for local development',
     format: [
@@ -120,7 +126,7 @@ const config = convict({
       quote: {
         doc: 'Notify template ID for quote email',
         format: String,
-        default: 'af6368ca-b1ee-4199-a9da-8fabb0a2d5e8',
+        default: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c',
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
       }
     }

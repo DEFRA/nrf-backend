@@ -7,10 +7,18 @@ describe('dbSaveEdpResults', () => {
       edpName: 'Norfolk Fens east',
       edpType: 'NUTRIENT',
       impact: {
-        nitrogenTotal: { amount: 80, unit: 'mg/I TP', band: 3 },
-        phosphorusTotal: { amount: 60, unit: 'mg/I TP', band: 4 }
+        nitrogenTotal: {
+          amount: 80,
+          unit: 'mg/I TP',
+          band: { min: 1, max: 3 }
+        },
+        phosphorusTotal: {
+          amount: 60,
+          unit: 'mg/I TP',
+          band: { min: 1, max: 4 }
+        }
       },
-      levyGbp: 100
+      levyGbp: { min: 100, max: 200 }
     }
   ]
 
@@ -47,6 +55,7 @@ describe('dbSaveEdpResults', () => {
         'NUTRIENT',
         JSON.stringify(edps[0].impact),
         100,
+        200,
         createdAt
       ]
     )
@@ -61,10 +70,18 @@ describe('dbSaveEdpResults', () => {
         edpName: 'Broads west',
         edpType: 'BIODIVERSITY',
         impact: {
-          nitrogenTotal: { amount: 10, unit: 'mg/I TP', band: 1 },
-          phosphorusTotal: { amount: 5, unit: 'mg/I TP', band: 1 }
+          nitrogenTotal: {
+            amount: 10,
+            unit: 'mg/I TP',
+            band: { min: 1, max: 1 }
+          },
+          phosphorusTotal: {
+            amount: 5,
+            unit: 'mg/I TP',
+            band: { min: 1, max: 1 }
+          }
         },
-        levyGbp: 200
+        levyGbp: { min: 200, max: 300 }
       }
     ]
 
