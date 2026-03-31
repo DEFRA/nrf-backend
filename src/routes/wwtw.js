@@ -1,6 +1,6 @@
 import joi from 'joi'
 
-import { findNearbyWwtws } from '../services/impact-assessor/impact-assessor.js'
+import { findNearbyWasteWaterTreatmentWorks } from '../services/impact-assessor/impact-assessor.js'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 
@@ -43,7 +43,7 @@ const logger = createLogger()
  *       502:
  *         description: Impact assessor service error
  */
-const nearbyWwtwRoute = {
+const nearbyWasteWaterTreatmentWorksRoute = {
   method: 'POST',
   path: '/wwtw/nearby',
   options: {
@@ -58,7 +58,7 @@ const nearbyWwtwRoute = {
 
     logger.info('Finding nearby WWTWs')
 
-    const result = await findNearbyWwtws(geometry)
+    const result = await findNearbyWasteWaterTreatmentWorks(geometry)
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
@@ -69,4 +69,4 @@ const nearbyWwtwRoute = {
   }
 }
 
-export { nearbyWwtwRoute }
+export { nearbyWasteWaterTreatmentWorksRoute }

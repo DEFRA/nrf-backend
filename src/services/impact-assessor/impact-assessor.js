@@ -30,11 +30,11 @@ export function getImpactAssessorUrl() {
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
 /**
- * Find WWTW catchments near an RLB geometry
+ * Find Waste Water Treatment Works catchments near an RLB geometry
  * @param {object} geometry - RLB geometry as GeoJSON dict (EPSG:27700)
  * @returns {Promise<{nearbyWwtws?: Array, error?: string}>}
  */
-export async function findNearbyWwtws(geometry) {
+export async function findNearbyWasteWaterTreatmentWorks(geometry) {
   const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/wwtw/nearby`
 

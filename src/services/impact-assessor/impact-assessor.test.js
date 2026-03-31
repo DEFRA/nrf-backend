@@ -1,8 +1,11 @@
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 
-const { getImpactAssessorUrl, checkBoundary, findNearbyWwtws } =
-  await import('./impact-assessor.js')
+const {
+  getImpactAssessorUrl,
+  checkBoundary,
+  findNearbyWasteWaterTreatmentWorks
+} = await import('./impact-assessor.js')
 
 describe('getImpactAssessorUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -144,7 +147,7 @@ describe('checkBoundary', () => {
   })
 })
 
-describe('findNearbyWwtws', () => {
+describe('findNearbyWasteWaterTreatmentWorks', () => {
   const originalFetch = globalThis.fetch
   const mockGeometry = {
     type: 'Polygon',
@@ -177,7 +180,7 @@ describe('findNearbyWwtws', () => {
       json: () => Promise.resolve({ nearbyWwtws: mockWwtws })
     })
 
-    const result = await findNearbyWwtws(mockGeometry)
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
 
     expect(result).toEqual({ nearbyWwtws: mockWwtws })
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -197,7 +200,7 @@ describe('findNearbyWwtws', () => {
       json: () => Promise.resolve({ error: 'Invalid geometry' })
     })
 
-    const result = await findNearbyWwtws(mockGeometry)
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
 
     expect(result).toEqual({
       error: 'Invalid geometry',
@@ -211,7 +214,7 @@ describe('findNearbyWwtws', () => {
       json: () => Promise.resolve({})
     })
 
-    const result = await findNearbyWwtws(mockGeometry)
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
 
     expect(result).toEqual({ nearbyWwtws: [] })
   })
@@ -219,7 +222,7 @@ describe('findNearbyWwtws', () => {
   it('should return error on network failure', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
 
-    const result = await findNearbyWwtws(mockGeometry)
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
 
     expect(result).toEqual({
       error: 'Unable to contact impact assessor service'

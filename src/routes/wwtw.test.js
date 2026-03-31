@@ -3,7 +3,7 @@ import { setupTestServer } from '../test-utils/setup-test-server.js'
 
 vi.mock('../services/impact-assessor/impact-assessor.js')
 
-const { findNearbyWwtws } =
+const { findNearbyWasteWaterTreatmentWorks } =
   await import('../services/impact-assessor/impact-assessor.js')
 
 const mockGeometry = {
@@ -28,7 +28,7 @@ describe('WWTW routes', () => {
         { wwtwId: '101', wwtwName: 'Great Billing WRC', distanceKm: 3.2 }
       ]
 
-      vi.mocked(findNearbyWwtws).mockResolvedValue({
+      vi.mocked(findNearbyWasteWaterTreatmentWorks).mockResolvedValue({
         nearbyWwtws: mockWwtws
       })
 
@@ -44,7 +44,7 @@ describe('WWTW routes', () => {
     })
 
     it('should return error when impact assessor fails', async () => {
-      vi.mocked(findNearbyWwtws).mockResolvedValue({
+      vi.mocked(findNearbyWasteWaterTreatmentWorks).mockResolvedValue({
         error: 'Invalid geometry',
         statusCode: statusCodes.badRequest
       })
@@ -61,7 +61,7 @@ describe('WWTW routes', () => {
     })
 
     it('should return 502 when impact assessor has no status code', async () => {
-      vi.mocked(findNearbyWwtws).mockResolvedValue({
+      vi.mocked(findNearbyWasteWaterTreatmentWorks).mockResolvedValue({
         error: 'Unable to contact impact assessor service'
       })
 
