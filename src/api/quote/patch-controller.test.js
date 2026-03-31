@@ -40,7 +40,8 @@ const createQuote = (server) =>
       residentialBuildingCount: 10,
       peopleCount: 5,
       email: 'developer@housebuilder.com',
-      boundaryGeojson
+      boundaryGeojson,
+      DUMMY_TEST_PROPERTY: true
     }
   })
 

@@ -26,5 +26,6 @@ export const quoteSchema = joi.object({
     .max(MAX_EMAIL_LENGTH)
     .pattern(/^\S*$/)
     .email({ tlds: { allow: false } })
-    .required()
+    .required(),
+  DUMMY_TEST_PROPERTY: joi.boolean().required()
 })

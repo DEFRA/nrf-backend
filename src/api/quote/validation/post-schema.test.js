@@ -5,7 +5,8 @@ const validPayload = {
   boundaryGeojson: { type: 'Feature', geometry: {} },
   developmentTypes: ['housing'],
   residentialBuildingCount: 10,
-  email: 'developer@housebuilder.com'
+  email: 'developer@housebuilder.com',
+  DUMMY_TEST_PROPERTY: true
 }
 
 const validate = (payload) =>

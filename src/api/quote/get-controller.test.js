@@ -12,7 +12,8 @@ const validPayload = {
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
   peopleCount: 5,
-  email: 'developer@housebuilder.com'
+  email: 'developer@housebuilder.com',
+  DUMMY_TEST_PROPERTY: true
 }
 
 const sendPostRequest = ({ server }) => {
