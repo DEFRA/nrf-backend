@@ -29,6 +29,44 @@ export function getImpactAssessorUrl() {
  * @param {string} contentType - The file's content type
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
+/**
+ * Find WWTW catchments near an RLB geometry
+ * @param {object} geometry - RLB geometry as GeoJSON dict (EPSG:27700)
+ * @returns {Promise<{nearbyWwtws?: Array, error?: string}>}
+ */
+export async function findNearbyWwtws(geometry) {
+  const baseUrl = getImpactAssessorUrl()
+  const url = `${baseUrl}/wwtw/nearby`
+
+  logger.info(`Fetching nearby WWTWs - url: ${url}`)
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ geometry })
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}))
+      const detail =
+        errorBody.error ?? errorBody.detail ?? `HTTP ${response.status}`
+      logger.error(
+        `Nearby WWTW request failed - url: ${url}, status: ${response.status}, detail: ${detail}`
+      )
+      return { error: detail, statusCode: response.status }
+    }
+
+    const body = await response.json()
+    return { nearbyWwtws: body.nearbyWwtws ?? [] }
+  } catch (error) {
+    logger.error(
+      `Error calling impact assessor - url: ${url}, message: ${error?.message}`
+    )
+    return { error: 'Unable to contact impact assessor service' }
+  }
+}
+
 export async function checkBoundary(fileBuffer, filename, contentType) {
   const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/check-boundary`
