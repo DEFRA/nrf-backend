@@ -34,6 +34,7 @@ describe('dbCreateQuote', () => {
         boundaryGeojson: mockBoundaryGeojson,
         developmentTypes: ['housing'],
         residentialBuildingCount: 10,
+        wasteWaterTreatmentWorks: 'Great Billing WRC',
         peopleCount: undefined
       }
     })
@@ -48,6 +49,7 @@ describe('dbCreateQuote', () => {
         ['housing'],
         10,
         null,
+        'Great Billing WRC',
         '2026-03-23T00:00:00.000Z'
       ]
     )
@@ -78,6 +80,7 @@ describe('dbCreateQuote', () => {
         ['other-residential'],
         null,
         5,
+        null,
         '2026-03-23T00:00:00.000Z'
       ]
     )
