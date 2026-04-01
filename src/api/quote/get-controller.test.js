@@ -12,6 +12,8 @@ const validPayload = {
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
   peopleCount: 5,
+  wasteWaterTreatmentWorksId: '101',
+  wasteWaterTreatmentWorksName: 'Great Billing WRC',
   email: 'developer@housebuilder.com'
 }
 
@@ -46,6 +48,8 @@ describe('Get quote endpoint', () => {
       createdAt: expect.any(String),
       development: expect.any(Object),
       boundary: expect.any(Object),
+      wasteWaterTreatmentWorksId: '101',
+      wasteWaterTreatmentWorksName: 'Great Billing WRC',
       email: expect.objectContaining({ sendRequestAt: null }),
       edps: []
     })

@@ -39,6 +39,8 @@ const createQuote = (server) =>
       developmentTypes: ['housing', 'other-residential'],
       residentialBuildingCount: 10,
       peopleCount: 5,
+      wasteWaterTreatmentWorksId: '101',
+      wasteWaterTreatmentWorksName: 'Great Billing WRC',
       email: 'developer@housebuilder.com',
       boundaryGeojson
     }

@@ -1,8 +1,17 @@
+import { getTraceId } from '@defra/hapi-tracing'
+
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 
-const { getImpactAssessorUrl, checkBoundary } =
-  await import('./impact-assessor.js')
+vi.mock('@defra/hapi-tracing', () => ({
+  getTraceId: vi.fn()
+}))
+
+const {
+  getImpactAssessorUrl,
+  checkBoundary,
+  findNearbyWasteWaterTreatmentWorks
+} = await import('./impact-assessor.js')
 
 describe('getImpactAssessorUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -55,6 +64,8 @@ describe('checkBoundary', () => {
       intersectingEdps: ['edp-1']
     }
 
+    vi.mocked(getTraceId).mockReturnValue('trace-456')
+
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockResponse)
@@ -76,7 +87,8 @@ describe('checkBoundary', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://localhost:8085/check-boundary',
       expect.objectContaining({
-        method: 'POST'
+        method: 'POST',
+        headers: { 'x-cdp-request-id': 'trace-456' }
       })
     )
   })
@@ -137,6 +149,94 @@ describe('checkBoundary', () => {
       'test.geojson',
       'application/geo+json'
     )
+
+    expect(result).toEqual({
+      error: 'Unable to contact impact assessor service'
+    })
+  })
+})
+
+describe('findNearbyWasteWaterTreatmentWorks', () => {
+  const originalFetch = globalThis.fetch
+  const mockGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0]
+      ]
+    ]
+  }
+
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('should return nearby WWTWs on success', async () => {
+    const mockWwtws = [
+      { wwtwId: '101', wwtwName: 'Great Billing WRC', distanceKm: 3.2 }
+    ]
+
+    vi.mocked(getTraceId).mockReturnValue('trace-123')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ nearbyWwtws: mockWwtws })
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({ nearbyWwtws: mockWwtws })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://localhost:8085/wwtw/nearby',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cdp-request-id': 'trace-123'
+        },
+        body: JSON.stringify({ geometry: mockGeometry })
+      })
+    )
+  })
+
+  it('should return error on non-ok response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badRequest,
+      json: () => Promise.resolve({ error: 'Invalid geometry' })
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({
+      error: 'Invalid geometry',
+      statusCode: statusCodes.badRequest
+    })
+  })
+
+  it('should return empty array when nearbyWwtws missing from response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({})
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({ nearbyWwtws: [] })
+  })
+
+  it('should return error on network failure', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
 
     expect(result).toEqual({
       error: 'Unable to contact impact assessor service'

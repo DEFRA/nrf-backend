@@ -91,7 +91,8 @@ export const patchController = {
       id,
       reference,
       email: { address },
-      development
+      development,
+      wasteWaterTreatmentWorksName
     } = quote
     const { edps } = request.payload
     await dbSaveEdpResults({
@@ -106,7 +107,9 @@ export const patchController = {
       recipientEmailAddress: address,
       edps,
       development,
-      wasteWaterTreatmentWorks: ['Nearby one']
+      // Name is null when the user selected "I don't know" on the WWTW page
+      wasteWaterTreatmentWorks:
+        wasteWaterTreatmentWorksName ?? 'Not yet confirmed'
     })
 
     if (emailResult?.sentDateTime) {

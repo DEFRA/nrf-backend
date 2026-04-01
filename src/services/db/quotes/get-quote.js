@@ -1,6 +1,6 @@
 export const dbGetQuote = async ({ db, reference }) => {
   const { rows } = await db.query(
-    `SELECT q.id, q.reference, q.email_address, q.email_send_request_at, q.boundary_entry_type, q.development_types, q.residential_building_count, q.people_count, q.created_at, ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326)) AS boundary_geodata,
+    `SELECT q.id, q.reference, q.email_address, q.email_send_request_at, q.boundary_entry_type, q.development_types, q.residential_building_count, q.people_count, q.waste_water_treatment_works_id, q.waste_water_treatment_works_name, q.created_at, ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326)) AS boundary_geodata,
             e.edp_id, e.edp_name, e.edp_type, e.impact, e.levy_gbp_min, e.levy_gbp_max
      FROM quotes q
      LEFT JOIN quote_edp_results e ON e.quote_id = q.id
@@ -22,6 +22,8 @@ export const dbGetQuote = async ({ db, reference }) => {
         geoJsonWgs84: row.boundary_geodata,
         userInputType: row.boundary_entry_type
       },
+      wasteWaterTreatmentWorksId: row.waste_water_treatment_works_id,
+      wasteWaterTreatmentWorksName: row.waste_water_treatment_works_name,
       email: {
         address: row.email_address,
         sendRequestAt: row.email_send_request_at
