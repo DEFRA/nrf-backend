@@ -107,6 +107,7 @@ export const patchController = {
       recipientEmailAddress: address,
       edps,
       development,
+      // Name is null when the user selected "I don't know" on the WWTW page
       wasteWaterTreatmentWorks:
         wasteWaterTreatmentWorksName ?? 'Not yet confirmed'
     })

@@ -27,7 +27,7 @@ const logger = createLogger()
  *             properties:
  *               geometry:
  *                 type: object
- *                 description: RLB geometry as GeoJSON (EPSG:27700)
+ *                 description: RLB geometry as GeoJSON
  *     responses:
  *       200:
  *         description: List of nearby WWTWs
