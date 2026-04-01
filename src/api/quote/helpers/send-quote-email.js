@@ -21,7 +21,6 @@ export const sendQuoteEmail = ({
       developmentDescription,
       wasteWaterTreatmentWorks: wasteWaterTreatmentWorks.join(', '),
       levyAmount: getLevyAmount(edps),
-      adminAmount: '£TBC',
       nrfServiceUrl: config.get('frontEndBaseUrl')
     },
     templateId: templateIds.quote

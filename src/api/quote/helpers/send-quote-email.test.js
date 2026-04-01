@@ -36,7 +36,6 @@ describe('sendQuoteEmail', () => {
         developmentDescription: 'Housing with a total of 5 residential units',
         wasteWaterTreatmentWorks: 'Nearby one',
         levyAmount: '£100 - £200',
-        adminAmount: '£TBC',
         nrfServiceUrl: expect.any(String)
       },
       templateId: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c'
