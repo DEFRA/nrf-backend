@@ -1,5 +1,11 @@
+import { getTraceId } from '@defra/hapi-tracing'
+
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
+
+vi.mock('@defra/hapi-tracing', () => ({
+  getTraceId: vi.fn()
+}))
 
 const {
   getImpactAssessorUrl,
@@ -58,6 +64,8 @@ describe('checkBoundary', () => {
       intersectingEdps: ['edp-1']
     }
 
+    vi.mocked(getTraceId).mockReturnValue('trace-456')
+
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockResponse)
@@ -79,7 +87,8 @@ describe('checkBoundary', () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://localhost:8085/check-boundary',
       expect.objectContaining({
-        method: 'POST'
+        method: 'POST',
+        headers: { 'x-cdp-request-id': 'trace-456' }
       })
     )
   })
@@ -175,6 +184,8 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
       { wwtwId: '101', wwtwName: 'Great Billing WRC', distanceKm: 3.2 }
     ]
 
+    vi.mocked(getTraceId).mockReturnValue('trace-123')
+
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ nearbyWwtws: mockWwtws })
@@ -187,7 +198,10 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
       'http://localhost:8085/wwtw/nearby',
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cdp-request-id': 'trace-123'
+        },
         body: JSON.stringify({ geometry: mockGeometry })
       })
     )

@@ -38,6 +38,15 @@ const logger = createLogger()
  *               properties:
  *                 nearbyWwtws:
  *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       wwtwId:
+ *                         type: string
+ *                       wwtwName:
+ *                         type: string
+ *                       distanceKm:
+ *                         type: number
  *       400:
  *         description: Invalid geometry
  *       502:
