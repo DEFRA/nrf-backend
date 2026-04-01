@@ -20,7 +20,8 @@ export const quoteSchema = joi.object({
     then: joi.number().integer().min(1).required(),
     otherwise: joi.any().forbidden()
   }),
-  wasteWaterTreatmentWorksId: joi.string().required(),
+  // ID is null when the user selected "I don't know" on the WWTW page
+  wasteWaterTreatmentWorksId: joi.string().allow(null).required(),
   // Name is null when the user selected "I don't know" on the WWTW page
   wasteWaterTreatmentWorksName: joi.string().allow(null).required(),
   email: joi
