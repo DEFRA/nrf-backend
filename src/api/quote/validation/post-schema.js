@@ -20,7 +20,8 @@ export const quoteSchema = joi.object({
     then: joi.number().integer().min(1).required(),
     otherwise: joi.any().forbidden()
   }),
-  wasteWaterTreatmentWorks: joi.string().required(),
+  wasteWaterTreatmentWorksId: joi.string().required(),
+  wasteWaterTreatmentWorksName: joi.string().allow(null).required(),
   email: joi
     .string()
     .trim()

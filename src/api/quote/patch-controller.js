@@ -92,7 +92,7 @@ export const patchController = {
       reference,
       email: { address },
       development,
-      wasteWaterTreatmentWorks
+      wasteWaterTreatmentWorksName
     } = quote
     const { edps } = request.payload
     await dbSaveEdpResults({
@@ -108,9 +108,7 @@ export const patchController = {
       edps,
       development,
       wasteWaterTreatmentWorks:
-        wasteWaterTreatmentWorks === 'i-dont-know'
-          ? ['Not yet confirmed']
-          : [wasteWaterTreatmentWorks]
+        wasteWaterTreatmentWorksName ?? 'Not yet confirmed'
     })
 
     if (emailResult?.sentDateTime) {

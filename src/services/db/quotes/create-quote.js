@@ -7,7 +7,8 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     developmentTypes,
     residentialBuildingCount,
     peopleCount,
-    wasteWaterTreatmentWorks,
+    wasteWaterTreatmentWorksId,
+    wasteWaterTreatmentWorksName,
     email
   } = quoteData
   const createdAt = getCurrentISODateTime()
@@ -17,8 +18,8 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     boundaryGeometryOriginal.crs?.properties?.name.split('::')?.[1]
   const crs = crsFromGeometry ? Number.parseInt(crsFromGeometry, 10) : crsWgs84
   const { rows } = await db.query(
-    `INSERT INTO quotes (email_address, boundary_entry_type, boundary_geodata, development_types, residential_building_count, people_count, waste_water_treatment_works, created_at)
-     VALUES ($1, $2, ST_SetSRID(ST_GeomFromGeoJSON($3), $4), $5, $6, $7, $8, $9)
+    `INSERT INTO quotes (email_address, boundary_entry_type, boundary_geodata, development_types, residential_building_count, people_count, waste_water_treatment_works_id, waste_water_treatment_works_name, created_at)
+     VALUES ($1, $2, ST_SetSRID(ST_GeomFromGeoJSON($3), $4), $5, $6, $7, $8, $9, $10)
      RETURNING id, reference`,
     [
       email,
@@ -28,7 +29,8 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
       developmentTypes,
       residentialBuildingCount ?? null,
       peopleCount ?? null,
-      wasteWaterTreatmentWorks ?? null,
+      wasteWaterTreatmentWorksId ?? null,
+      wasteWaterTreatmentWorksName ?? null,
       createdAt
     ]
   )

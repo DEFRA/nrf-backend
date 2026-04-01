@@ -10,10 +10,12 @@
                       http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
   <changeSet id="10" author="your-name">
     <addColumn tableName="quotes">
-      <column name="waste_water_treatment_works" type="VARCHAR(255)"/>
+      <column name="waste_water_treatment_works_id" type="VARCHAR(255)"/>
+      <column name="waste_water_treatment_works_name" type="VARCHAR(255)"/>
     </addColumn>
     <rollback>
-      <dropColumn tableName="quotes" columnName="waste_water_treatment_works"/>
+      <dropColumn tableName="quotes" columnName="waste_water_treatment_works_id"/>
+      <dropColumn tableName="quotes" columnName="waste_water_treatment_works_name"/>
     </rollback>
   </changeSet>
 </databaseChangeLog>

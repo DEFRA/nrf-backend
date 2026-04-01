@@ -19,7 +19,7 @@ export const sendQuoteEmail = ({
       nrfQuoteReference,
       edpNames: edps.map(({ edpName }) => edpName).join(', '),
       developmentDescription,
-      wasteWaterTreatmentWorks: wasteWaterTreatmentWorks.join(', '),
+      wasteWaterTreatmentWorks,
       levyAmount: getLevyAmount(edps),
       nrfServiceUrl: config.get('frontEndBaseUrl')
     },

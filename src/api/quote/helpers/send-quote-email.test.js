@@ -17,7 +17,7 @@ describe('sendQuoteEmail', () => {
     residentialBuildingCount: 5,
     peopleCount: null
   }
-  const wasteWaterTreatmentWorks = ['Nearby one']
+  const wasteWaterTreatmentWorks = 'Great Billing WRC'
 
   it('calls sendEmail with the correct arguments', () => {
     sendQuoteEmail({
@@ -34,7 +34,7 @@ describe('sendQuoteEmail', () => {
         nrfQuoteReference,
         edpNames: 'Norfolk Fens east',
         developmentDescription: 'Housing with a total of 5 residential units',
-        wasteWaterTreatmentWorks: 'Nearby one',
+        wasteWaterTreatmentWorks: 'Great Billing WRC',
         levyAmount: '£100 - £200',
         nrfServiceUrl: expect.any(String)
       },

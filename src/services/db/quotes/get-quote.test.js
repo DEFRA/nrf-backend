@@ -11,6 +11,8 @@ describe('dbGetQuote', () => {
       people_count: null,
       boundary_geodata: '{"type":"Polygon"}',
       boundary_entry_type: 'draw',
+      waste_water_treatment_works_id: '101',
+      waste_water_treatment_works_name: 'Great Billing WRC',
       email_address: 'developer@housebuilder.com',
       email_send_request_at: null,
       edp_id: 'EDP-001',
@@ -41,6 +43,8 @@ describe('dbGetQuote', () => {
         geoJsonWgs84: '{"type":"Polygon"}',
         userInputType: 'draw'
       },
+      wasteWaterTreatmentWorksId: '101',
+      wasteWaterTreatmentWorksName: 'Great Billing WRC',
       email: {
         address: 'developer@housebuilder.com',
         sendRequestAt: null

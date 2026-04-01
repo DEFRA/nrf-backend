@@ -5,7 +5,8 @@ const validPayload = {
   boundaryGeojson: { type: 'Feature', geometry: {} },
   developmentTypes: ['housing'],
   residentialBuildingCount: 10,
-  wasteWaterTreatmentWorks: 'Great Billing WRC',
+  wasteWaterTreatmentWorksId: '101',
+  wasteWaterTreatmentWorksName: 'Great Billing WRC',
   email: 'developer@housebuilder.com'
 }
 
