@@ -144,6 +144,12 @@ const config = convict({
       format: String,
       default: 'boundaries',
       env: 'CDP_UPLOADER_BUCKET'
+    },
+    maxFileSizeMb: {
+      doc: 'Maximum file size in MB for boundary uploads',
+      format: Number,
+      default: 2,
+      env: 'CDP_UPLOADER_MAX_FILE_SIZE_MB'
     }
   },
   impactAssessor: {

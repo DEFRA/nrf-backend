@@ -127,7 +127,8 @@ const checkBoundaryRoute = {
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
-      const response = { error: result.error }
+      const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
+      const response = { error: result.error, maxFileSizeMb }
       if (result.boundaryGeometryWgs84) {
         response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
       }

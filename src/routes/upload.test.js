@@ -38,7 +38,8 @@ describe('Upload routes', () => {
         redirect: '/quote/upload-received',
         s3Bucket: 'boundaries',
         s3Path: 'test-uploads',
-        metadata: { source: 'test' }
+        metadata: { source: 'test' },
+        maxFileSize: 2 * 1024 * 1024
       })
     })
   })
