@@ -103,11 +103,23 @@ async function downloadFile(fileInfo, h) {
  *         description: The ID of the upload to check
  *     responses:
  *       200:
- *         description: Boundary geometry as GeoJSON
+ *         description: Boundary check result
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 boundaryGeometryOriginal:
+ *                   type: object
+ *                   description: The boundary geometry in its original CRS, as GeoJSON
+ *                 boundaryGeometryWgs84:
+ *                   type: object
+ *                   description: The boundary geometry reprojected to WGS84, as GeoJSON
+ *                 intersectingEdps:
+ *                   type: array
+ *                   description: EDPs that intersect the boundary
+ *                   items:
+ *                     type: object
  *       400:
  *         description: Invalid or unreadable geometry file
  *       404:
@@ -213,7 +225,23 @@ const geometrySchema = joi
  *                 description: GeoJSON Geometry, Feature, or FeatureCollection
  *     responses:
  *       200:
- *         description: Boundary geometry as GeoJSON
+ *         description: Boundary check result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 boundaryGeometryOriginal:
+ *                   type: object
+ *                   description: The boundary geometry in its original CRS, as GeoJSON
+ *                 boundaryGeometryWgs84:
+ *                   type: object
+ *                   description: The boundary geometry reprojected to WGS84, as GeoJSON
+ *                 intersectingEdps:
+ *                   type: array
+ *                   description: EDPs that intersect the boundary
+ *                   items:
+ *                     type: object
  *       400:
  *         description: Invalid or unreadable geometry
  *       413:
