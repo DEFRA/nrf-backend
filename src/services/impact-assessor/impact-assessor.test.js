@@ -10,6 +10,7 @@ vi.mock('@defra/hapi-tracing', () => ({
 const {
   getImpactAssessorUrl,
   checkBoundary,
+  checkBoundaryGeometry,
   findNearbyWasteWaterTreatmentWorks
 } = await import('./impact-assessor.js')
 
@@ -154,6 +155,230 @@ describe('checkBoundary', () => {
       error: 'Unable to contact impact assessor service'
     })
   })
+
+  it('should fall back to HTTP status string when error body has neither error nor detail', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.internalServerError,
+      json: () => Promise.resolve({})
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result).toEqual({
+      error: `HTTP ${statusCodes.internalServerError}`,
+      statusCode: statusCodes.internalServerError
+    })
+  })
+
+  it('should fall back to HTTP status string when error response body is not JSON', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badGateway,
+      json: () => Promise.reject(new Error('not json'))
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result).toEqual({
+      error: `HTTP ${statusCodes.badGateway}`,
+      statusCode: statusCodes.badGateway
+    })
+  })
+
+  it('should omit the tracing header when no trace id is set', async () => {
+    vi.mocked(getTraceId).mockReturnValue(undefined)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: {},
+          boundaryGeometryWgs84: {},
+          intersectingEdps: []
+        })
+    })
+
+    await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledOpts.headers).toEqual({})
+  })
+})
+
+describe('checkBoundaryGeometry', () => {
+  const originalFetch = globalThis.fetch
+  const mockGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-1.5, 52.0],
+        [-1.4, 52.0],
+        [-1.4, 52.1],
+        [-1.5, 52.0]
+      ]
+    ]
+  }
+
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('should wrap the geometry as a synthetic geojson upload and return geojson on success', async () => {
+    const mockResponse = {
+      boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+      boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+      intersectingEdps: ['edp-1']
+    }
+
+    vi.mocked(getTraceId).mockReturnValue('trace-789')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse)
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result).toEqual({
+      geojson: {
+        boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
+        boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
+        intersectingEdps: mockResponse.intersectingEdps
+      }
+    })
+
+    const [calledUrl, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledUrl).toBe('http://localhost:8085/check-boundary')
+    expect(calledOpts.method).toBe('POST')
+    expect(calledOpts.headers).toEqual({ 'x-cdp-request-id': 'trace-789' })
+    expect(calledOpts.body).toBeInstanceOf(FormData)
+
+    const uploaded = calledOpts.body.get('geometry_file')
+    expect(uploaded).toBeInstanceOf(Blob)
+    expect(uploaded.name).toBe('input.geojson')
+    expect(uploaded.type).toBe('application/geo+json')
+    // The geometry must be wrapped in a FeatureCollection so the IA's
+    // geopandas/fiona reader can parse it.
+    expect(JSON.parse(await uploaded.text())).toEqual({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: mockGeometry,
+          properties: {}
+        }
+      ]
+    })
+  })
+
+  it('should propagate error and boundaryGeometryWgs84 on non-ok response', async () => {
+    const mockReturnedGeometry = {
+      type: 'FeatureCollection',
+      features: []
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badRequest,
+      json: () =>
+        Promise.resolve({
+          error: 'Invalid geometry',
+          boundaryGeometryWgs84: mockReturnedGeometry
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result).toEqual({
+      error: 'Invalid geometry',
+      statusCode: statusCodes.badRequest,
+      boundaryGeometryWgs84: mockReturnedGeometry
+    })
+  })
+
+  it('should return error on network failure', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result).toEqual({
+      error: 'Unable to contact impact assessor service'
+    })
+  })
+
+  it('should pass through a FeatureCollection input unchanged', async () => {
+    const featureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: mockGeometry,
+          properties: { name: 'site-a' }
+        }
+      ]
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: {},
+          boundaryGeometryWgs84: {},
+          intersectingEdps: []
+        })
+    })
+
+    await checkBoundaryGeometry(featureCollection)
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    const uploaded = calledOpts.body.get('geometry_file')
+    expect(JSON.parse(await uploaded.text())).toEqual(featureCollection)
+  })
+
+  it('should wrap a Feature input in a FeatureCollection', async () => {
+    const feature = {
+      type: 'Feature',
+      geometry: mockGeometry,
+      properties: { name: 'site-b' }
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: {},
+          boundaryGeometryWgs84: {},
+          intersectingEdps: []
+        })
+    })
+
+    await checkBoundaryGeometry(feature)
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    const uploaded = calledOpts.body.get('geometry_file')
+    expect(JSON.parse(await uploaded.text())).toEqual({
+      type: 'FeatureCollection',
+      features: [feature]
+    })
+  })
 })
 
 describe('findNearbyWasteWaterTreatmentWorks', () => {
@@ -241,5 +466,64 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
     expect(result).toEqual({
       error: 'Unable to contact impact assessor service'
     })
+  })
+
+  it('should fall back to HTTP status string when error body has neither error nor detail', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.internalServerError,
+      json: () => Promise.resolve({})
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({
+      error: `HTTP ${statusCodes.internalServerError}`,
+      statusCode: statusCodes.internalServerError
+    })
+  })
+
+  it('should fall back to HTTP status string when error response body is not JSON', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badGateway,
+      json: () => Promise.reject(new Error('not json'))
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({
+      error: `HTTP ${statusCodes.badGateway}`,
+      statusCode: statusCodes.badGateway
+    })
+  })
+
+  it('should prefer detail over the HTTP fallback when error is missing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badRequest,
+      json: () => Promise.resolve({ detail: 'Geometry could not be parsed' })
+    })
+
+    const result = await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    expect(result).toEqual({
+      error: 'Geometry could not be parsed',
+      statusCode: statusCodes.badRequest
+    })
+  })
+
+  it('should omit the tracing header when no trace id is set', async () => {
+    vi.mocked(getTraceId).mockReturnValue(undefined)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ nearbyWwtws: [] })
+    })
+
+    await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledOpts.headers).toEqual({ 'Content-Type': 'application/json' })
   })
 })

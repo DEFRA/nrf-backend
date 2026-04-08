@@ -27,13 +27,6 @@ export function getImpactAssessorUrl() {
 }
 
 /**
- * Send a geometry file to the impact assessor's /check-boundary endpoint
- * @param {Buffer} fileBuffer - The file content
- * @param {string} filename - The original filename
- * @param {string} contentType - The file's content type
- * @returns {Promise<{geojson?: object, error?: string}>}
- */
-/**
  * Find Waste Water Treatment Works catchments near an RLB geometry
  * @param {object} geometry - RLB geometry as GeoJSON dict (EPSG:27700)
  * @returns {Promise<{nearbyWwtws?: Array, error?: string}>}
@@ -77,16 +70,60 @@ export async function findNearbyWasteWaterTreatmentWorks(geometry) {
   }
 }
 
+/**
+ * Send a geometry file to the impact assessor's /check-boundary endpoint
+ * @param {Buffer} fileBuffer - The file content
+ * @param {string} filename - The original filename
+ * @param {string} contentType - The file's content type
+ * @returns {Promise<{geojson?: object, error?: string}>}
+ */
 export async function checkBoundary(fileBuffer, filename, contentType) {
+  const blob = new Blob([fileBuffer], { type: contentType })
+  return postBoundaryCheck(blob, filename, fileBuffer.length)
+}
+
+/**
+ * Send an in-memory GeoJSON object to the impact assessor's /check-boundary
+ * endpoint by wrapping it as a synthetic .geojson upload. This lets the backend
+ * expose a JSON-body API without changing the IA's file-based contract.
+ *
+ * The IA reads uploads via geopandas (fiona/pyogrio), which only accepts a
+ * FeatureCollection. Bare Geometry and Feature inputs are wrapped here so
+ * callers can pass any standard GeoJSON shape without knowing about that
+ * constraint; FeatureCollection inputs are forwarded unchanged.
+ * @param {object} input - GeoJSON Geometry, Feature, or FeatureCollection
+ * @returns {Promise<{geojson?: object, error?: string}>}
+ */
+export async function checkBoundaryGeometry(input) {
+  const featureCollection = toFeatureCollection(input)
+  const json = JSON.stringify(featureCollection)
+  const blob = new Blob([json], { type: 'application/geo+json' })
+  // Synthetic filename — the IA only uses the extension to choose a parser.
+  return postBoundaryCheck(blob, 'input.geojson', Buffer.byteLength(json))
+}
+
+function toFeatureCollection(input) {
+  if (input?.type === 'FeatureCollection') {
+    return input
+  }
+  if (input?.type === 'Feature') {
+    return { type: 'FeatureCollection', features: [input] }
+  }
+  return {
+    type: 'FeatureCollection',
+    features: [{ type: 'Feature', geometry: input, properties: {} }]
+  }
+}
+
+async function postBoundaryCheck(blob, filename, size) {
   const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/check-boundary`
 
   logger.info(
-    `Sending boundary check - url: ${url}, filename: ${filename}, size: ${fileBuffer.length}`
+    `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}`
   )
 
   const formData = new FormData()
-  const blob = new Blob([fileBuffer], { type: contentType })
   formData.append('geometry_file', blob, filename)
 
   try {
