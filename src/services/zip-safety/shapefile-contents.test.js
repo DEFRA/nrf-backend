@@ -40,26 +40,28 @@ describe('validateShapefileZipContents', () => {
     expect(result).toEqual({ ok: true })
   })
 
-  it('accepts a single .geojson file', async () => {
+  it('rejects a zip containing only a .geojson file', async () => {
     const zip = await buildZip([{ name: 'boundary.geojson', content: '{}' }])
     const result = await validateShapefileZipContents(zip)
-    expect(result).toEqual({ ok: true })
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('noShapefile')
   })
 
-  it('accepts a single .kml file', async () => {
+  it('rejects a zip containing only a .kml file', async () => {
     const zip = await buildZip([{ name: 'boundary.kml', content: '<kml/>' }])
     const result = await validateShapefileZipContents(zip)
-    expect(result).toEqual({ ok: true })
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('noShapefile')
   })
 
-  it('rejects a zip with no geometry file at all', async () => {
+  it('rejects a zip with no shapefile at all', async () => {
     const zip = await buildZip([
       { name: 'readme.txt', content: 'hi' },
       { name: 'notes.md', content: 'hi' }
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('noGeometryFile')
+    expect(result.code).toBe('noShapefile')
   })
 
   it('rejects a shapefile missing the .prj companion', async () => {

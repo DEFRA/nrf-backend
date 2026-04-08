@@ -1,14 +1,25 @@
 import yauzl from 'yauzl'
 
+// A legal shapefile bundle is a set of sibling files sharing the same stem.
+// We require all four because:
+//   .shp — the geometry itself (points / lines / polygons)
+//   .shx — positional index into .shp; mandatory per the ESRI spec, and
+//          GDAL/Fiona/GeoPandas refuse to open a shapefile without it
+//   .dbf — dBASE attribute table; also mandatory per the spec, even when
+//          there are no meaningful attributes (a dummy FID column is fine)
+//   .prj — well-known-text CRS definition; technically optional in the
+//          spec, but without it we cannot reliably reproject the geometry,
+//          so we require it up-front rather than failing later with a
+//          confusing "unsupported CRS" error.
 const REQUIRED_SHAPEFILE_EXTENSIONS = ['.shp', '.shx', '.dbf', '.prj']
 
 /**
- * Validate that a zip buffer contains a usable boundary geometry.
+ * Validate that a zip buffer contains a complete shapefile bundle
+ * (.shp + .shx + .dbf + .prj with the same stem).
  *
- * Accepts any of:
- *   - a complete shapefile bundle (.shp + .shx + .dbf + .prj with the same stem)
- *   - a single .geojson file
- *   - a single .kml file
+ * Zip uploads are *only* used to bundle shapefile components together.
+ * .geojson and .kml uploads come through as standalone files, not zipped,
+ * so we deliberately reject them when found inside a zip.
  *
  * Runs *after* validateZipSafety, so the zip is already known to be safe to
  * inspect. Re-walks the central directory rather than re-using the previous
@@ -62,30 +73,19 @@ export function validateShapefileZipContents(buffer) {
  */
 function checkContents(fileNames) {
   const lower = fileNames.map((n) => n.toLowerCase())
-
-  const hasGeojson = lower.some(
-    (n) => n.endsWith('.geojson') || n.endsWith('.json')
-  )
-  const hasKml = lower.some((n) => n.endsWith('.kml'))
   const shpFiles = fileNames.filter((n) => n.toLowerCase().endsWith('.shp'))
 
-  if (shpFiles.length === 0 && !hasGeojson && !hasKml) {
+  if (shpFiles.length === 0) {
     return {
       ok: false,
-      code: 'noGeometryFile',
+      code: 'noShapefile',
       message:
-        'Zip must contain a shapefile (.shp with .shx, .dbf and .prj companions), a .geojson file, or a .kml file.'
+        'Zip must contain a shapefile (.shp with .shx, .dbf and .prj companions).'
     }
   }
 
-  // GeoJSON / KML alone is fine — no companion files needed.
-  if (shpFiles.length === 0) {
-    return { ok: true }
-  }
-
-  // A shapefile is present: enforce the full companion bundle for the same
-  // stem. We pick the first .shp and check that all four extensions exist
-  // alongside it (case-insensitive, same stem, same directory).
+  // Pick the first .shp and check that all four extensions exist alongside
+  // it (case-insensitive, same stem, same directory).
   const shpPath = shpFiles[0]
   const lastSlash = shpPath.lastIndexOf('/')
   const dir = lastSlash === -1 ? '' : shpPath.slice(0, lastSlash + 1)
