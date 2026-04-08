@@ -11,7 +11,8 @@ const postgresPortDefault = 5432
 const postgresPortTest = 5433
 const localStack = 'http://localhost:4566'
 const bytesPerMb = 1024 * 1024
-const zipSafetyDefaultMaxBytes = 20 * bytesPerMb
+const zipSafetyDefaultMaxMb = 20
+const zipSafetyDefaultMaxBytes = zipSafetyDefaultMaxMb * bytesPerMb
 
 if (isDevelopment) {
   configDotenv()
