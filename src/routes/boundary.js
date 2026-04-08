@@ -158,6 +158,37 @@ const checkBoundaryRoute = {
   }
 }
 
+const GEOJSON_GEOMETRY_TYPES = [
+  'Point',
+  'MultiPoint',
+  'LineString',
+  'MultiLineString',
+  'Polygon',
+  'MultiPolygon',
+  'GeometryCollection'
+]
+
+const geometrySchema = joi
+  .object({
+    type: joi
+      .string()
+      .valid(...GEOJSON_GEOMETRY_TYPES, 'Feature', 'FeatureCollection')
+      .required(),
+    coordinates: joi.array().when('type', {
+      is: joi.valid(...GEOJSON_GEOMETRY_TYPES),
+      then: joi.required()
+    }),
+    geometry: joi.object().when('type', {
+      is: 'Feature',
+      then: joi.required()
+    }),
+    features: joi.array().when('type', {
+      is: 'FeatureCollection',
+      then: joi.required()
+    })
+  })
+  .unknown(true)
+
 /**
  * @openapi
  * /boundary/check:
@@ -166,7 +197,7 @@ const checkBoundaryRoute = {
  *       - Boundary
  *     summary: Check a boundary geometry supplied as GeoJSON
  *     description: >
- *       Accepts a GeoJSON geometry (or Feature/FeatureCollection) in the request body
+ *       Accepts a GeoJSON Geometry, Feature, or FeatureCollection in the request body
  *       and forwards it to the impact assessor's /check-boundary endpoint as an
  *       in-memory file. Returns the same response shape as the upload-id variant.
  *     requestBody:
@@ -179,12 +210,14 @@ const checkBoundaryRoute = {
  *             properties:
  *               geometry:
  *                 type: object
- *                 description: GeoJSON geometry, Feature, or FeatureCollection
+ *                 description: GeoJSON Geometry, Feature, or FeatureCollection
  *     responses:
  *       200:
  *         description: Boundary geometry as GeoJSON
  *       400:
  *         description: Invalid or unreadable geometry
+ *       413:
+ *         description: Payload too large
  *       502:
  *         description: Impact assessor service error
  */
@@ -192,9 +225,12 @@ const checkBoundaryGeometryRoute = {
   method: 'POST',
   path: '/boundary/check',
   options: {
+    payload: {
+      maxBytes: 10 * 1024 * 1024
+    },
     validate: {
       payload: joi.object({
-        geometry: joi.object().required()
+        geometry: geometrySchema.required()
       })
     }
   },
