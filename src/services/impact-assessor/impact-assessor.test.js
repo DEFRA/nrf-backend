@@ -10,6 +10,7 @@ vi.mock('@defra/hapi-tracing', () => ({
 const {
   getImpactAssessorUrl,
   checkBoundary,
+  checkBoundaryGeometry,
   findNearbyWasteWaterTreatmentWorks
 } = await import('./impact-assessor.js')
 
@@ -149,6 +150,102 @@ describe('checkBoundary', () => {
       'test.geojson',
       'application/geo+json'
     )
+
+    expect(result).toEqual({
+      error: 'Unable to contact impact assessor service'
+    })
+  })
+})
+
+describe('checkBoundaryGeometry', () => {
+  const originalFetch = globalThis.fetch
+  const mockGeometry = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-1.5, 52.0],
+        [-1.4, 52.0],
+        [-1.4, 52.1],
+        [-1.5, 52.0]
+      ]
+    ]
+  }
+
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('should wrap the geometry as a synthetic geojson upload and return geojson on success', async () => {
+    const mockResponse = {
+      boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+      boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+      intersectingEdps: ['edp-1']
+    }
+
+    vi.mocked(getTraceId).mockReturnValue('trace-789')
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse)
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result).toEqual({
+      geojson: {
+        boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
+        boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
+        intersectingEdps: mockResponse.intersectingEdps
+      }
+    })
+
+    const [calledUrl, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledUrl).toBe('http://localhost:8085/check-boundary')
+    expect(calledOpts.method).toBe('POST')
+    expect(calledOpts.headers).toEqual({ 'x-cdp-request-id': 'trace-789' })
+    expect(calledOpts.body).toBeInstanceOf(FormData)
+
+    const uploaded = calledOpts.body.get('geometry_file')
+    expect(uploaded).toBeInstanceOf(Blob)
+    expect(uploaded.name).toBe('input.geojson')
+    expect(uploaded.type).toBe('application/geo+json')
+    expect(JSON.parse(await uploaded.text())).toEqual(mockGeometry)
+  })
+
+  it('should propagate error and boundaryGeometryWgs84 on non-ok response', async () => {
+    const mockReturnedGeometry = {
+      type: 'FeatureCollection',
+      features: []
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: statusCodes.badRequest,
+      json: () =>
+        Promise.resolve({
+          error: 'Invalid geometry',
+          boundaryGeometryWgs84: mockReturnedGeometry
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result).toEqual({
+      error: 'Invalid geometry',
+      statusCode: statusCodes.badRequest,
+      boundaryGeometryWgs84: mockReturnedGeometry
+    })
+  })
+
+  it('should return error on network failure', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+
+    const result = await checkBoundaryGeometry(mockGeometry)
 
     expect(result).toEqual({
       error: 'Unable to contact impact assessor service'
