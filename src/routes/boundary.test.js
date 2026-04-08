@@ -498,11 +498,52 @@ describe('Boundary routes', () => {
       vi.mocked(s3Client.downloadFromS3).mockRestore()
     })
 
+    it('should reject a zip missing shapefile companion files', async () => {
+      const zipBuffer = await buildZipBuffer([
+        { name: 'boundary.shp', content: 'shp' },
+        { name: 'boundary.shx', content: 'shx' }
+        // missing .dbf and .prj
+      ])
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/incomplete.zip',
+            s3Bucket: 'boundaries',
+            filename: 'incomplete.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'incomplete.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/missing required companion files/i)
+      expect(body.error).toMatch(/\.dbf/)
+      expect(body.error).toMatch(/\.prj/)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
     it('should pass a clean zip through to the impact assessor', async () => {
       const zipBuffer = await buildZipBuffer([
         { name: 'boundary.shp', content: 'shp' },
         { name: 'boundary.shx', content: 'shx' },
-        { name: 'boundary.dbf', content: 'dbf' }
+        { name: 'boundary.dbf', content: 'dbf' },
+        { name: 'boundary.prj', content: 'GEOGCS["WGS 84"]' }
       ])
       vi.mocked(checkBoundary).mockResolvedValue({
         geojson: { type: 'FeatureCollection', features: [] }

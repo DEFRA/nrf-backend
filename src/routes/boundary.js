@@ -4,6 +4,7 @@ import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { checkBoundary } from '../services/impact-assessor/impact-assessor.js'
 import { validateZipSafety } from '../services/zip-safety/zip-safety.js'
+import { validateShapefileZipContents } from '../services/zip-safety/shapefile-contents.js'
 import { config } from '../config.js'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -145,13 +146,23 @@ const checkBoundaryRoute = {
     const isZip =
       /\.zip$/i.test(filename ?? '') || contentType === 'application/zip'
     if (isZip) {
-      const validation = await validateZipSafety(fileData.body)
-      if (!validation.ok) {
+      const safety = await validateZipSafety(fileData.body)
+      if (!safety.ok) {
         logger.warn(
-          `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${validation.code}, filename: ${filename}`
+          `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${safety.code}, filename: ${filename}`
         )
         return h
-          .response({ error: validation.message })
+          .response({ error: safety.message })
+          .code(statusCodes.badRequest)
+      }
+
+      const contents = await validateShapefileZipContents(fileData.body)
+      if (!contents.ok) {
+        logger.warn(
+          `Zip contents check rejected upload - uploadId: ${uploadId}, code: ${contents.code}, filename: ${filename}`
+        )
+        return h
+          .response({ error: contents.message })
           .code(statusCodes.badRequest)
       }
     }
