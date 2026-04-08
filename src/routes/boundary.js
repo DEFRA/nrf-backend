@@ -2,7 +2,10 @@ import joi from 'joi'
 
 import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
-import { checkBoundary } from '../services/impact-assessor/impact-assessor.js'
+import {
+  checkBoundary,
+  checkBoundaryGeometry
+} from '../services/impact-assessor/impact-assessor.js'
 import { config } from '../config.js'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -88,9 +91,8 @@ async function downloadFile(fileInfo, h) {
  *       - Boundary
  *     summary: Check an uploaded boundary file
  *     description: >
- *       Downloads the uploaded file from S3 and sends it to the
- *       impact assessor for geometry validation. Returns the
- *       extracted GeoJSON on success.
+ *       Downloads the uploaded file from S3 and sends it to the impact assessor for
+ *       geometry validation. Returns the extracted GeoJSON on success.
  *     parameters:
  *       - in: path
  *         name: uploadId
@@ -101,11 +103,23 @@ async function downloadFile(fileInfo, h) {
  *         description: The ID of the upload to check
  *     responses:
  *       200:
- *         description: Boundary geometry as GeoJSON
+ *         description: Boundary check result
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 boundaryGeometryOriginal:
+ *                   type: object
+ *                   description: The boundary geometry in its original CRS, as GeoJSON
+ *                 boundaryGeometryWgs84:
+ *                   type: object
+ *                   description: The boundary geometry reprojected to WGS84, as GeoJSON
+ *                 intersectingEdps:
+ *                   type: array
+ *                   description: EDPs that intersect the boundary
+ *                   items:
+ *                     type: object
  *       400:
  *         description: Invalid or unreadable geometry file
  *       404:
@@ -156,4 +170,114 @@ const checkBoundaryRoute = {
   }
 }
 
-export { checkBoundaryRoute }
+const GEOJSON_GEOMETRY_TYPES = [
+  'Point',
+  'MultiPoint',
+  'LineString',
+  'MultiLineString',
+  'Polygon',
+  'MultiPolygon',
+  'GeometryCollection'
+]
+
+const geometrySchema = joi
+  .object({
+    type: joi
+      .string()
+      .valid(...GEOJSON_GEOMETRY_TYPES, 'Feature', 'FeatureCollection')
+      .required(),
+    coordinates: joi.array().when('type', {
+      is: joi.valid(...GEOJSON_GEOMETRY_TYPES),
+      then: joi.required()
+    }),
+    geometry: joi.object().when('type', {
+      is: 'Feature',
+      then: joi.required()
+    }),
+    features: joi.array().when('type', {
+      is: 'FeatureCollection',
+      then: joi.required()
+    })
+  })
+  .unknown(true)
+
+/**
+ * @openapi
+ * /boundary/check:
+ *   post:
+ *     tags:
+ *       - Boundary
+ *     summary: Check a boundary geometry supplied as GeoJSON
+ *     description: >
+ *       Accepts a GeoJSON Geometry, Feature, or FeatureCollection in the request body
+ *       and forwards it to the impact assessor's /check-boundary endpoint as an
+ *       in-memory file. Returns the same response shape as the upload-id variant.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [geometry]
+ *             properties:
+ *               geometry:
+ *                 type: object
+ *                 description: GeoJSON Geometry, Feature, or FeatureCollection
+ *     responses:
+ *       200:
+ *         description: Boundary check result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 boundaryGeometryOriginal:
+ *                   type: object
+ *                   description: The boundary geometry in its original CRS, as GeoJSON
+ *                 boundaryGeometryWgs84:
+ *                   type: object
+ *                   description: The boundary geometry reprojected to WGS84, as GeoJSON
+ *                 intersectingEdps:
+ *                   type: array
+ *                   description: EDPs that intersect the boundary
+ *                   items:
+ *                     type: object
+ *       400:
+ *         description: Invalid or unreadable geometry
+ *       413:
+ *         description: Payload too large
+ *       502:
+ *         description: Impact assessor service error
+ */
+const checkBoundaryGeometryRoute = {
+  method: 'POST',
+  path: '/boundary/check',
+  options: {
+    payload: {
+      maxBytes: 10 * 1024 * 1024
+    },
+    validate: {
+      payload: joi.object({
+        geometry: geometrySchema.required()
+      })
+    }
+  },
+  handler: async (request, h) => {
+    const { geometry } = request.payload
+
+    const result = await checkBoundaryGeometry(geometry)
+
+    if (result.error) {
+      const statusCode = result.statusCode ?? statusCodes.badGateway
+      const response = { error: result.error }
+      if (result.boundaryGeometryWgs84) {
+        response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
+      }
+      return h.response(response).code(statusCode)
+    }
+
+    return h.response(result.geojson)
+  }
+}
+
+export { checkBoundaryRoute, checkBoundaryGeometryRoute }

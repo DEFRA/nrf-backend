@@ -1,7 +1,10 @@
 import { health } from '../routes/health.js'
 import { version } from '../routes/version.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
-import { checkBoundaryRoute } from '../routes/boundary.js'
+import {
+  checkBoundaryRoute,
+  checkBoundaryGeometryRoute
+} from '../routes/boundary.js'
 import { nearbyWasteWaterTreatmentWorksRoute } from '../routes/wwtw.js'
 import { quote } from '../routes/quote.js'
 
@@ -16,6 +19,7 @@ const router = {
           initiateUpload,
           uploadStatus,
           checkBoundaryRoute,
+          checkBoundaryGeometryRoute,
           nearbyWasteWaterTreatmentWorksRoute
         ].concat(quote)
       )

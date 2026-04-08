@@ -7,7 +7,7 @@ import * as s3Client from '../services/s3/s3-client.js'
 
 vi.mock('../services/impact-assessor/impact-assessor.js')
 
-const { checkBoundary } =
+const { checkBoundary, checkBoundaryGeometry } =
   await import('../services/impact-assessor/impact-assessor.js')
 
 const CDP_UPLOADER_URL = 'http://localhost:7338'
@@ -440,6 +440,87 @@ describe('Boundary routes', () => {
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+  })
+
+  describe('POST /boundary/check', () => {
+    const validGeometry = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-1.5, 52.0],
+          [-1.4, 52.0],
+          [-1.4, 52.1],
+          [-1.5, 52.0]
+        ]
+      ]
+    }
+
+    it('should forward the geometry to the impact assessor and return geojson', async () => {
+      const mockGeojson = {
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: []
+      }
+
+      vi.mocked(checkBoundaryGeometry).mockResolvedValue({
+        geojson: mockGeojson
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check',
+        payload: { geometry: validGeometry }
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(JSON.parse(response.payload)).toEqual(mockGeojson)
+      expect(checkBoundaryGeometry).toHaveBeenCalledWith(validGeometry)
+    })
+
+    it('should return the impact assessor error and status code on failure', async () => {
+      vi.mocked(checkBoundaryGeometry).mockResolvedValue({
+        error: 'Invalid geometry',
+        statusCode: statusCodes.badRequest,
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check',
+        payload: { geometry: validGeometry }
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      expect(JSON.parse(response.payload)).toEqual({
+        error: 'Invalid geometry',
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+      })
+    })
+
+    it('should default to 502 when impact assessor returns no status code', async () => {
+      vi.mocked(checkBoundaryGeometry).mockResolvedValue({
+        error: 'Unable to contact impact assessor service'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check',
+        payload: { geometry: validGeometry }
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badGateway)
+    })
+
+    it('should reject a request with no geometry', async () => {
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check',
+        payload: {}
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      expect(checkBoundaryGeometry).not.toHaveBeenCalled()
     })
   })
 })
