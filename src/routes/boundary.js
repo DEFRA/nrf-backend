@@ -3,6 +3,7 @@ import joi from 'joi'
 import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { checkBoundary } from '../services/impact-assessor/impact-assessor.js'
+import { validateZipSafety } from '../services/zip-safety/zip-safety.js'
 import { config } from '../config.js'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -140,6 +141,21 @@ const checkBoundaryRoute = {
     const { fileData } = download
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
+
+    const isZip =
+      /\.zip$/i.test(filename ?? '') || contentType === 'application/zip'
+    if (isZip) {
+      const validation = await validateZipSafety(fileData.body)
+      if (!validation.ok) {
+        logger.warn(
+          `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${validation.code}, filename: ${filename}`
+        )
+        return h
+          .response({ error: validation.message })
+          .code(statusCodes.badRequest)
+      }
+    }
+
     const result = await checkBoundary(fileData.body, filename, contentType)
 
     if (result.error) {

@@ -152,6 +152,32 @@ const config = convict({
       env: 'CDP_UPLOADER_MAX_FILE_SIZE_MB'
     }
   },
+  zipSafety: {
+    maxEntries: {
+      doc: 'Maximum number of files allowed inside an uploaded zip',
+      format: Number,
+      default: 10,
+      env: 'ZIP_SAFETY_MAX_ENTRIES'
+    },
+    maxTotalBytes: {
+      doc: 'Maximum total uncompressed size in bytes for an uploaded zip',
+      format: Number,
+      default: 20 * 1024 * 1024,
+      env: 'ZIP_SAFETY_MAX_TOTAL_BYTES'
+    },
+    maxEntryBytes: {
+      doc: 'Maximum uncompressed size in bytes for any single entry inside an uploaded zip',
+      format: Number,
+      default: 20 * 1024 * 1024,
+      env: 'ZIP_SAFETY_MAX_ENTRY_BYTES'
+    },
+    maxCompressionRatio: {
+      doc: 'Maximum allowed uncompressed:compressed size ratio for any single zip entry',
+      format: Number,
+      default: 100,
+      env: 'ZIP_SAFETY_MAX_COMPRESSION_RATIO'
+    }
+  },
   impactAssessor: {
     url: {
       doc: 'Endpoint for the nrf-impact-assessor service. Auto-derived from ENVIRONMENT if not set.',
