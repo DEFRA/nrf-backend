@@ -67,6 +67,30 @@ async function getFileFromUpload(uploadId, h) {
   return { fileInfo: uploadedFile }
 }
 
+function isZipUpload(filename, contentType) {
+  return /\.zip$/i.test(filename ?? '') || contentType === 'application/zip'
+}
+
+async function validateZipUpload(buffer, { uploadId, filename }) {
+  const safety = await validateZipSafety(buffer)
+  if (!safety.ok) {
+    logger.warn(
+      `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${safety.code}, filename: ${filename}`
+    )
+    return safety
+  }
+
+  const contents = await validateShapefileZipContents(buffer)
+  if (!contents.ok) {
+    logger.warn(
+      `Zip contents check rejected upload - uploadId: ${uploadId}, code: ${contents.code}, filename: ${filename}`
+    )
+    return contents
+  }
+
+  return { ok: true }
+}
+
 async function downloadFile(fileInfo, h) {
   const bucket = fileInfo.s3Bucket ?? config.get('cdpUploader.bucket')
 
@@ -157,26 +181,14 @@ const checkBoundaryRoute = {
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
 
-    const isZip =
-      /\.zip$/i.test(filename ?? '') || contentType === 'application/zip'
-    if (isZip) {
-      const safety = await validateZipSafety(fileData.body)
-      if (!safety.ok) {
-        logger.warn(
-          `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${safety.code}, filename: ${filename}`
-        )
+    if (isZipUpload(filename, contentType)) {
+      const zipCheck = await validateZipUpload(fileData.body, {
+        uploadId,
+        filename
+      })
+      if (!zipCheck.ok) {
         return h
-          .response({ error: safety.message })
-          .code(statusCodes.badRequest)
-      }
-
-      const contents = await validateShapefileZipContents(fileData.body)
-      if (!contents.ok) {
-        logger.warn(
-          `Zip contents check rejected upload - uploadId: ${uploadId}, code: ${contents.code}, filename: ${filename}`
-        )
-        return h
-          .response({ error: contents.message })
+          .response({ error: zipCheck.message })
           .code(statusCodes.badRequest)
       }
     }

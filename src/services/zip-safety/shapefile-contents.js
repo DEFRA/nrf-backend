@@ -11,7 +11,11 @@ import yauzl from 'yauzl'
 //          spec, but without it we cannot reliably reproject the geometry,
 //          so we require it up-front rather than failing later with a
 //          confusing "unsupported CRS" error.
-const REQUIRED_SHAPEFILE_EXTENSIONS = ['.shp', '.shx', '.dbf', '.prj']
+const SHP_EXT = '.shp'
+const SHX_EXT = '.shx'
+const DBF_EXT = '.dbf'
+const PRJ_EXT = '.prj'
+const REQUIRED_SHAPEFILE_EXTENSIONS = [SHP_EXT, SHX_EXT, DBF_EXT, PRJ_EXT]
 
 /**
  * Validate that a zip buffer contains a complete shapefile bundle
@@ -44,7 +48,7 @@ export function validateShapefileZipContents(buffer) {
       const fileNames = []
 
       zipfile.on('entry', (entry) => {
-        if (!/\/$/.test(entry.fileName)) {
+        if (!entry.fileName.endsWith('/')) {
           fileNames.push(entry.fileName)
         }
         zipfile.readEntry()
@@ -73,7 +77,7 @@ export function validateShapefileZipContents(buffer) {
  */
 function checkContents(fileNames) {
   const lower = fileNames.map((n) => n.toLowerCase())
-  const shpFiles = fileNames.filter((n) => n.toLowerCase().endsWith('.shp'))
+  const shpFiles = fileNames.filter((n) => n.toLowerCase().endsWith(SHP_EXT))
 
   if (shpFiles.length === 0) {
     return {
@@ -89,7 +93,7 @@ function checkContents(fileNames) {
   const shpPath = shpFiles[0]
   const lastSlash = shpPath.lastIndexOf('/')
   const dir = lastSlash === -1 ? '' : shpPath.slice(0, lastSlash + 1)
-  const stem = shpPath.slice(lastSlash + 1, -4) // strip ".shp"
+  const stem = shpPath.slice(lastSlash + 1, -SHP_EXT.length) // strip ".shp"
 
   const haveByExt = new Set(
     lower
