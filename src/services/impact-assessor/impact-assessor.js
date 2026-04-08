@@ -86,11 +86,26 @@ export async function checkBoundary(fileBuffer, filename, contentType) {
  * Send an in-memory GeoJSON geometry to the impact assessor's /check-boundary
  * endpoint by wrapping it as a synthetic .geojson upload. This lets the backend
  * expose a JSON-body API without changing the IA's file-based contract.
- * @param {object} geometry - GeoJSON geometry or Feature/FeatureCollection
+ *
+ * The IA reads uploads via geopandas (fiona/pyogrio), which only accepts a
+ * FeatureCollection — a bare Geometry will not parse. We wrap the geometry in
+ * a minimal FeatureCollection here so callers can pass natural GeoJSON
+ * Geometry objects without knowing about that constraint.
+ * @param {object} geometry - GeoJSON Geometry (e.g. Polygon)
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
 export async function checkBoundaryGeometry(geometry) {
-  const json = JSON.stringify(geometry)
+  const featureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry,
+        properties: {}
+      }
+    ]
+  }
+  const json = JSON.stringify(featureCollection)
   const blob = new Blob([json], { type: 'application/geo+json' })
   // Synthetic filename — the IA only uses the extension to choose a parser.
   return postBoundaryCheck(blob, 'input.geojson', json.length)

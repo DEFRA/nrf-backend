@@ -214,7 +214,18 @@ describe('checkBoundaryGeometry', () => {
     expect(uploaded).toBeInstanceOf(Blob)
     expect(uploaded.name).toBe('input.geojson')
     expect(uploaded.type).toBe('application/geo+json')
-    expect(JSON.parse(await uploaded.text())).toEqual(mockGeometry)
+    // The geometry must be wrapped in a FeatureCollection so the IA's
+    // geopandas/fiona reader can parse it.
+    expect(JSON.parse(await uploaded.text())).toEqual({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: mockGeometry,
+          properties: {}
+        }
+      ]
+    })
   })
 
   it('should propagate error and boundaryGeometryWgs84 on non-ok response', async () => {
