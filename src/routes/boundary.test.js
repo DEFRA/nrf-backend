@@ -160,7 +160,44 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Unsupported file format')
+      expect(body.maxFileSizeMb).toBe(2)
     }, 30_000)
+
+    it('should return 413 with maxFileSizeMb when file is too large', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/large.geojson',
+            s3Bucket: 'boundaries',
+            filename: 'large.geojson',
+            contentType: 'application/json'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('large content'),
+        filename: 'large.geojson',
+        contentType: 'application/json'
+      })
+      vi.mocked(checkBoundary).mockResolvedValue({
+        error: 'File too large. Maximum upload size is 2 MB.',
+        statusCode: 413
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(413)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('File too large. Maximum upload size is 2 MB.')
+      expect(body.maxFileSizeMb).toBe(2)
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
 
     it('should include boundaryGeometryWgs84 in error response when available', async () => {
       const mockGeometry = {
@@ -226,6 +263,82 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.notFound)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('No file found for this upload')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return 413 when file is rejected due to size', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            hasError: true,
+            errorMessage: 'The selected file must be smaller than 2.1 MB'
+          }
+        }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.payloadTooLarge)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('The selected file must be smaller than 2.1 MB')
+      expect(body.maxFileSizeMb).toBe(2)
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return 400 when file is rejected for a non-size reason', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            hasError: true,
+            errorMessage: 'The selected file contains a virus'
+          }
+        }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('The selected file contains a virus')
+      expect(body.maxFileSizeMb).toBeUndefined()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return fallback error when file is rejected with no error message', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            hasError: true
+          }
+        }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('The uploaded file was rejected')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })

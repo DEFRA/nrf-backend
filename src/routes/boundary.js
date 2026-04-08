@@ -29,11 +29,28 @@ async function getFileFromUpload(uploadId, h) {
     }
   }
 
-  const form = uploadDetails.form
-  const fileInfo = form?.file
-  if (!fileInfo?.s3Key) {
+  const uploadedFile = uploadDetails.form?.file
+  if (uploadDetails.numberOfRejectedFiles > 0) {
+    const error = uploadedFile?.errorMessage ?? 'The uploaded file was rejected'
     logger.error(
-      `No file info in upload details - uploadId: ${uploadId}, form: ${JSON.stringify(form)}`
+      `File rejected by uploader - uploadId: ${uploadId}, error: ${error}`
+    )
+    const isTooLarge = /smaller than|too large|size/i.test(error)
+    const statusCode = isTooLarge
+      ? statusCodes.payloadTooLarge
+      : statusCodes.badRequest
+    const response = { error }
+    if (isTooLarge) {
+      response.maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
+    }
+    return {
+      error: h.response(response).code(statusCode)
+    }
+  }
+
+  if (!uploadedFile?.s3Key) {
+    logger.error(
+      `No file info in upload details - uploadId: ${uploadId}, form: ${JSON.stringify(uploadDetails.form)}`
     )
     return {
       error: h
@@ -42,7 +59,7 @@ async function getFileFromUpload(uploadId, h) {
     }
   }
 
-  return { fileInfo }
+  return { fileInfo: uploadedFile }
 }
 
 async function downloadFile(fileInfo, h) {
@@ -127,7 +144,8 @@ const checkBoundaryRoute = {
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
-      const response = { error: result.error }
+      const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
+      const response = { error: result.error, maxFileSizeMb }
       if (result.boundaryGeometryWgs84) {
         response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
       }

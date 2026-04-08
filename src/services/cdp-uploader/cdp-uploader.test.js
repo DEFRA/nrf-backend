@@ -84,6 +84,26 @@ describe('initiateUpload', () => {
     )
   })
 
+  it('should include maxFileSize in the payload when provided', async () => {
+    vi.mocked(Wreck.post).mockResolvedValue({
+      payload: {
+        uploadId: 'abc-123',
+        uploadUrl: '/upload/abc-123'
+      }
+    })
+
+    await initiateUpload({
+      redirect: 'http://localhost:3000/done',
+      s3Bucket: 'my-bucket',
+      maxFileSize: 2 * 1024 * 1024
+    })
+
+    const sentPayload = JSON.parse(
+      vi.mocked(Wreck.post).mock.calls[0][1].payload
+    )
+    expect(sentPayload.maxFileSize).toBe(2 * 1024 * 1024)
+  })
+
   it('should return uploadUrl as-is when it is a relative path', async () => {
     vi.mocked(Wreck.post).mockResolvedValue({
       payload: {

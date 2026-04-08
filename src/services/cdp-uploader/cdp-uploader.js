@@ -31,24 +31,31 @@ export function getCdpUploaderUrl() {
  * @param {string} options.s3Bucket - Destination S3 bucket
  * @param {string} [options.s3Path] - Optional path within the bucket
  * @param {object} [options.metadata] - Optional metadata
+ * @param {number} [options.maxFileSize] - Maximum file size in bytes
  * @returns {Promise<{uploadId: string, uploadUrl: string} | {error: string}>}
  */
-export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
+export async function initiateUpload({
+  redirect,
+  s3Bucket,
+  s3Path,
+  metadata,
+  maxFileSize
+}) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/initiate`
 
   logger.info(
-    `Initiating upload - url: ${url}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}`
+    `Initiating upload - url: ${url}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}, maxFileSize: ${maxFileSize}`
   )
 
   try {
+    const body = { redirect, s3Bucket, s3Path, metadata }
+    if (maxFileSize != null) {
+      body.maxFileSize = maxFileSize
+    }
+
     const { payload } = await Wreck.post(url, {
-      payload: JSON.stringify({
-        redirect,
-        s3Bucket,
-        s3Path,
-        metadata
-      }),
+      payload: JSON.stringify(body),
       headers: {
         'Content-Type': 'application/json'
       },
