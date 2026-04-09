@@ -88,7 +88,7 @@ async function validateZipUpload(buffer, { uploadId, filename }) {
     return contents
   }
 
-  return { ok: true }
+  return { ok: true, shapefileName: contents.shapefileName }
 }
 
 async function downloadFile(fileInfo, h) {
@@ -146,6 +146,12 @@ async function downloadFile(fileInfo, h) {
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                 boundaryFilename:
+ *                   type: string
+ *                   description: >
+ *                     The filename to display and persist for this boundary.
+ *                     For a zip upload, this is the .shp filename inside the
+ *                     zip; for a standalone upload, it is the uploaded filename.
  *       400:
  *         description: Invalid or unreadable geometry file
  *       404:
@@ -181,7 +187,17 @@ const checkBoundaryRoute = {
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
 
+    // The boundary filename we show to the user and persist with the quote.
+    // For a zip upload, this is the inner .shp filename (set below after
+    // validation); for a standalone .geojson/.kml/.json it's the upload name.
+    // When the upload is a zip, we also pass this through to the impact
+    // assessor so it opens that exact entry inside the extracted archive
+    // rather than re-implementing a picking rule of its own.
+    let boundaryFilename = filename
+    let isZip = false
+
     if (isZipUpload(filename, contentType)) {
+      isZip = true
       const zipCheck = await validateZipUpload(fileData.body, {
         uploadId,
         filename
@@ -191,9 +207,14 @@ const checkBoundaryRoute = {
           .response({ error: zipCheck.message })
           .code(statusCodes.badRequest)
       }
+      boundaryFilename = zipCheck.shapefileName
     }
 
-    const result = await checkBoundary(fileData.body, filename, contentType)
+    const result = await checkBoundary(fileData.body, filename, contentType, {
+      // Only meaningful inside a zip — for standalone uploads the impact
+      // assessor reads the whole request body directly.
+      boundaryFilename: isZip ? boundaryFilename : null
+    })
 
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
@@ -205,7 +226,7 @@ const checkBoundaryRoute = {
       return h.response(response).code(statusCode)
     }
 
-    return h.response(result.geojson)
+    return h.response({ ...result.geojson, boundaryFilename })
   }
 }
 

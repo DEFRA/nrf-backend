@@ -3,9 +3,19 @@ import joi from 'joi'
 const MAX_RESIDENTIAL_UNITS = 999999
 const MAX_EMAIL_LENGTH = 254
 
+const MAX_BOUNDARY_FILENAME_LENGTH = 255
+
 export const quoteSchema = joi.object({
   boundaryEntryType: joi.string().valid('draw', 'upload').required(),
   boundaryGeojson: joi.object().required(),
+  // Present for 'upload' entries (the inner .shp for zips, or the uploaded
+  // filename for standalone geojson/kml); absent for 'draw' entries.
+  boundaryFilename: joi
+    .string()
+    .trim()
+    .max(MAX_BOUNDARY_FILENAME_LENGTH)
+    .optional()
+    .allow(null),
   developmentTypes: joi
     .array()
     .items(joi.string().valid('housing', 'other-residential'))

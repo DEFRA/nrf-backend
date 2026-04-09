@@ -64,6 +64,38 @@ describe('quoteSchema', () => {
     })
   })
 
+  describe('boundaryFilename', () => {
+    it('is optional', () => {
+      const { error } = validate(validPayload)
+      expect(error).toBeUndefined()
+    })
+
+    it('accepts a .shp filename', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryEntryType: 'upload',
+        boundaryFilename: 'site-boundary.shp'
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('accepts null', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryFilename: null
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('rejects a filename longer than 255 characters', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryFilename: `${'a'.repeat(252)}.shp`
+      })
+      expect(error).toBeDefined()
+    })
+  })
+
   describe('developmentTypes', () => {
     it('accepts housing', () => {
       const { error } = validate(validPayload)
