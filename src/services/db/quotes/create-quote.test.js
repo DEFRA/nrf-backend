@@ -30,8 +30,9 @@ describe('dbCreateQuote', () => {
       db,
       quoteData: {
         email: 'developer@housebuilder.com',
-        boundaryEntryType: 'draw',
+        boundaryEntryType: 'upload',
         boundaryGeojson: mockBoundaryGeojson,
+        boundaryFilename: 'site-boundary.shp',
         developmentTypes: ['housing'],
         residentialBuildingCount: 10,
         wasteWaterTreatmentWorksId: '101',
@@ -44,9 +45,10 @@ describe('dbCreateQuote', () => {
       expect.stringContaining('INSERT INTO quotes'),
       [
         'developer@housebuilder.com',
-        'draw',
+        'upload',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
+        'site-boundary.shp',
         ['housing'],
         10,
         null,
@@ -65,7 +67,7 @@ describe('dbCreateQuote', () => {
       db,
       quoteData: {
         email: 'developer@housebuilder.com',
-        boundaryEntryType: 'upload',
+        boundaryEntryType: 'draw',
         boundaryGeojson: mockBoundaryGeojson,
         developmentTypes: ['other-residential'],
         peopleCount: 5
@@ -76,9 +78,10 @@ describe('dbCreateQuote', () => {
       expect.stringContaining('INSERT INTO quotes'),
       [
         'developer@housebuilder.com',
-        'upload',
+        'draw',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
+        null,
         ['other-residential'],
         null,
         5,
