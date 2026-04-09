@@ -177,7 +177,7 @@ const config = convict({
     maxCompressionRatio: {
       doc: 'Maximum allowed uncompressed:compressed size ratio for any single zip entry',
       format: Number,
-      default: 100,
+      default: 400,
       env: 'ZIP_SAFETY_MAX_COMPRESSION_RATIO'
     }
   },
