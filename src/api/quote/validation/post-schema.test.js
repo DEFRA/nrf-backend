@@ -94,6 +94,39 @@ describe('quoteSchema', () => {
       })
       expect(error).toBeDefined()
     })
+
+    // Defence-in-depth: even though the upload path strips hostile names
+    // before they ever reach this endpoint, the schema is re-validated here
+    // so a client that POSTs directly to /quotes cannot write attacker
+    // content into quotes.boundary_filename.
+    it.each([
+      '<script>alert(1)</script>.shp',
+      'boundary"><img src=x onerror=alert(1)>.shp',
+      "boundary';DROP TABLE quotes;--.shp",
+      'boundary`whoami`.shp',
+      'boundary\nINFO fake log.shp'
+    ])('rejects hostile filename %j', (hostile) => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryEntryType: 'upload',
+        boundaryFilename: hostile
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('strips a path-traversal payload down to its harmless basename', () => {
+      // The shared validator takes the basename before checking the
+      // allowlist. "../../etc/passwd.shp" becomes "passwd.shp", which is a
+      // legal filename, so the request is accepted and the stored value is
+      // the stripped name — not the traversal string.
+      const { error, value } = validate({
+        ...validPayload,
+        boundaryEntryType: 'upload',
+        boundaryFilename: '../../etc/passwd.shp'
+      })
+      expect(error).toBeUndefined()
+      expect(value.boundaryFilename).toBe('passwd.shp')
+    })
   })
 
   describe('developmentTypes', () => {

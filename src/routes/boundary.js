@@ -4,6 +4,7 @@ import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { validateZipSafety } from '../services/zip-safety/zip-safety.js'
 import { validateShapefileZipContents } from '../services/zip-safety/shapefile-contents.js'
+import { validateSafeFilename } from '../common/helpers/safe-filename.js'
 import {
   checkBoundary,
   checkBoundaryGeometry
@@ -95,13 +96,42 @@ async function resolveBoundaryFilename(
   { filename, contentType, fileData, uploadId },
   h
 ) {
+  // For standalone uploads (.geojson/.kml/.json) the filename is whatever
+  // the client sent through the CDP uploader and is fully user-controlled.
+  // Validate it at this trust boundary so every downstream consumer (logs,
+  // DB, JSON response, HTML templates) can trust the value implicitly.
   if (!isZipUpload(filename, contentType)) {
-    return { isZip: false, boundaryFilename: filename }
+    const safe = validateSafeFilename(filename)
+    if (!safe.ok) {
+      logger.warn(
+        `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${safe.code}`
+      )
+      return {
+        error: h.response({ error: safe.message }).code(statusCodes.badRequest)
+      }
+    }
+    return { isZip: false, boundaryFilename: safe.filename }
+  }
+
+  // For zip uploads we also need the outer filename (the .zip) to be safe,
+  // because we log it with the uploadId for diagnostics. The inner .shp
+  // filename that ends up persisted is validated inside
+  // validateShapefileZipContents.
+  const outerSafe = validateSafeFilename(filename)
+  if (!outerSafe.ok) {
+    logger.warn(
+      `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${outerSafe.code}`
+    )
+    return {
+      error: h
+        .response({ error: outerSafe.message })
+        .code(statusCodes.badRequest)
+    }
   }
 
   const zipCheck = await validateZipUpload(fileData.body, {
     uploadId,
-    filename
+    filename: outerSafe.filename
   })
   if (!zipCheck.ok) {
     return {

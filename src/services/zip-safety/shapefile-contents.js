@@ -1,5 +1,7 @@
 import yauzl from 'yauzl'
 
+import { validateSafeFilename } from '../../common/helpers/safe-filename.js'
+
 // A legal shapefile bundle is a set of sibling files sharing the same stem.
 // We require all four because:
 //   .shp — the geometry itself (points / lines / polygons)
@@ -135,7 +137,16 @@ function checkContents(fileNames) {
   }
 
   // Return just the filename (not the in-zip path) — this is what we show to
-  // the user and persist with the quote.
-  const shapefileName = shpPath.slice(lastSlash + 1)
-  return { ok: true, shapefileName }
+  // the user and persist with the quote. The name is attacker-controlled
+  // (anyone can craft a zip with any entry name they like), so it goes
+  // through the shared safe-filename validator at the trust boundary: if it
+  // contains path components, control characters, angle brackets, quotes, or
+  // anything else we would not want to round-trip through logs, the DB, or
+  // HTML templates, the upload is rejected here rather than sanitised later.
+  const bareName = shpPath.slice(lastSlash + 1)
+  const safe = validateSafeFilename(bareName)
+  if (!safe.ok) {
+    return safe
+  }
+  return { ok: true, shapefileName: safe.filename }
 }

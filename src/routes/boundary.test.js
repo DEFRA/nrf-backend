@@ -653,6 +653,78 @@ describe('Boundary routes', () => {
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()
     })
+
+    it('rejects a standalone upload whose filename contains unsafe characters', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/hostile.geojson',
+            s3Bucket: 'boundaries',
+            filename: '<script>alert(1)</script>.geojson',
+            contentType: 'application/geo+json'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('{}'),
+        filename: '<script>alert(1)</script>.geojson',
+        contentType: 'application/geo+json'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/unsupported characters/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('rejects a zip upload whose inner .shp name contains unsafe characters', async () => {
+      const stem = '<script>alert(1)</script>'
+      const zipBuffer = await buildZip([
+        { name: `${stem}.shp`, content: 'shp' },
+        { name: `${stem}.shx`, content: 'shx' },
+        { name: `${stem}.dbf`, content: 'dbf' },
+        { name: `${stem}.prj`, content: 'GEOGCS["WGS 84"]' }
+      ])
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/hostile.zip',
+            s3Bucket: 'boundaries',
+            filename: 'boundary.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'boundary.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/unsupported characters/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
   })
 
   describe('POST /boundary/check', () => {

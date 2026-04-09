@@ -162,4 +162,21 @@ describe('validateShapefileZipContents', () => {
     expect(result.ok).toBe(false)
     expect(result.code).toBe('invalidZip')
   })
+
+  it('rejects a .shp entry whose filename contains unsafe characters', async () => {
+    // A zip attacker controls both the entry name and the companion names,
+    // so as long as the whole bundle shares the same stem it would pass the
+    // earlier checks. The safe-filename trust-boundary validation should
+    // catch the angle brackets before the name can be stored or rendered.
+    const stem = '<script>alert(1)</script>'
+    const zip = await buildZip([
+      { name: `${stem}.shp`, content: 'shp' },
+      { name: `${stem}.shx`, content: 'shx' },
+      { name: `${stem}.dbf`, content: 'dbf' },
+      { name: `${stem}.prj`, content: 'prj' }
+    ])
+    const result = await validateShapefileZipContents(zip)
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('unsafeFilename')
+  })
 })
