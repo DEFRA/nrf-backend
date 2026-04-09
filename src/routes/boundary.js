@@ -91,6 +91,43 @@ async function validateZipUpload(buffer, { uploadId, filename }) {
   return { ok: true, shapefileName: contents.shapefileName }
 }
 
+async function resolveBoundaryFilename(
+  { filename, contentType, fileData, uploadId },
+  h
+) {
+  if (!isZipUpload(filename, contentType)) {
+    return { isZip: false, boundaryFilename: filename }
+  }
+
+  const zipCheck = await validateZipUpload(fileData.body, {
+    uploadId,
+    filename
+  })
+  if (!zipCheck.ok) {
+    return {
+      error: h
+        .response({ error: zipCheck.message })
+        .code(statusCodes.badRequest)
+    }
+  }
+
+  return { isZip: true, boundaryFilename: zipCheck.shapefileName }
+}
+
+function buildBoundaryResponse(result, boundaryFilename, h) {
+  if (result.error) {
+    const statusCode = result.statusCode ?? statusCodes.badGateway
+    const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
+    const response = { error: result.error, maxFileSizeMb }
+    if (result.boundaryGeometryWgs84) {
+      response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
+    }
+    return h.response(response).code(statusCode)
+  }
+
+  return h.response({ ...result.geojson, boundaryFilename })
+}
+
 async function downloadFile(fileInfo, h) {
   const bucket = fileInfo.s3Bucket ?? config.get('cdpUploader.bucket')
 
@@ -188,27 +225,19 @@ const checkBoundaryRoute = {
     const contentType = fileInfo.contentType ?? fileData.contentType
 
     // The boundary filename we show to the user and persist with the quote.
-    // For a zip upload, this is the inner .shp filename (set below after
+    // For a zip upload, this is the inner .shp filename (resolved after
     // validation); for a standalone .geojson/.kml/.json it's the upload name.
     // When the upload is a zip, we also pass this through to the impact
     // assessor so it opens that exact entry inside the extracted archive
     // rather than re-implementing a picking rule of its own.
-    let boundaryFilename = filename
-    let isZip = false
-
-    if (isZipUpload(filename, contentType)) {
-      isZip = true
-      const zipCheck = await validateZipUpload(fileData.body, {
-        uploadId,
-        filename
-      })
-      if (!zipCheck.ok) {
-        return h
-          .response({ error: zipCheck.message })
-          .code(statusCodes.badRequest)
-      }
-      boundaryFilename = zipCheck.shapefileName
+    const resolved = await resolveBoundaryFilename(
+      { filename, contentType, fileData, uploadId },
+      h
+    )
+    if (resolved.error) {
+      return resolved.error
     }
+    const { isZip, boundaryFilename } = resolved
 
     const result = await checkBoundary(fileData.body, filename, contentType, {
       // Only meaningful inside a zip — for standalone uploads the impact
@@ -216,17 +245,7 @@ const checkBoundaryRoute = {
       boundaryFilename: isZip ? boundaryFilename : null
     })
 
-    if (result.error) {
-      const statusCode = result.statusCode ?? statusCodes.badGateway
-      const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
-      const response = { error: result.error, maxFileSizeMb }
-      if (result.boundaryGeometryWgs84) {
-        response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
-      }
-      return h.response(response).code(statusCode)
-    }
-
-    return h.response({ ...result.geojson, boundaryFilename })
+    return buildBoundaryResponse(result, boundaryFilename, h)
   }
 }
 
