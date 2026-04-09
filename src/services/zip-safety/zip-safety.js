@@ -171,7 +171,7 @@ function checkEntryHeaders(entry, limits, state) {
   ) {
     return rejection(
       'suspiciousCompressionRatio',
-      `Zip entry "${name}" has a suspicious compression ratio. This may indicate a zip bomb.`
+      `Zip entry "${name}" appears to be unsafe to extract and has been rejected.`
     )
   }
 
@@ -248,7 +248,7 @@ function onStreamData(chunk, ctx, name, perEntryCap, readStream, settle) {
     settle(
       rejection(
         'entryTooLarge',
-        `Zip entry "${name}" exceeds the per-file size limit of ${perEntryCap} bytes during extraction. This may indicate a zip bomb.`
+        `Zip entry "${name}" appears to be unsafe to extract and has been rejected.`
       )
     )
   }

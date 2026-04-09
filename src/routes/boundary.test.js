@@ -474,7 +474,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/compression ratio|zip bomb/i)
+      expect(body.error).toMatch(/unsafe to extract/i)
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
