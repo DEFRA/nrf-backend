@@ -10,7 +10,8 @@ describe('dbGetQuote', () => {
       residential_building_count: 10,
       people_count: null,
       boundary_geodata: '{"type":"Polygon"}',
-      boundary_entry_type: 'draw',
+      boundary_entry_type: 'upload',
+      boundary_filename: 'site-boundary.shp',
       waste_water_treatment_works_id: '101',
       waste_water_treatment_works_name: 'Great Billing WRC',
       email_address: 'developer@housebuilder.com',
@@ -41,7 +42,8 @@ describe('dbGetQuote', () => {
       },
       boundary: {
         geoJsonWgs84: '{"type":"Polygon"}',
-        userInputType: 'draw'
+        userInputType: 'upload',
+        filename: 'site-boundary.shp'
       },
       wasteWaterTreatmentWorksId: '101',
       wasteWaterTreatmentWorksName: 'Great Billing WRC',

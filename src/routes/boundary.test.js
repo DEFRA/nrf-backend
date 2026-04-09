@@ -100,11 +100,13 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
       expect(body.type).toBe('FeatureCollection')
+      expect(body.boundaryFilename).toBe('test-boundary.geojson')
 
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
         expect.stringContaining('test-boundary.geojson'),
-        expect.any(String)
+        expect.any(String),
+        { boundaryFilename: null }
       )
     }, 30_000)
 
@@ -555,6 +557,61 @@ describe('Boundary routes', () => {
       })
 
       expect(response.statusCode).toBe(statusCodes.ok)
+      expect(checkBoundary).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'clean.zip',
+        'application/zip',
+        { boundaryFilename: 'boundary.shp' }
+      )
+      const body = JSON.parse(response.payload)
+      expect(body.boundaryFilename).toBe('boundary.shp')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('picks the lexicographically first .shp from a multi-shapefile zip', async () => {
+      const zipBuffer = await buildZip([
+        // Added in reverse alphabetical order to prove the sort drives
+        // selection, not zip-entry order.
+        { name: 'zebra.shp', content: 'shp' },
+        { name: 'zebra.shx', content: 'shx' },
+        { name: 'zebra.dbf', content: 'dbf' },
+        { name: 'zebra.prj', content: 'GEOGCS["WGS 84"]' },
+        { name: 'alpha.shp', content: 'shp' },
+        { name: 'alpha.shx', content: 'shx' },
+        { name: 'alpha.dbf', content: 'dbf' },
+        { name: 'alpha.prj', content: 'GEOGCS["WGS 84"]' }
+      ])
+      vi.mocked(checkBoundary).mockResolvedValue({
+        geojson: { type: 'FeatureCollection', features: [] }
+      })
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/multi.zip',
+            s3Bucket: 'boundaries',
+            filename: 'multi.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'multi.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      const body = JSON.parse(response.payload)
+      expect(body.boundaryFilename).toBe('alpha.shp')
       expect(checkBoundary).toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
@@ -589,8 +646,81 @@ describe('Boundary routes', () => {
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
         'test.geojson',
-        'application/geo+json'
+        'application/geo+json',
+        { boundaryFilename: null }
       )
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('rejects a standalone upload whose filename contains unsafe characters', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/hostile.geojson',
+            s3Bucket: 'boundaries',
+            filename: '<script>alert(1)</script>.geojson',
+            contentType: 'application/geo+json'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('{}'),
+        filename: '<script>alert(1)</script>.geojson',
+        contentType: 'application/geo+json'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/unsupported characters/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('rejects a zip upload whose inner .shp name contains unsafe characters', async () => {
+      const stem = '<script>alert(1)</script>'
+      const zipBuffer = await buildZip([
+        { name: `${stem}.shp`, content: 'shp' },
+        { name: `${stem}.shx`, content: 'shx' },
+        { name: `${stem}.dbf`, content: 'dbf' },
+        { name: `${stem}.prj`, content: 'GEOGCS["WGS 84"]' }
+      ])
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/hostile.zip',
+            s3Bucket: 'boundaries',
+            filename: 'boundary.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'boundary.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/unsupported characters/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()

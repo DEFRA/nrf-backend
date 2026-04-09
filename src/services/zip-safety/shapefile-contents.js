@@ -1,5 +1,7 @@
 import yauzl from 'yauzl'
 
+import { validateSafeFilename } from '../../common/helpers/safe-filename.js'
+
 // A legal shapefile bundle is a set of sibling files sharing the same stem.
 // We require all four because:
 //   .shp — the geometry itself (points / lines / polygons)
@@ -18,19 +20,31 @@ const PRJ_EXT = '.prj'
 const REQUIRED_SHAPEFILE_EXTENSIONS = [SHP_EXT, SHX_EXT, DBF_EXT, PRJ_EXT]
 
 /**
+ * @typedef {{ ok: true, shapefileName: string }
+ *   | { ok: false, code: string, message: string }} ShapefileContentsResult
+ */
+
+/**
  * Validate that a zip buffer contains a complete shapefile bundle
- * (.shp + .shx + .dbf + .prj with the same stem).
+ * (.shp + .shx + .dbf + .prj with the same stem) and return the name of the
+ * selected .shp file on success.
  *
  * Zip uploads are *only* used to bundle shapefile components together.
  * .geojson and .kml uploads come through as standalone files, not zipped,
  * so we deliberately reject them when found inside a zip.
+ *
+ * When a zip contains more than one .shp, we pick the one whose in-zip path
+ * sorts first case-insensitively (`localeCompare` with `sensitivity: 'base'`).
+ * This gives a deterministic, cross-platform rule we can tell users about —
+ * we sort the same way regardless of central-directory order, filesystem
+ * iteration order, or extraction tool.
  *
  * Runs *after* validateZipSafety, so the zip is already known to be safe to
  * inspect. Re-walks the central directory rather than re-using the previous
  * pass — keeps the two concerns (safety vs. content correctness) decoupled.
  *
  * @param {Buffer} buffer
- * @returns {Promise<{ok: true} | {ok: false, code: string, message: string}>}
+ * @returns {Promise<ShapefileContentsResult>}
  */
 export function validateShapefileZipContents(buffer) {
   return new Promise((resolve) => {
@@ -73,10 +87,9 @@ export function validateShapefileZipContents(buffer) {
 
 /**
  * @param {string[]} fileNames
- * @returns {{ok: true} | {ok: false, code: string, message: string}}
+ * @returns {ShapefileContentsResult}
  */
 function checkContents(fileNames) {
-  const lower = fileNames.map((n) => n.toLowerCase())
   const shpFiles = fileNames.filter((n) => n.toLowerCase().endsWith(SHP_EXT))
 
   if (shpFiles.length === 0) {
@@ -88,15 +101,20 @@ function checkContents(fileNames) {
     }
   }
 
-  // Pick the first .shp and check that all four extensions exist alongside
-  // it (case-insensitive, same stem, same directory).
-  const shpPath = shpFiles[0]
+  // Deterministic tiebreaker when a zip contains multiple .shp entries: pick
+  // the one whose in-zip path sorts first case-insensitively. This does not
+  // depend on zip central-directory order, extraction order, or any OS/FS
+  // specific iteration, so the selection is reproducible everywhere.
+  const shpPath = [...shpFiles].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: 'base' })
+  )[0]
   const lastSlash = shpPath.lastIndexOf('/')
   const dir = lastSlash === -1 ? '' : shpPath.slice(0, lastSlash + 1)
   const stem = shpPath.slice(lastSlash + 1, -SHP_EXT.length) // strip ".shp"
 
   const haveByExt = new Set(
-    lower
+    fileNames
+      .map((n) => n.toLowerCase())
       .filter((n) => {
         const nLastSlash = n.lastIndexOf('/')
         const nDir = nLastSlash === -1 ? '' : n.slice(0, nLastSlash + 1)
@@ -118,5 +136,17 @@ function checkContents(fileNames) {
     }
   }
 
-  return { ok: true }
+  // Return just the filename (not the in-zip path) — this is what we show to
+  // the user and persist with the quote. The name is attacker-controlled
+  // (anyone can craft a zip with any entry name they like), so it goes
+  // through the shared safe-filename validator at the trust boundary: if it
+  // contains path components, control characters, angle brackets, quotes, or
+  // anything else we would not want to round-trip through logs, the DB, or
+  // HTML templates, the upload is rejected here rather than sanitised later.
+  const bareName = shpPath.slice(lastSlash + 1)
+  const safe = validateSafeFilename(bareName)
+  if (!safe.ok) {
+    return safe
+  }
+  return { ok: true, shapefileName: safe.filename }
 }

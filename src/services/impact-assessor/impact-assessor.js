@@ -71,15 +71,31 @@ export async function findNearbyWasteWaterTreatmentWorks(geometry) {
 }
 
 /**
- * Send a geometry file to the impact assessor's /check-boundary endpoint
+ * Send a geometry file to the impact assessor's /check-boundary endpoint.
+ *
+ * For zip uploads the caller also supplies `boundaryFilename`: the bare
+ * filename of the entry inside the zip that the backend already picked during
+ * validation (today that is always a .shp, but the interface is deliberately
+ * generic so other bundled formats can flow through the same contract). The
+ * IA opens that exact file inside the extracted zip rather than re-deriving
+ * the choice, so the "which file did we use" rule lives in exactly one place.
+ *
  * @param {Buffer} fileBuffer - The file content
- * @param {string} filename - The original filename
+ * @param {string} filename - The original upload filename
  * @param {string} contentType - The file's content type
+ * @param {{ boundaryFilename?: string }} [options]
  * @returns {Promise<{geojson?: object, error?: string}>}
  */
-export async function checkBoundary(fileBuffer, filename, contentType) {
+export async function checkBoundary(
+  fileBuffer,
+  filename,
+  contentType,
+  { boundaryFilename } = {}
+) {
   const blob = new Blob([fileBuffer], { type: contentType })
-  return postBoundaryCheck(blob, filename, fileBuffer.length)
+  return postBoundaryCheck(blob, filename, fileBuffer.length, {
+    boundaryFilename
+  })
 }
 
 /**
@@ -115,16 +131,24 @@ function toFeatureCollection(input) {
   }
 }
 
-async function postBoundaryCheck(blob, filename, size) {
+async function postBoundaryCheck(
+  blob,
+  filename,
+  size,
+  { boundaryFilename } = {}
+) {
   const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/check-boundary`
 
   logger.info(
-    `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}`
+    `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}, boundaryFilename: ${boundaryFilename ?? '(n/a)'}`
   )
 
   const formData = new FormData()
   formData.append('geometry_file', blob, filename)
+  if (boundaryFilename) {
+    formData.append('boundary_filename', boundaryFilename)
+  }
 
   try {
     const traceId = getTraceId()

@@ -4,6 +4,7 @@ import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
 import { validateZipSafety } from '../services/zip-safety/zip-safety.js'
 import { validateShapefileZipContents } from '../services/zip-safety/shapefile-contents.js'
+import { validateSafeFilename } from '../common/helpers/safe-filename.js'
 import {
   checkBoundary,
   checkBoundaryGeometry
@@ -88,7 +89,73 @@ async function validateZipUpload(buffer, { uploadId, filename }) {
     return contents
   }
 
-  return { ok: true }
+  return { ok: true, shapefileName: contents.shapefileName }
+}
+
+async function resolveBoundaryFilename(
+  { filename, contentType, fileData, uploadId },
+  h
+) {
+  // For standalone uploads (.geojson/.kml/.json) the filename is whatever
+  // the client sent through the CDP uploader and is fully user-controlled.
+  // Validate it at this trust boundary so every downstream consumer (logs,
+  // DB, JSON response, HTML templates) can trust the value implicitly.
+  if (!isZipUpload(filename, contentType)) {
+    const safe = validateSafeFilename(filename)
+    if (!safe.ok) {
+      logger.warn(
+        `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${safe.code}`
+      )
+      return {
+        error: h.response({ error: safe.message }).code(statusCodes.badRequest)
+      }
+    }
+    return { isZip: false, boundaryFilename: safe.filename }
+  }
+
+  // For zip uploads we also need the outer filename (the .zip) to be safe,
+  // because we log it with the uploadId for diagnostics. The inner .shp
+  // filename that ends up persisted is validated inside
+  // validateShapefileZipContents.
+  const outerSafe = validateSafeFilename(filename)
+  if (!outerSafe.ok) {
+    logger.warn(
+      `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${outerSafe.code}`
+    )
+    return {
+      error: h
+        .response({ error: outerSafe.message })
+        .code(statusCodes.badRequest)
+    }
+  }
+
+  const zipCheck = await validateZipUpload(fileData.body, {
+    uploadId,
+    filename: outerSafe.filename
+  })
+  if (!zipCheck.ok) {
+    return {
+      error: h
+        .response({ error: zipCheck.message })
+        .code(statusCodes.badRequest)
+    }
+  }
+
+  return { isZip: true, boundaryFilename: zipCheck.shapefileName }
+}
+
+function buildBoundaryResponse(result, boundaryFilename, h) {
+  if (result.error) {
+    const statusCode = result.statusCode ?? statusCodes.badGateway
+    const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
+    const response = { error: result.error, maxFileSizeMb }
+    if (result.boundaryGeometryWgs84) {
+      response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
+    }
+    return h.response(response).code(statusCode)
+  }
+
+  return h.response({ ...result.geojson, boundaryFilename })
 }
 
 async function downloadFile(fileInfo, h) {
@@ -146,6 +213,12 @@ async function downloadFile(fileInfo, h) {
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                 boundaryFilename:
+ *                   type: string
+ *                   description: >
+ *                     The filename to display and persist for this boundary.
+ *                     For a zip upload, this is the .shp filename inside the
+ *                     zip; for a standalone upload, it is the uploaded filename.
  *       400:
  *         description: Invalid or unreadable geometry file
  *       404:
@@ -181,31 +254,28 @@ const checkBoundaryRoute = {
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
 
-    if (isZipUpload(filename, contentType)) {
-      const zipCheck = await validateZipUpload(fileData.body, {
-        uploadId,
-        filename
-      })
-      if (!zipCheck.ok) {
-        return h
-          .response({ error: zipCheck.message })
-          .code(statusCodes.badRequest)
-      }
+    // The boundary filename we show to the user and persist with the quote.
+    // For a zip upload, this is the inner .shp filename (resolved after
+    // validation); for a standalone .geojson/.kml/.json it's the upload name.
+    // When the upload is a zip, we also pass this through to the impact
+    // assessor so it opens that exact entry inside the extracted archive
+    // rather than re-implementing a picking rule of its own.
+    const resolved = await resolveBoundaryFilename(
+      { filename, contentType, fileData, uploadId },
+      h
+    )
+    if (resolved.error) {
+      return resolved.error
     }
+    const { isZip, boundaryFilename } = resolved
 
-    const result = await checkBoundary(fileData.body, filename, contentType)
+    const result = await checkBoundary(fileData.body, filename, contentType, {
+      // Only meaningful inside a zip — for standalone uploads the impact
+      // assessor reads the whole request body directly.
+      boundaryFilename: isZip ? boundaryFilename : null
+    })
 
-    if (result.error) {
-      const statusCode = result.statusCode ?? statusCodes.badGateway
-      const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
-      const response = { error: result.error, maxFileSizeMb }
-      if (result.boundaryGeometryWgs84) {
-        response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
-      }
-      return h.response(response).code(statusCode)
-    }
-
-    return h.response(result.geojson)
+    return buildBoundaryResponse(result, boundaryFilename, h)
   }
 }
 
