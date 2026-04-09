@@ -18,6 +18,17 @@ vi.mock('../../../config.js', () => ({
 
 const { loggerOptions } = await import('./logger-options.js')
 
+// A second isolated import where ecsFormat returns no formatters.log,
+// exercising the `: rest` and `: object` fallback branches (lines 22, 27)
+vi.doMock('@elastic/ecs-pino-format', () => ({
+  ecsFormat: () => ({ formatters: {} })
+}))
+vi.resetModules()
+const { loggerOptions: loggerOptionsNoEcsLog } =
+  await import('./logger-options.js')
+vi.doUnmock('@elastic/ecs-pino-format')
+vi.resetModules()
+
 describe('#loggerOptions', () => {
   describe('mixin', () => {
     test('returns empty object when no trace ID is present', () => {
@@ -81,6 +92,24 @@ describe('#loggerOptions', () => {
       const result = loggerOptions.formatters.log(input)
 
       expect(result.err).toBe('plain string error')
+    })
+
+    test('returns object as-is when no ECS log formatter and no err', () => {
+      const input = { message: 'hello' }
+
+      const result = loggerOptionsNoEcsLog.formatters.log(input)
+
+      expect(result).toEqual({ message: 'hello' })
+    })
+
+    test('returns structured error without ECS wrapping when no ECS log formatter', () => {
+      const error = new Error('bare error')
+      const input = { err: error, message: 'oh no' }
+
+      const result = loggerOptionsNoEcsLog.formatters.log(input)
+
+      expect(result).not.toHaveProperty('err')
+      expect(result.error.message).toBe('bare error')
     })
   })
 })

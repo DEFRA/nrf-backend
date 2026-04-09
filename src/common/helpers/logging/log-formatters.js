@@ -42,18 +42,24 @@ function buildErrorDetails(error) {
     code: error.code || error.statusCode || undefined
   }
   for (const key of Object.keys(details)) {
-    if (details[key] === undefined) delete details[key]
+    if (details[key] === undefined) {
+      delete details[key]
+    }
   }
   return details
 }
 
 function structureErrorForECS(error) {
-  if (!error) return {}
+  if (!error) {
+    return {}
+  }
 
   const statusCode = extractHttpStatusCode(error)
   const errorObj = { error: buildErrorDetails(error) }
   const httpContext = buildHttpContext(statusCode)
-  if (httpContext) errorObj.http = httpContext
+  if (httpContext) {
+    errorObj.http = httpContext
+  }
   return errorObj
 }
 

@@ -112,4 +112,50 @@ describe('#structureErrorForECS', () => {
       'upstream failed | response: {"detail":"timeout"}'
     )
   })
+
+  test('falls back to String(error) when message is not a string', () => {
+    const error = { message: 42, toString: () => 'stringified error' }
+
+    const result = structureErrorForECS(error)
+
+    expect(result.error.message).toBe('stringified error')
+  })
+
+  test('falls back to base message when payload cannot be serialised', () => {
+    const error = new Error('serialisation failed')
+    const circular = {}
+    circular.self = circular
+    error.data = circular
+
+    const result = structureErrorForECS(error)
+
+    expect(result.error.message).toBe('serialisation failed')
+  })
+
+  test('omits stack_trace when error has no stack', () => {
+    const error = new Error('no stack')
+    delete error.stack
+
+    const result = structureErrorForECS(error)
+
+    expect(result.error).not.toHaveProperty('stack_trace')
+  })
+
+  test('falls back to constructor name when error.name is falsy', () => {
+    class DatabaseError extends Error {}
+    const error = new DatabaseError('db error')
+    error.name = ''
+
+    const result = structureErrorForECS(error)
+
+    expect(result.error.type).toBe('DatabaseError')
+  })
+
+  test('falls back to "Error" string when name and constructor name are absent', () => {
+    const error = Object.assign(Object.create(null), { message: 'no proto' })
+
+    const result = structureErrorForECS(error)
+
+    expect(result.error.type).toBe('Error')
+  })
 })
