@@ -10,6 +10,9 @@ const isDevelopment = process.env.NODE_ENV === 'development'
 const postgresPortDefault = 5432
 const postgresPortTest = 5433
 const localStack = 'http://localhost:4566'
+const bytesPerMb = 1024 * 1024
+const zipSafetyDefaultMaxMb = 20
+const zipSafetyDefaultMaxBytes = zipSafetyDefaultMaxMb * bytesPerMb
 
 if (isDevelopment) {
   configDotenv()
@@ -150,6 +153,32 @@ const config = convict({
       format: Number,
       default: 2,
       env: 'CDP_UPLOADER_MAX_FILE_SIZE_MB'
+    }
+  },
+  zipSafety: {
+    maxEntries: {
+      doc: 'Maximum number of files allowed inside an uploaded zip',
+      format: Number,
+      default: 10,
+      env: 'ZIP_SAFETY_MAX_ENTRIES'
+    },
+    maxTotalBytes: {
+      doc: 'Maximum total uncompressed size in bytes for an uploaded zip',
+      format: Number,
+      default: zipSafetyDefaultMaxBytes,
+      env: 'ZIP_SAFETY_MAX_TOTAL_BYTES'
+    },
+    maxEntryBytes: {
+      doc: 'Maximum uncompressed size in bytes for any single entry inside an uploaded zip',
+      format: Number,
+      default: zipSafetyDefaultMaxBytes,
+      env: 'ZIP_SAFETY_MAX_ENTRY_BYTES'
+    },
+    maxCompressionRatio: {
+      doc: 'Maximum allowed uncompressed:compressed size ratio for any single zip entry',
+      format: Number,
+      default: 100,
+      env: 'ZIP_SAFETY_MAX_COMPRESSION_RATIO'
     }
   },
   impactAssessor: {

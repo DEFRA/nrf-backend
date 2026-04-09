@@ -2,6 +2,8 @@ import joi from 'joi'
 
 import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
+import { validateZipSafety } from '../services/zip-safety/zip-safety.js'
+import { validateShapefileZipContents } from '../services/zip-safety/shapefile-contents.js'
 import {
   checkBoundary,
   checkBoundaryGeometry
@@ -63,6 +65,30 @@ async function getFileFromUpload(uploadId, h) {
   }
 
   return { fileInfo: uploadedFile }
+}
+
+function isZipUpload(filename, contentType) {
+  return /\.zip$/i.test(filename ?? '') || contentType === 'application/zip'
+}
+
+async function validateZipUpload(buffer, { uploadId, filename }) {
+  const safety = await validateZipSafety(buffer)
+  if (!safety.ok) {
+    logger.warn(
+      `Zip safety check rejected upload - uploadId: ${uploadId}, code: ${safety.code}, filename: ${filename}`
+    )
+    return safety
+  }
+
+  const contents = await validateShapefileZipContents(buffer)
+  if (!contents.ok) {
+    logger.warn(
+      `Zip contents check rejected upload - uploadId: ${uploadId}, code: ${contents.code}, filename: ${filename}`
+    )
+    return contents
+  }
+
+  return { ok: true }
 }
 
 async function downloadFile(fileInfo, h) {
@@ -154,6 +180,19 @@ const checkBoundaryRoute = {
     const { fileData } = download
     const filename = fileInfo.filename ?? fileData.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
+
+    if (isZipUpload(filename, contentType)) {
+      const zipCheck = await validateZipUpload(fileData.body, {
+        uploadId,
+        filename
+      })
+      if (!zipCheck.ok) {
+        return h
+          .response({ error: zipCheck.message })
+          .code(statusCodes.badRequest)
+      }
+    }
+
     const result = await checkBoundary(fileData.body, filename, contentType)
 
     if (result.error) {

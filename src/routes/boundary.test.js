@@ -2,6 +2,7 @@ import { fetch as undiciFetch, FormData } from 'undici'
 
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
+import { buildZip } from '../test-utils/build-zip.js'
 import * as cdpUploaderService from '../services/cdp-uploader/cdp-uploader.js'
 import * as s3Client from '../services/s3/s3-client.js'
 
@@ -402,6 +403,159 @@ describe('Boundary routes', () => {
         'boundaries',
         'uploads/test.geojson'
       )
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should reject a zip with too many entries before calling impact assessor', async () => {
+      const entries = []
+      for (let i = 0; i < 15; i++) {
+        entries.push({ name: `file${i}.txt`, content: 'x' })
+      }
+      const zipBuffer = await buildZip(entries)
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/many.zip',
+            s3Bucket: 'boundaries',
+            filename: 'many.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'many.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/too many files/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should reject a zip bomb (suspicious compression ratio)', async () => {
+      const zeros = Buffer.alloc(2 * 1024 * 1024, 0)
+      const zipBuffer = await buildZip([{ name: 'bomb.bin', content: zeros }])
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/bomb.zip',
+            s3Bucket: 'boundaries',
+            filename: 'bomb.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'bomb.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/compression ratio|zip bomb/i)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should reject a zip missing shapefile companion files', async () => {
+      const zipBuffer = await buildZip([
+        { name: 'boundary.shp', content: 'shp' },
+        { name: 'boundary.shx', content: 'shx' }
+        // missing .dbf and .prj
+      ])
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/incomplete.zip',
+            s3Bucket: 'boundaries',
+            filename: 'incomplete.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'incomplete.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toMatch(/missing required companion files/i)
+      expect(body.error).toMatch(/\.dbf/)
+      expect(body.error).toMatch(/\.prj/)
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should pass a clean zip through to the impact assessor', async () => {
+      const zipBuffer = await buildZip([
+        { name: 'boundary.shp', content: 'shp' },
+        { name: 'boundary.shx', content: 'shx' },
+        { name: 'boundary.dbf', content: 'dbf' },
+        { name: 'boundary.prj', content: 'GEOGCS["WGS 84"]' }
+      ])
+      vi.mocked(checkBoundary).mockResolvedValue({
+        geojson: { type: 'FeatureCollection', features: [] }
+      })
+
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/clean.zip',
+            s3Bucket: 'boundaries',
+            filename: 'clean.zip',
+            contentType: 'application/zip'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: zipBuffer,
+        filename: 'clean.zip',
+        contentType: 'application/zip'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(checkBoundary).toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()
