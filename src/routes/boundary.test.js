@@ -1,27 +1,12 @@
 import { fetch as undiciFetch, FormData } from 'undici'
-import yazl from 'yazl'
 
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
+import { buildZip } from '../test-utils/build-zip.js'
 import * as cdpUploaderService from '../services/cdp-uploader/cdp-uploader.js'
 import * as s3Client from '../services/s3/s3-client.js'
 
 vi.mock('../services/impact-assessor/impact-assessor.js')
-
-function buildZipBuffer(entries) {
-  return new Promise((resolve, reject) => {
-    const zip = new yazl.ZipFile()
-    for (const { name, content } of entries) {
-      const buf = Buffer.isBuffer(content) ? content : Buffer.from(content)
-      zip.addBuffer(buf, name)
-    }
-    zip.end()
-    const chunks = []
-    zip.outputStream.on('data', (c) => chunks.push(c))
-    zip.outputStream.on('end', () => resolve(Buffer.concat(chunks)))
-    zip.outputStream.on('error', reject)
-  })
-}
 
 const { checkBoundary, checkBoundaryGeometry } =
   await import('../services/impact-assessor/impact-assessor.js')
@@ -428,7 +413,7 @@ describe('Boundary routes', () => {
       for (let i = 0; i < 15; i++) {
         entries.push({ name: `file${i}.txt`, content: 'x' })
       }
-      const zipBuffer = await buildZipBuffer(entries)
+      const zipBuffer = await buildZip(entries)
 
       vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
         uploadStatus: 'ready',
@@ -463,9 +448,7 @@ describe('Boundary routes', () => {
 
     it('should reject a zip bomb (suspicious compression ratio)', async () => {
       const zeros = Buffer.alloc(2 * 1024 * 1024, 0)
-      const zipBuffer = await buildZipBuffer([
-        { name: 'bomb.bin', content: zeros }
-      ])
+      const zipBuffer = await buildZip([{ name: 'bomb.bin', content: zeros }])
 
       vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
         uploadStatus: 'ready',
@@ -499,7 +482,7 @@ describe('Boundary routes', () => {
     })
 
     it('should reject a zip missing shapefile companion files', async () => {
-      const zipBuffer = await buildZipBuffer([
+      const zipBuffer = await buildZip([
         { name: 'boundary.shp', content: 'shp' },
         { name: 'boundary.shx', content: 'shx' }
         // missing .dbf and .prj
@@ -539,7 +522,7 @@ describe('Boundary routes', () => {
     })
 
     it('should pass a clean zip through to the impact assessor', async () => {
-      const zipBuffer = await buildZipBuffer([
+      const zipBuffer = await buildZip([
         { name: 'boundary.shp', content: 'shp' },
         { name: 'boundary.shx', content: 'shx' },
         { name: 'boundary.dbf', content: 'dbf' },
