@@ -52,7 +52,7 @@ describe('Submit quote endpoint', () => {
     expect(publishEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         topicArn: expect.any(String),
-        data: validPayload
+        data: { ...validPayload, reference: expect.stringMatching(/NRF-\d{6}/) }
       }),
       expect.anything()
     )
