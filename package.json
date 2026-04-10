@@ -52,7 +52,7 @@
     "https-proxy-agent": "^8.0.0",
     "joi": "^18.0.2",
     "node-fetch": "^3.3.2",
-    "notifications-node-client": "^8.3.0",
+    "notifications-node-client": "^8.3.2",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",
