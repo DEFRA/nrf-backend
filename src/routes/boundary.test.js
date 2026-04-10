@@ -202,8 +202,12 @@ describe('Boundary routes', () => {
       vi.mocked(s3Client.downloadFromS3).mockRestore()
     })
 
-    it('should include boundaryGeometryWgs84 in error response when available', async () => {
-      const mockGeometry = {
+    it('should include boundary geometries in error response when available', async () => {
+      const mockWgs84Geometry = {
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
+      }
+      const mockOriginalGeometry = {
         type: 'FeatureCollection',
         features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
       }
@@ -211,7 +215,8 @@ describe('Boundary routes', () => {
       vi.mocked(checkBoundary).mockResolvedValue({
         error: 'Invalid geometry',
         statusCode: statusCodes.badRequest,
-        boundaryGeometryWgs84: mockGeometry
+        boundaryGeometryOriginal: mockOriginalGeometry,
+        boundaryGeometryWgs84: mockWgs84Geometry
       })
 
       const uploadId = await uploadFileAndWaitUntilReady(
@@ -228,7 +233,8 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
       expect(body.error).toBe('Invalid geometry')
-      expect(body.boundaryGeometryWgs84).toEqual(mockGeometry)
+      expect(body.boundaryGeometryOriginal).toEqual(mockOriginalGeometry)
+      expect(body.boundaryGeometryWgs84).toEqual(mockWgs84Geometry)
     }, 30_000)
 
     it('should default to 502 when impact assessor returns error without status code', async () => {
@@ -766,6 +772,7 @@ describe('Boundary routes', () => {
       vi.mocked(checkBoundaryGeometry).mockResolvedValue({
         error: 'Invalid geometry',
         statusCode: statusCodes.badRequest,
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
         boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
       })
 
@@ -778,6 +785,7 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       expect(JSON.parse(response.payload)).toEqual({
         error: 'Invalid geometry',
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
         boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
       })
     })

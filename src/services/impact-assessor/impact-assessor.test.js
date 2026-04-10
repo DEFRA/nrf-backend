@@ -113,8 +113,12 @@ describe('checkBoundary', () => {
     })
   })
 
-  it('should return error and geometry on non-ok response with error and boundaryGeometryWgs84', async () => {
-    const mockGeometry = {
+  it('should return error and both geometry fields on non-ok response when present', async () => {
+    const mockOriginalGeometry = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
+    }
+    const mockWgs84Geometry = {
       type: 'FeatureCollection',
       features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
     }
@@ -125,7 +129,8 @@ describe('checkBoundary', () => {
       json: () =>
         Promise.resolve({
           error: 'Invalid geometry',
-          boundaryGeometryWgs84: mockGeometry
+          boundaryGeometryOriginal: mockOriginalGeometry,
+          boundaryGeometryWgs84: mockWgs84Geometry
         })
     })
 
@@ -138,7 +143,8 @@ describe('checkBoundary', () => {
     expect(result).toEqual({
       error: 'Invalid geometry',
       statusCode: statusCodes.badRequest,
-      boundaryGeometryWgs84: mockGeometry
+      boundaryGeometryOriginal: mockOriginalGeometry,
+      boundaryGeometryWgs84: mockWgs84Geometry
     })
   })
 
@@ -289,8 +295,12 @@ describe('checkBoundaryGeometry', () => {
     })
   })
 
-  it('should propagate error and boundaryGeometryWgs84 on non-ok response', async () => {
-    const mockReturnedGeometry = {
+  it('should propagate error and both geometry fields on non-ok response', async () => {
+    const mockReturnedOriginalGeometry = {
+      type: 'FeatureCollection',
+      features: []
+    }
+    const mockReturnedWgs84Geometry = {
       type: 'FeatureCollection',
       features: []
     }
@@ -301,7 +311,8 @@ describe('checkBoundaryGeometry', () => {
       json: () =>
         Promise.resolve({
           error: 'Invalid geometry',
-          boundaryGeometryWgs84: mockReturnedGeometry
+          boundaryGeometryOriginal: mockReturnedOriginalGeometry,
+          boundaryGeometryWgs84: mockReturnedWgs84Geometry
         })
     })
 
@@ -310,7 +321,8 @@ describe('checkBoundaryGeometry', () => {
     expect(result).toEqual({
       error: 'Invalid geometry',
       statusCode: statusCodes.badRequest,
-      boundaryGeometryWgs84: mockReturnedGeometry
+      boundaryGeometryOriginal: mockReturnedOriginalGeometry,
+      boundaryGeometryWgs84: mockReturnedWgs84Geometry
     })
   })
 
