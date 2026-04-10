@@ -79,7 +79,7 @@ export const postController = {
     await publishEvent(
       {
         topicArn: config.get('sns.topic.nrfQuoteEstimateRequest.arn'),
-        data: request.payload
+        data: { ...request.payload, reference: quote.reference }
       },
       request.logger
     )
