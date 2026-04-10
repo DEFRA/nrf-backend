@@ -171,6 +171,9 @@ async function postBoundaryCheck(
       return {
         error: detail,
         statusCode: response.status,
+        ...(errorBody.boundaryGeometryOriginal && {
+          boundaryGeometryOriginal: errorBody.boundaryGeometryOriginal
+        }),
         ...(errorBody.boundaryGeometryWgs84 && {
           boundaryGeometryWgs84: errorBody.boundaryGeometryWgs84
         })
