@@ -149,6 +149,9 @@ function buildBoundaryResponse(result, boundaryFilename, h) {
     const statusCode = result.statusCode ?? statusCodes.badGateway
     const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
     const response = { error: result.error, maxFileSizeMb }
+    if (result.boundaryGeometryOriginal) {
+      response.boundaryGeometryOriginal = result.boundaryGeometryOriginal
+    }
     if (result.boundaryGeometryWgs84) {
       response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
     }
@@ -379,6 +382,9 @@ const checkBoundaryGeometryRoute = {
     if (result.error) {
       const statusCode = result.statusCode ?? statusCodes.badGateway
       const response = { error: result.error }
+      if (result.boundaryGeometryOriginal) {
+        response.boundaryGeometryOriginal = result.boundaryGeometryOriginal
+      }
       if (result.boundaryGeometryWgs84) {
         response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
       }
