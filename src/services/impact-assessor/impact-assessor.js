@@ -63,9 +63,7 @@ export async function findNearbyWasteWaterTreatmentWorks(geometry) {
     const body = await response.json()
     return { nearbyWwtws: body.nearbyWwtws ?? [] }
   } catch (error) {
-    logger.error(
-      `Error calling impact assessor - url: ${url}, message: ${error?.message}`
-    )
+    logger.error(error, `Error calling impact assessor - url: ${url}`)
     return { error: 'Unable to contact impact assessor service' }
   }
 }
@@ -196,9 +194,7 @@ async function postBoundaryCheck(
       }
     }
   } catch (error) {
-    logger.error(
-      `Error calling impact assessor - url: ${url}, message: ${error?.message}`
-    )
+    logger.error(error, `Error calling impact assessor - url: ${url}`)
     return { error: 'Unable to contact impact assessor service' }
   }
 }

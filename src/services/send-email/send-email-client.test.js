@@ -67,10 +67,13 @@ describe('sendEmail', () => {
       notificationId,
       sentDateTime: expect.any(String)
     })
-    expect(logger.info).toHaveBeenCalledWith('Notify sendEmail responded', {
-      templateId,
-      notificationId
-    })
+    expect(logger.info).toHaveBeenCalledWith(
+      {
+        templateId,
+        notificationId
+      },
+      'Notify sendEmail responded'
+    )
   })
 
   it('returns null and logs the error message, if unsuccessful', async () => {
@@ -84,9 +87,7 @@ describe('sendEmail', () => {
     })
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
-      {
-        templateId
-      },
+      error,
       `Error thrown in sendEmail: ${error.message}`
     )
   })
@@ -107,9 +108,7 @@ describe('sendEmail', () => {
     })
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
-      {
-        templateId
-      },
+      error,
       `Notify client sendEmail failed: ${JSON.stringify(errors)}`
     )
   })
@@ -126,9 +125,7 @@ describe('sendEmail', () => {
     })
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
-      {
-        templateId
-      },
+      expect.any(Error),
       `Error thrown in sendEmail: No notification ID returned`
     )
   })

@@ -23,10 +23,13 @@ export const sendEmail = async ({
     if (!notificationId) {
       throw new Error('No notification ID returned')
     }
-    logger.info('Notify sendEmail responded', {
-      templateId,
-      notificationId
-    })
+    logger.info(
+      {
+        templateId,
+        notificationId
+      },
+      'Notify sendEmail responded'
+    )
     return {
       notificationId,
       sentDateTime: new Date().toISOString()
@@ -34,9 +37,7 @@ export const sendEmail = async ({
   } catch (error) {
     const errors = error?.response?.data?.errors
     logger.error(
-      {
-        templateId
-      },
+      error,
       errors
         ? `Notify client sendEmail failed: ${JSON.stringify(errors)}`
         : `Error thrown in sendEmail: ${error.message}`

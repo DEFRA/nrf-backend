@@ -169,7 +169,8 @@ async function downloadFile(fileInfo, h) {
     return { fileData }
   } catch (error) {
     logger.error(
-      `Failed to download file from S3 - bucket: ${bucket}, key: ${fileInfo.s3Key}, message: ${error?.message}`
+      error,
+      `Failed to download file from S3 - bucket: ${bucket}, key: ${fileInfo.s3Key}`
     )
     return {
       error: h

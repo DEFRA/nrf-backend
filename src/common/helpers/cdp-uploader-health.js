@@ -14,9 +14,7 @@ async function checkCdpUploaderHealth(logger) {
       )
     }
   } catch (error) {
-    logger.error(
-      `CDP Uploader health check error - url: ${url}, message: ${error.message}`
-    )
+    logger.error(error, `CDP Uploader health check error - url: ${url}`)
   }
 }
 

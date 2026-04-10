@@ -75,7 +75,8 @@ export async function initiateUpload({
     const statusCode = error?.output?.statusCode
     const responsePayload = error?.data?.payload
     logger.error(
-      `Error initiating upload - url: ${url}, baseUrl: ${baseUrl}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
+      error,
+      `Error initiating upload - url: ${url}, baseUrl: ${baseUrl}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
     )
     return {
       error: 'Unable to initiate upload'
@@ -104,7 +105,8 @@ export async function getUploadStatus(uploadId) {
     const statusCode = error?.output?.statusCode
     const responsePayload = error?.data?.payload
     logger.error(
-      `Error fetching upload status - url: ${url}, baseUrl: ${baseUrl}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
+      error,
+      `Error fetching upload status - url: ${url}, baseUrl: ${baseUrl}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
     )
     return {
       uploadStatus: 'error',
@@ -132,7 +134,8 @@ export async function getUploadDetails(uploadId) {
     const statusCode = error?.output?.statusCode
     const responsePayload = error?.data?.payload
     logger.error(
-      `Error fetching upload details - url: ${url}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
+      error,
+      `Error fetching upload details - url: ${url}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
     )
     return {
       uploadStatus: 'error',
