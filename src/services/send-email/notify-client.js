@@ -1,20 +1,17 @@
-import axios from 'axios'
-import { HttpsProxyAgent } from 'https-proxy-agent'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
+
+const logger = createLogger()
 
 export const createNotifyClient = () => {
   const apiKey = config.get('notify').apiKey
   if (!apiKey) {
     throw new Error('Notify API key is not set')
   }
+  logger.info('HTTP_PROXY: ', process.env.HTTP_PROXY)
+  logger.info('httpProxy: ', config.get('httpProxy'))
   const notifyClient = new NotifyClient(apiKey)
-
-  const proxyUrl = config.get('httpProxy')
-  if (proxyUrl) {
-    const httpsAgent = new HttpsProxyAgent(proxyUrl)
-    notifyClient.setClient(axios.create({ httpsAgent, proxy: false }))
-  }
 
   return notifyClient
 }
