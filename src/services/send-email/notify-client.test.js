@@ -22,7 +22,7 @@ describe('createNotifyClient', () => {
 
     expect(NotifyClient).toHaveBeenCalledWith('test-api-key')
     expect(result.setProxy).toHaveBeenCalledWith({
-      host: 'localhost',
+      host: 'http://localhost',
       port: 3128
     })
     expect(result).toBeInstanceOf(NotifyClient)

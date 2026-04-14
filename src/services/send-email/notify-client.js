@@ -9,7 +9,7 @@ export const createNotifyClient = () => {
   const notifyClient = new NotifyClient(apiKey)
 
   notifyClient.setProxy({
-    host: 'localhost',
+    host: 'http://localhost',
     port: 3128
   })
 
