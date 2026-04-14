@@ -15,6 +15,7 @@ export const createNotifyClient = () => {
 
   const proxyUrl = config.get('httpProxy')
   if (proxyUrl) {
+    logger.info(`Using proxy: ${proxyUrl}`)
     notifyClient.setClient(
       axios.create({ httpsAgent: new HttpsProxyAgent(proxyUrl), proxy: false })
     )
