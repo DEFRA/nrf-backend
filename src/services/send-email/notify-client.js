@@ -10,6 +10,7 @@ export const createNotifyClient = () => {
     throw new Error('Notify API key is not set')
   }
   logger.info('HTTP_PROXY: ', process.env.HTTP_PROXY)
+  logger.info('httpProxy: ', config.get('httpProxy'))
   const notifyClient = new NotifyClient(apiKey)
 
   return notifyClient
