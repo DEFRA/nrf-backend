@@ -3,6 +3,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent'
 import { createNotifyClient } from './notify-client.js'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
 
 vi.mock('axios', () => ({
   default: { create: vi.fn().mockReturnValue('mock-axios-instance') }
@@ -24,8 +25,13 @@ vi.mock('../../config.js', () => ({
   }
 }))
 
+const mockLogger = vi.hoisted(() => ({ error: vi.fn() }))
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: vi.fn().mockReturnValue(mockLogger)
+}))
+
 describe('createNotifyClient', () => {
-  test('returns a NotifyClient instance when api key is set', () => {
+  test('logs error and skips proxy when httpProxy is not set', () => {
     config.get.mockImplementation((key) => {
       if (key === 'notify') return { apiKey: 'test-api-key' }
       if (key === 'httpProxy') return null
@@ -36,6 +42,7 @@ describe('createNotifyClient', () => {
     expect(NotifyClient).toHaveBeenCalledWith('test-api-key')
     expect(result).toBeInstanceOf(NotifyClient)
     expect(result.setClient).not.toHaveBeenCalled()
+    expect(mockLogger.error).toHaveBeenCalledWith('httpProxy is not set')
   })
 
   test('configures proxy agent when httpProxy is set', () => {
