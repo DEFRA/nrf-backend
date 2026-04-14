@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'hpagent'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -15,13 +15,15 @@ export const createNotifyClient = () => {
 
   const proxyUrl = config.get('httpProxy')
   if (proxyUrl) {
-    logger.info(`Using proxy: ${proxyUrl}`)
+    const agent = new HttpsProxyAgent({ proxy: proxyUrl })
     notifyClient.setClient(
-      axios.create({ httpsAgent: new HttpsProxyAgent(proxyUrl), proxy: false })
+      axios.create({
+        proxy: false,
+        httpsAgent: agent
+      })
     )
   } else {
     logger.error('httpProxy is not set')
   }
-
   return notifyClient
 }
