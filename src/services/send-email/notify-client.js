@@ -1,5 +1,3 @@
-import axios from 'axios'
-import { HttpsProxyAgent } from 'https-proxy-agent'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 
@@ -10,11 +8,10 @@ export const createNotifyClient = () => {
   }
   const notifyClient = new NotifyClient(apiKey)
 
-  const proxyUrl = config.get('httpProxy')
-  if (proxyUrl) {
-    const httpsAgent = new HttpsProxyAgent(proxyUrl)
-    notifyClient.setClient(axios.create({ httpsAgent, proxy: false }))
-  }
+  notifyClient.setProxy({
+    host: 'localhost',
+    port: 3128
+  })
 
   return notifyClient
 }
