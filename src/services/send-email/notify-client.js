@@ -13,8 +13,9 @@ export const createNotifyClient = () => {
   }
   const notifyClient = new NotifyClient(apiKey)
 
-  const proxyUrl = config.get('httpProxy')
+  const proxyUrl = config.get('cdpHttpProxy')
   if (proxyUrl) {
+    logger.info(`Using proxy: ${proxyUrl}`)
     const agent = new HttpsProxyAgent({ proxy: proxyUrl })
     notifyClient.setClient(
       axios.create({
@@ -23,7 +24,7 @@ export const createNotifyClient = () => {
       })
     )
   } else {
-    logger.error('httpProxy is not set')
+    logger.error('cdpHttpProxy is not set')
   }
   return notifyClient
 }

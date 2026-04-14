@@ -104,6 +104,13 @@ const config = convict({
     default: null,
     env: 'HTTP_PROXY'
   },
+  cdpHttpProxy: {
+    doc: 'HTTP Proxy URL',
+    format: String,
+    nullable: true,
+    default: null,
+    env: 'CDP_HTTP_PROXY'
+  },
   isMetricsEnabled: {
     doc: 'Enable metrics reporting',
     format: Boolean,

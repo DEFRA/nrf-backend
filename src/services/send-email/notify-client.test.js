@@ -24,16 +24,16 @@ vi.mock('../../config.js', () => ({
   }
 }))
 
-const mockLogger = vi.hoisted(() => ({ error: vi.fn() }))
+const mockLogger = vi.hoisted(() => ({ error: vi.fn(), info: vi.fn() }))
 vi.mock('../../common/helpers/logging/logger.js', () => ({
   createLogger: vi.fn().mockReturnValue(mockLogger)
 }))
 
 describe('createNotifyClient', () => {
-  test('logs error and returns client without proxy when httpProxy is not set', () => {
+  test('logs error and returns client without proxy when cdpHttpProxy is not set', () => {
     config.get.mockImplementation((key) => {
       if (key === 'notify') return { apiKey: 'test-api-key' }
-      if (key === 'httpProxy') return null
+      if (key === 'cdpHttpProxy') return null
     })
 
     const result = createNotifyClient()
@@ -41,13 +41,13 @@ describe('createNotifyClient', () => {
     expect(NotifyClient).toHaveBeenCalledWith('test-api-key')
     expect(result).toBeInstanceOf(NotifyClient)
     expect(result.setClient).not.toHaveBeenCalled()
-    expect(mockLogger.error).toHaveBeenCalledWith('httpProxy is not set')
+    expect(mockLogger.error).toHaveBeenCalledWith('cdpHttpProxy is not set')
   })
 
-  test('configures proxy agent when httpProxy is set', () => {
+  test('configures proxy agent when cdpHttpProxy is set', () => {
     config.get.mockImplementation((key) => {
       if (key === 'notify') return { apiKey: 'test-api-key' }
-      if (key === 'httpProxy') return 'http://proxy:3128'
+      if (key === 'cdpHttpProxy') return 'http://proxy:3128'
     })
 
     const result = createNotifyClient()
