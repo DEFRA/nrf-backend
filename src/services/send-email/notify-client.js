@@ -1,5 +1,5 @@
-import https from 'https'
 import axios from 'axios'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 
@@ -13,7 +13,7 @@ export const createNotifyClient = () => {
   const proxyUrl = config.get('httpProxy')
   if (proxyUrl) {
     notifyClient.setClient(
-      axios.create({ httpsAgent: https.globalAgent, proxy: false })
+      axios.create({ httpsAgent: new HttpsProxyAgent(proxyUrl), proxy: false })
     )
   }
 

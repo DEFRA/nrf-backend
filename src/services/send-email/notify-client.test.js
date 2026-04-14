@@ -1,11 +1,15 @@
-import https from 'https'
 import axios from 'axios'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { createNotifyClient } from './notify-client.js'
 import { NotifyClient } from 'notifications-node-client'
 import { config } from '../../config.js'
 
 vi.mock('axios', () => ({
   default: { create: vi.fn().mockReturnValue('mock-axios-instance') }
+}))
+
+vi.mock('https-proxy-agent', () => ({
+  HttpsProxyAgent: vi.fn(class HttpsProxyAgent {})
 }))
 
 vi.mock('notifications-node-client', () => ({
@@ -34,7 +38,7 @@ describe('createNotifyClient', () => {
     expect(result.setClient).not.toHaveBeenCalled()
   })
 
-  test('uses global https agent via custom axios client when proxy is configured', () => {
+  test('configures proxy agent when httpProxy is set', () => {
     config.get.mockImplementation((key) => {
       if (key === 'notify') return { apiKey: 'test-api-key' }
       if (key === 'httpProxy') return 'http://proxy:3128'
@@ -42,8 +46,9 @@ describe('createNotifyClient', () => {
 
     const result = createNotifyClient()
 
+    expect(HttpsProxyAgent).toHaveBeenCalledWith('http://proxy:3128')
     expect(axios.create).toHaveBeenCalledWith({
-      httpsAgent: https.globalAgent,
+      httpsAgent: expect.any(HttpsProxyAgent),
       proxy: false
     })
     expect(result.setClient).toHaveBeenCalledWith('mock-axios-instance')
