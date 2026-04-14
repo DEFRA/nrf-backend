@@ -52,7 +52,14 @@ describe('Submit quote endpoint', () => {
     expect(publishEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         topicArn: expect.any(String),
-        data: { ...validPayload, reference: expect.stringMatching(/NRF-\d{6}/) }
+        data: {
+          developmentTypes: ['housing', 'other-residential'],
+          residentialBuildingCount: 10,
+          peopleCount: 5,
+          wasteWaterTreatmentWorksId: '101',
+          boundaryGeojson,
+          reference: expect.stringMatching(/NRF-\d{6}/)
+        }
       }),
       expect.anything()
     )

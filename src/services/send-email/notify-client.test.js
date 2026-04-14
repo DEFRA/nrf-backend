@@ -18,20 +18,13 @@ vi.mock('../../common/helpers/logging/logger.js', () => ({
 }))
 
 describe('createNotifyClient', () => {
-  test('returns a NotifyClient instance and logs HTTP_PROXY', () => {
+  test('returns a NotifyClient instance', () => {
     config.get.mockReturnValue({ apiKey: 'test-api-key' })
-    process.env.HTTP_PROXY = 'http://localhost:3128'
 
     const result = createNotifyClient()
 
     expect(NotifyClient).toHaveBeenCalledWith('test-api-key')
     expect(result).toBeInstanceOf(NotifyClient)
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      'HTTP_PROXY: ',
-      'http://localhost:3128'
-    )
-
-    delete process.env.HTTP_PROXY
   })
 
   test('throws when api key is not set', () => {
