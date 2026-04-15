@@ -1,8 +1,7 @@
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/create-quote.js'
 import { quoteSchema } from './validation/post-schema.js'
-import { publishEvent } from '../../services/sns/publish-event.js'
-import { config } from '../../config.js'
+import { publishQuoteMessage } from './helpers/publish-quote-message.js'
 
 /**
  * @openapi
@@ -76,13 +75,13 @@ export const postController = {
       db: request.pg,
       quoteData: request.payload
     })
-    await publishEvent(
-      {
-        topicArn: config.get('sns.topic.nrfQuoteEstimateRequest.arn'),
-        data: { ...request.payload, reference: quote.reference }
+    await publishQuoteMessage({
+      quoteData: {
+        ...request.payload,
+        reference: quote.reference
       },
-      request.logger
-    )
+      logger: request.logger
+    })
     return h
       .response({ reference: quote.reference })
       .header('Location', `/quotes/${quote.reference}`)
