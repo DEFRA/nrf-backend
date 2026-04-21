@@ -182,4 +182,122 @@ describe('Patch quote endpoint', () => {
 
     expect(response.statusCode).toBe(statusCodes.badRequest)
   })
+
+  describe('when a second PATCH request is sent for the same reference', () => {
+    it('should not send an email when no EDP fields have changed', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+      notifySendEmail.mockClear()
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+
+      expect(notifySendEmail).not.toHaveBeenCalled()
+    })
+
+    it('should send an email when an EDP field has changed', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+      notifySendEmail.mockClear()
+
+      const updatedPayload = {
+        edps: [{ ...validEdpsPayload.edps[0], levyGbp: { min: 150, max: 250 } }]
+      }
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: updatedPayload
+      })
+
+      expect(notifySendEmail).toHaveBeenCalled()
+    })
+
+    it('should update the email sent date when an EDP field has changed', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+
+      const firstGetResponse = await sendGetRequest({
+        server: getServer(),
+        reference
+      })
+      const firstSentAt = JSON.parse(firstGetResponse.payload).email
+        .sendRequestAt
+
+      const updatedPayload = {
+        edps: [{ ...validEdpsPayload.edps[0], levyGbp: { min: 150, max: 250 } }]
+      }
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: updatedPayload
+      })
+
+      const secondGetResponse = await sendGetRequest({
+        server: getServer(),
+        reference
+      })
+      const secondSentAt = JSON.parse(secondGetResponse.payload).email
+        .sendRequestAt
+
+      expect(secondSentAt).not.toBeNull()
+      expect(new Date(secondSentAt).getTime()).not.toBeNaN()
+      expect(secondSentAt).not.toBe(firstSentAt)
+    })
+
+    it('should not update the email sent date when no EDP fields have changed', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+
+      const firstGetResponse = await sendGetRequest({
+        server: getServer(),
+        reference
+      })
+      const firstSentAt = JSON.parse(firstGetResponse.payload).email
+        .sendRequestAt
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
+
+      const secondGetResponse = await sendGetRequest({
+        server: getServer(),
+        reference
+      })
+      const secondSentAt = JSON.parse(secondGetResponse.payload).email
+        .sendRequestAt
+
+      expect(secondSentAt).toBe(firstSentAt)
+    })
+  })
 })

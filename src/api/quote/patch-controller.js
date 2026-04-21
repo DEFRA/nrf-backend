@@ -1,12 +1,11 @@
 import Boom from '@hapi/boom'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
-import { dbSaveEdpResults } from '../../services/db/quote_edp_results/queries.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
-import { getCurrentISODateTime } from '../../common/helpers/date-time.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
+import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
 
 /**
  * @openapi
@@ -95,29 +94,29 @@ export const patchController = {
       wasteWaterTreatmentWorksName
     } = quote
     const { edps } = request.payload
-    await dbSaveEdpResults({
+
+    const anyUpdated = await saveOrUpdateEdpResults({
       db: request.pg,
       quoteId: id,
-      edps,
-      createdAt: getCurrentISODateTime()
+      edps
     })
 
-    const emailResult = await sendQuoteEmail({
-      nrfQuoteReference: reference,
-      recipientEmailAddress: address,
-      edps,
-      development,
-      // Name is null when the user selected "I don't know" on the WWTW page
-      wasteWaterTreatmentWorks:
-        wasteWaterTreatmentWorksName ?? 'Not yet confirmed'
-    })
-
-    if (emailResult?.sentDateTime) {
-      await dbUpdateQuoteWithEmailSent({
-        db: request.pg,
-        reference: quote.reference,
-        data: { emailSendRequestAt: emailResult.sentDateTime }
+    if (anyUpdated) {
+      const emailResult = await sendQuoteEmail({
+        nrfQuoteReference: reference,
+        recipientEmailAddress: address,
+        edps,
+        development,
+        wasteWaterTreatmentWorks: wasteWaterTreatmentWorksName
       })
+
+      if (emailResult?.sentDateTime) {
+        await dbUpdateQuoteWithEmailSent({
+          db: request.pg,
+          reference: quote.reference,
+          data: { emailSendRequestAt: emailResult.sentDateTime }
+        })
+      }
     }
 
     return h.response().code(statusCodes.ok)
