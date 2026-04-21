@@ -1,10 +1,10 @@
-export const dbSaveEdpResults = async ({ db, quoteId, edps, createdAt }) => {
+export const dbSaveEdpResults = async ({ db, quoteId, edps }) => {
   await db.query('DELETE FROM quote_edp_results WHERE quote_id = $1', [quoteId])
   for (const edp of edps) {
     const { edpId, edpName, edpType, impact, levyGbp } = edp
     await db.query(
       `INSERT INTO quote_edp_results (quote_id, edp_id, edp_name, edp_type, impact, levy_gbp_min, levy_gbp_max, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
       [
         quoteId,
         edpId,
@@ -12,8 +12,7 @@ export const dbSaveEdpResults = async ({ db, quoteId, edps, createdAt }) => {
         edpType,
         JSON.stringify(impact),
         levyGbp.min,
-        levyGbp.max,
-        createdAt
+        levyGbp.max
       ]
     )
   }
@@ -31,7 +30,7 @@ export const dbUpdateEdpResult = async ({ db, quoteId, edpId, edp }) => {
   const { edpName, edpType, impact, levyGbp } = edp
   await db.query(
     `UPDATE quote_edp_results
-     SET edp_name = $1, edp_type = $2, impact = $3, levy_gbp_min = $4, levy_gbp_max = $5
+     SET edp_name = $1, edp_type = $2, impact = $3, levy_gbp_min = $4, levy_gbp_max = $5, updated_at = NOW()
      WHERE quote_id = $6 AND edp_id = $7`,
     [
       edpName,

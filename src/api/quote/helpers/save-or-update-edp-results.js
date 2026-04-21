@@ -3,8 +3,6 @@ import {
   dbGetEdpResults,
   dbUpdateEdpResult
 } from '../../../services/db/quote_edp_results/queries.js'
-import { getCurrentISODateTime } from '../../../common/helpers/date-time.js'
-
 const sortedStringify = (value) =>
   JSON.stringify(value, (_, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
@@ -16,14 +14,8 @@ const sortedStringify = (value) =>
 
 export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
   const existingEdpResults = await dbGetEdpResults({ db, quoteId })
-
   if (existingEdpResults.length === 0) {
-    await dbSaveEdpResults({
-      db,
-      quoteId,
-      edps,
-      createdAt: getCurrentISODateTime()
-    })
+    await dbSaveEdpResults({ db, quoteId, edps })
     return true
   }
 

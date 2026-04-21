@@ -6,10 +6,6 @@ import {
 } from '../../../services/db/quote_edp_results/queries.js'
 
 vi.mock('../../../services/db/quote_edp_results/queries.js')
-vi.mock('../../../common/helpers/date-time.js', () => ({
-  getCurrentISODateTime: () => '2024-01-01T00:00:00.000Z'
-}))
-
 const edp = {
   edpId: 123,
   edpName: 'Norfolk Fens east',
@@ -49,8 +45,7 @@ describe('saveOrUpdateEdpResults', () => {
       expect(dbSaveEdpResults).toHaveBeenCalledWith({
         db,
         quoteId: 1,
-        edps: [edp],
-        createdAt: '2024-01-01T00:00:00.000Z'
+        edps: [edp]
       })
       expect(result).toBe(true)
     })

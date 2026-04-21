@@ -29,12 +29,7 @@ describe('dbSaveEdpResults', () => {
   it('should delete existing records for the quoteId before inserting', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
-    await dbSaveEdpResults({
-      db,
-      quoteId: 1,
-      edps,
-      createdAt: '2024-01-01T00:00:00.000Z'
-    })
+    await dbSaveEdpResults({ db, quoteId: 1, edps })
 
     expect(db.query).toHaveBeenNthCalledWith(
       1,
@@ -46,8 +41,7 @@ describe('dbSaveEdpResults', () => {
   it('should insert a row for each EDP', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
-    const createdAt = '2024-01-01T00:00:00.000Z'
-    await dbSaveEdpResults({ db, quoteId: 1, edps, createdAt })
+    await dbSaveEdpResults({ db, quoteId: 1, edps })
 
     expect(db.query).toHaveBeenCalledTimes(2)
     expect(db.query).toHaveBeenCalledWith(
@@ -59,8 +53,7 @@ describe('dbSaveEdpResults', () => {
         'NUTRIENT',
         JSON.stringify(edps[0].impact),
         100,
-        200,
-        createdAt
+        200
       ]
     )
   })
