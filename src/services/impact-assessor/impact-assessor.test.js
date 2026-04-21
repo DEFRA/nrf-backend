@@ -62,7 +62,8 @@ describe('checkBoundary', () => {
     const mockResponse = {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-      intersectingEdps: ['edp-1']
+      intersectingEdps: ['edp-1'],
+      boundaryMetadata: { areaHa: 42.5 }
     }
 
     vi.mocked(getTraceId).mockReturnValue('trace-456')
@@ -82,7 +83,8 @@ describe('checkBoundary', () => {
       geojson: {
         boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
         boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
-        intersectingEdps: mockResponse.intersectingEdps
+        intersectingEdps: mockResponse.intersectingEdps,
+        boundaryMetadata: mockResponse.boundaryMetadata
       }
     })
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -251,7 +253,8 @@ describe('checkBoundaryGeometry', () => {
     const mockResponse = {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-      intersectingEdps: ['edp-1']
+      intersectingEdps: ['edp-1'],
+      boundaryMetadata: { areaHa: 10.0 }
     }
 
     vi.mocked(getTraceId).mockReturnValue('trace-789')
@@ -267,7 +270,8 @@ describe('checkBoundaryGeometry', () => {
       geojson: {
         boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
         boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
-        intersectingEdps: mockResponse.intersectingEdps
+        intersectingEdps: mockResponse.intersectingEdps,
+        boundaryMetadata: mockResponse.boundaryMetadata
       }
     })
 

@@ -184,13 +184,15 @@ async function postBoundaryCheck(
     const {
       boundaryGeometryOriginal,
       boundaryGeometryWgs84,
-      intersectingEdps
+      intersectingEdps,
+      boundaryMetadata
     } = geojson
     return {
       geojson: {
         boundaryGeometryOriginal,
         boundaryGeometryWgs84,
-        intersectingEdps
+        intersectingEdps,
+        boundaryMetadata
       }
     }
   } catch (error) {
