@@ -4,5 +4,5 @@ export const getLevyAmount = (edps) => {
   if (totalMax > totalMin) {
     return `£${totalMin} - £${totalMax}`
   }
-  return `${totalMin}`
+  return `£${totalMin}`
 }
