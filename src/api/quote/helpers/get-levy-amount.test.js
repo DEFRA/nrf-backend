@@ -14,7 +14,7 @@ describe('getLevyAmount', () => {
       { levyGbp: { min: 1000, max: 1000 } },
       { levyGbp: { min: 500, max: 500 } }
     ]
-    expect(getLevyAmount(edps)).toBe('1500')
+    expect(getLevyAmount(edps)).toBe('£1500')
   })
 
   it('handles a single edp', () => {
