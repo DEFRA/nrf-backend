@@ -1,6 +1,11 @@
-# CLAUDE.md
+# AGENTS.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+**IMPORTANT:**
+
+- Before making any code changes, read `.ai/rules/index.md` for coding standards and patterns.
+- Always run `nvm use` before running any commands to ensure the correct Node version (v24) is active. The project requires Node >=24 and has a `.nvmrc` file.
 
 ## Project Overview
 
