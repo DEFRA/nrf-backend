@@ -814,5 +814,21 @@ describe('Boundary routes', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
       expect(checkBoundaryGeometry).not.toHaveBeenCalled()
     })
+
+    it('should default to 502 when the impact assessor returns an unexpected response with no status code', async () => {
+      vi.mocked(checkBoundaryGeometry).mockResolvedValue({
+        error: 'Received an unexpected response from the boundary check service'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check',
+        payload: { geometry: validGeometry }
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badGateway)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBeDefined()
+    })
   })
 })

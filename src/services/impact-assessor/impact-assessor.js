@@ -181,6 +181,16 @@ async function postBoundaryCheck(
     }
 
     const geojson = await response.json()
+
+    if (!isBoundaryCheckResponse(geojson)) {
+      logger.error(
+        `Impact assessor returned unexpected response structure - url: ${url}`
+      )
+      return {
+        error: 'Received an unexpected response from the boundary check service'
+      }
+    }
+
     const {
       boundaryGeometryOriginal,
       boundaryGeometryWgs84,
@@ -199,4 +209,16 @@ async function postBoundaryCheck(
     logger.error(error, `Error calling impact assessor - url: ${url}`)
     return { error: 'Unable to contact impact assessor service' }
   }
+}
+
+function isBoundaryCheckResponse(value) {
+  return (
+    isObject(value?.boundaryGeometryOriginal) &&
+    isObject(value?.boundaryGeometryWgs84) &&
+    Array.isArray(value?.intersectingEdps)
+  )
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }

@@ -202,6 +202,82 @@ describe('checkBoundary', () => {
     })
   })
 
+  it('should return error when intersectingEdps is missing from the response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingEdps is not an array', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: 'not-an-array'
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when the response body is unexpected JSON (no geometry fields)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ unexpected: 'shape' })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingEdps is present but geometry fields are missing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          intersectingEdps: []
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
   it('should omit the tracing header when no trace id is set', async () => {
     vi.mocked(getTraceId).mockReturnValue(undefined)
 
@@ -338,6 +414,66 @@ describe('checkBoundaryGeometry', () => {
     expect(result).toEqual({
       error: 'Unable to contact impact assessor service'
     })
+  })
+
+  it('should return error when intersectingEdps is missing from the response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingEdps is not an array', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: null
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when the response body is unexpected JSON', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ status: 'ok' })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingEdps is present but geometry fields are missing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          intersectingEdps: []
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
   })
 
   it('should pass through a FeatureCollection input unchanged', async () => {
