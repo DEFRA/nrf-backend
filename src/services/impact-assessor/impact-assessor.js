@@ -1,3 +1,4 @@
+import joi from 'joi'
 import { getTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
@@ -181,6 +182,16 @@ async function postBoundaryCheck(
     }
 
     const geojson = await response.json()
+
+    if (!isBoundaryCheckResponse(geojson)) {
+      logger.error(
+        `Impact assessor returned unexpected response structure - url: ${url}`
+      )
+      return {
+        error: 'Received an unexpected response from the boundary check service'
+      }
+    }
+
     const {
       boundaryGeometryOriginal,
       boundaryGeometryWgs84,
@@ -199,4 +210,17 @@ async function postBoundaryCheck(
     logger.error(error, `Error calling impact assessor - url: ${url}`)
     return { error: 'Unable to contact impact assessor service' }
   }
+}
+
+const boundaryCheckResponseSchema = joi
+  .object({
+    boundaryGeometryOriginal: joi.object().required(),
+    boundaryGeometryWgs84: joi.object().required(),
+    intersectingEdps: joi.array().required(),
+    boundaryMetadata: joi.any()
+  })
+  .unknown(true)
+
+function isBoundaryCheckResponse(value) {
+  return !boundaryCheckResponseSchema.validate(value).error
 }
