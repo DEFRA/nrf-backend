@@ -1,3 +1,4 @@
+import joi from 'joi'
 import { getTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
@@ -211,14 +212,15 @@ async function postBoundaryCheck(
   }
 }
 
-function isBoundaryCheckResponse(value) {
-  return (
-    isObject(value?.boundaryGeometryOriginal) &&
-    isObject(value?.boundaryGeometryWgs84) &&
-    Array.isArray(value?.intersectingEdps)
-  )
-}
+const boundaryCheckResponseSchema = joi
+  .object({
+    boundaryGeometryOriginal: joi.object().required(),
+    boundaryGeometryWgs84: joi.object().required(),
+    intersectingEdps: joi.array().required(),
+    boundaryMetadata: joi.any()
+  })
+  .unknown(true)
 
-function isObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
+function isBoundaryCheckResponse(value) {
+  return !boundaryCheckResponseSchema.validate(value).error
 }
