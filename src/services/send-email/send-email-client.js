@@ -6,6 +6,7 @@ const RETRY_INTERVAL_MS = 10000
 
 /**
  * @param {object} params
+ * @param {import('notifications-node-client').NotifyClient} params.notifyClient
  * @param {string} params.recipientEmailAddress
  * @param {string} params.emailReference
  * @param {object} params.emailBodyVariables
@@ -13,12 +14,12 @@ const RETRY_INTERVAL_MS = 10000
  * @returns {Promise<{notificationId: string, sentDateTime: string}>}
  */
 const sendEmailOperation = async ({
+  notifyClient,
   recipientEmailAddress,
   emailReference,
   emailBodyVariables,
   templateId
 }) => {
-  const notifyClient = createNotifyClient()
   const options = {
     personalisation: emailBodyVariables,
     reference: emailReference
@@ -49,10 +50,12 @@ export const sendEmail = async ({
   templateId
 }) => {
   const logger = createLogger()
+  const notifyClient = createNotifyClient()
   try {
     const { notificationId, sentDateTime } = await retryAsyncOperation({
       operation: () =>
         sendEmailOperation({
+          notifyClient,
           recipientEmailAddress,
           emailReference,
           emailBodyVariables,
