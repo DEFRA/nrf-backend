@@ -31,6 +31,11 @@ describe('sendEmail', () => {
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
     })
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('calls the notify sendEmail function', async () => {
@@ -76,15 +81,43 @@ describe('sendEmail', () => {
     )
   })
 
-  it('returns null and logs the error message, if unsuccessful', async () => {
-    const error = new Error('something went wrong')
-    notifySendEmail.mockRejectedValue(error)
-    const result = await sendEmail({
+  it('retries and succeeds after a transient failure', async () => {
+    const error = new Error('transient error')
+    notifySendEmail
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue({ data: { id: notificationId } })
+
+    const resultPromise = sendEmail({
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
       templateId
     })
+
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
+    expect(notifySendEmail).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({
+      notificationId,
+      sentDateTime: expect.any(String)
+    })
+  })
+
+  it('returns null and logs the error message, if all retries fail', async () => {
+    const error = new Error('something went wrong')
+    notifySendEmail.mockRejectedValue(error)
+
+    const resultPromise = sendEmail({
+      recipientEmailAddress,
+      emailReference: estimateReference,
+      emailBodyVariables,
+      templateId
+    })
+
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
       error,
@@ -100,12 +133,17 @@ describe('sendEmail', () => {
       response: { data: { errors } }
     })
     notifySendEmail.mockRejectedValue(error)
-    const result = await sendEmail({
+
+    const resultPromise = sendEmail({
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
       templateId
     })
+
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
       error,
@@ -114,15 +152,18 @@ describe('sendEmail', () => {
   })
 
   it("returns null and logs, if a notification ID isn't returned", async () => {
-    notifySendEmail.mockResolvedValue({
-      id: null
-    })
-    const result = await sendEmail({
+    notifySendEmail.mockResolvedValue({ data: { id: null } })
+
+    const resultPromise = sendEmail({
       recipientEmailAddress,
       emailReference: estimateReference,
       emailBodyVariables,
       templateId
     })
+
+    await vi.runAllTimersAsync()
+    const result = await resultPromise
+
     expect(result).toBeNull()
     expect(logger.error).toHaveBeenCalledWith(
       expect.any(Error),
