@@ -1,10 +1,8 @@
 import joi from 'joi'
-import { getTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
-
-const tracingHeader = config.get('tracing.header')
+import { addTracingHeader } from '../helpers/tracing-header.js'
 
 const logger = createLogger()
 
@@ -39,15 +37,11 @@ export async function findNearbyWasteWaterTreatmentWorks(geometry) {
   logger.info(`Fetching nearby WWTWs - url: ${url}`)
 
   try {
-    const traceId = getTraceId()
-    const headers = { 'Content-Type': 'application/json' }
-    if (traceId) {
-      headers[tracingHeader] = traceId
-    }
-
     const response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: addTracingHeader({
+        'Content-Type': 'application/json'
+      }),
       body: JSON.stringify({ geometry })
     })
 
@@ -150,15 +144,9 @@ async function postBoundaryCheck(
   }
 
   try {
-    const traceId = getTraceId()
-    const headers = {}
-    if (traceId) {
-      headers[tracingHeader] = traceId
-    }
-
     const response = await fetch(url, {
       method: 'POST',
-      headers,
+      headers: addTracingHeader(),
       body: formData
     })
 

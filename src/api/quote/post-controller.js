@@ -2,6 +2,7 @@ import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/create-quote.js'
 import { quoteSchema } from './validation/post-schema.js'
 import { publishQuoteMessage } from './helpers/publish-quote-message.js'
+import { getTraceId } from '@defra/hapi-tracing'
 
 /**
  * @openapi
@@ -75,12 +76,14 @@ export const postController = {
       db: request.pg,
       quoteData: request.payload
     })
+    const traceId = getTraceId()
     await publishQuoteMessage({
       quoteData: {
         ...request.payload,
         reference: quote.reference
       },
-      logger: request.logger
+      logger: request.logger,
+      traceId
     })
     return h
       .response({ reference: quote.reference })

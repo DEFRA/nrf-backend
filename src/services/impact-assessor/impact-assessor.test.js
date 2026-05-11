@@ -39,7 +39,9 @@ describe('getImpactAssessorUrl', () => {
   })
 
   it('should return localhost fallback when no config or environment', () => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
 
     expect(getImpactAssessorUrl()).toBe('http://localhost:8085')
@@ -50,7 +52,9 @@ describe('checkBoundary', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -317,7 +321,9 @@ describe('checkBoundaryGeometry', () => {
   }
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -548,7 +554,9 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
   }
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 

@@ -1,11 +1,16 @@
 import { routePath } from '../../routes/quote.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
+import { getTraceId } from '@defra/hapi-tracing'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
+vi.mock('@defra/hapi-tracing', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, getTraceId: vi.fn() }
+})
 
 const sendPostRequest = ({ server, payload }) => {
   return server.inject({
@@ -31,6 +36,7 @@ describe('Submit quote endpoint', () => {
 
   beforeEach(() => {
     vi.mocked(publishEvent).mockResolvedValue(true)
+    vi.mocked(getTraceId).mockReturnValue('trace-abc-123')
   })
 
   it('should return 201 with the quote reference and a location header', async () => {
@@ -58,7 +64,8 @@ describe('Submit quote endpoint', () => {
           peopleCount: 5,
           wasteWaterTreatmentWorksId: '101',
           boundaryGeojson,
-          reference: expect.stringMatching(/NRF-\d{6}/)
+          reference: expect.stringMatching(/NRF-\d{6}/),
+          traceId: 'trace-abc-123'
         }
       }),
       expect.anything()
