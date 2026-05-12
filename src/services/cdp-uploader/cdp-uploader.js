@@ -6,6 +6,7 @@ import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
+const traceHeaderName = config.get('tracing.header')
 
 /**
  * Get the CDP Uploader base URL
@@ -58,7 +59,7 @@ export async function initiateUpload({
 
     const { payload } = await Wreck.post(url, {
       payload: JSON.stringify(body),
-      headers: withTraceId(config.get('tracing.header'), {
+      headers: withTraceId(traceHeaderName, {
         'Content-Type': 'application/json'
       }),
       json: true
@@ -100,7 +101,7 @@ export async function getUploadStatus(uploadId) {
   try {
     const { payload } = await Wreck.get(url, {
       json: true,
-      headers: withTraceId(config.get('tracing.header'))
+      headers: withTraceId(traceHeaderName)
     })
 
     return {
@@ -134,7 +135,7 @@ export async function getUploadDetails(uploadId) {
   try {
     const { payload } = await Wreck.get(url, {
       json: true,
-      headers: withTraceId(config.get('tracing.header'))
+      headers: withTraceId(traceHeaderName)
     })
 
     return payload
