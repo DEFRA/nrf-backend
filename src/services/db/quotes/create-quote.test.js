@@ -1,8 +1,16 @@
 import { dbCreateQuote } from './create-quote.js'
 
+const mockGetCurrentISODateTime = vi.hoisted(() =>
+  vi.fn().mockReturnValue('2026-03-23T00:00:00.000Z')
+)
+
 vi.mock('../../../common/helpers/date-time.js', () => ({
-  getCurrentISODateTime: vi.fn().mockReturnValue('2026-03-23T00:00:00.000Z')
+  getCurrentISODateTime: mockGetCurrentISODateTime
 }))
+
+beforeEach(() => {
+  mockGetCurrentISODateTime.mockReturnValue('2026-03-23T00:00:00.000Z')
+})
 
 describe('dbCreateQuote', () => {
   const mockRow = { id: 1, reference: 'NRF-000001' }

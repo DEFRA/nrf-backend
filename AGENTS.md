@@ -53,7 +53,7 @@ The app uses a forward-proxy for all outbound HTTP requests. Setup in src/common
 Tests use Vitest (configured in vitest.config.js) with:
 
 - Fetch mocking setup in .vite/setup-files.js
-- **Important:** `clearMocks: true` is set globally - do not add `vi.clearAllMocks()` to individual test files
+- **Important:** `mockReset: true` is set globally — this calls `vi.resetAllMocks()` before each test, clearing both call history and implementations. Do not add `vi.clearAllMocks()` or `vi.resetAllMocks()` to individual test files. If a mock needs a specific return value, set it in `beforeEach` (not `beforeAll` or at the module level inside a factory).
 
 ### Logging
 
