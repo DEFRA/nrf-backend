@@ -9,12 +9,16 @@ vi.mock('@hapi/wreck', () => ({
   }
 }))
 
-vi.mock('../helpers/tracing-header.js', () => ({
-  addTracingHeader: vi.fn((headers) => ({
-    ...headers,
-    'x-cdp-request-id': 'trace-test-id'
-  }))
-}))
+vi.mock('@defra/hapi-tracing', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    withTraceId: vi.fn((_, headers = {}) => ({
+      ...headers,
+      'x-cdp-request-id': 'trace-test-id'
+    }))
+  }
+})
 
 const { getCdpUploaderUrl, initiateUpload, getUploadStatus, getUploadDetails } =
   await import('./cdp-uploader.js')
