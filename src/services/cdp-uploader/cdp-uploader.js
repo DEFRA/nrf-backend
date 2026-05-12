@@ -1,8 +1,9 @@
 import Wreck from '@hapi/wreck'
 
+import { withTraceId } from '@defra/hapi-tracing'
+
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
-import { addTracingHeader } from '../helpers/tracing-header.js'
 
 const logger = createLogger()
 
@@ -57,7 +58,7 @@ export async function initiateUpload({
 
     const { payload } = await Wreck.post(url, {
       payload: JSON.stringify(body),
-      headers: addTracingHeader({
+      headers: withTraceId(config.get('tracing.header'), {
         'Content-Type': 'application/json'
       }),
       json: true
@@ -99,7 +100,7 @@ export async function getUploadStatus(uploadId) {
   try {
     const { payload } = await Wreck.get(url, {
       json: true,
-      headers: addTracingHeader()
+      headers: withTraceId(config.get('tracing.header'))
     })
 
     return {
@@ -133,7 +134,7 @@ export async function getUploadDetails(uploadId) {
   try {
     const { payload } = await Wreck.get(url, {
       json: true,
-      headers: addTracingHeader()
+      headers: withTraceId(config.get('tracing.header'))
     })
 
     return payload
