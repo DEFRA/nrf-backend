@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    clearMocks: true,
+    mockReset: true,
     env: {
       DB_PORT: '5433',
       CDP_UPLOADER_URL: 'http://localhost:7338',

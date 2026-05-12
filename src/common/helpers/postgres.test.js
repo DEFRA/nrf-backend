@@ -54,6 +54,13 @@ const baseOptions = {
 }
 
 describe('#postgres plugin', () => {
+  beforeEach(() => {
+    mockGetAuthToken.mockResolvedValue('iam-token')
+    mockFromNodeProviderChain.mockReturnValue('mock-credentials')
+    mockQuery.mockResolvedValue({ rows: [] })
+    mockEnd.mockResolvedValue(undefined)
+  })
+
   describe('When registered with valid options (no IAM)', () => {
     let server
 
