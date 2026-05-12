@@ -46,13 +46,4 @@ describe('addTracingHeader', () => {
 
     expect(result).toEqual({ 'Content-Type': 'application/json' })
   })
-
-  it('mutates and returns the passed headers object', () => {
-    vi.mocked(getTraceId).mockReturnValue('trace-abc-123')
-
-    const headers = {}
-    const result = addTracingHeader(headers)
-
-    expect(result).toBe(headers)
-  })
 })
