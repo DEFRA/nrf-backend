@@ -36,7 +36,9 @@ function makeServer() {
     }),
     events: {
       on: vi.fn((event, handler) => {
-        if (event === 'stop') stopHandlers.push(handler)
+        if (event === 'stop') {
+          stopHandlers.push(handler)
+        }
       })
     },
     decorations,

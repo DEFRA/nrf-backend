@@ -8,7 +8,9 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.email_address, q.em
  * @returns {{ id: string, reference: string, createdAt: Date, development: { types: string[], residentialBuildingCount: number, peopleCount: number }, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, wasteWaterTreatmentWorksId: string, wasteWaterTreatmentWorksName: string, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, levyGbp: { min: number, max: number } }> } | null}
  */
 export const mapQuoteRows = (rows) => {
-  if (!rows.length) return null
+  if (!rows.length) {
+    return null
+  }
 
   const row = rows[0]
   return {

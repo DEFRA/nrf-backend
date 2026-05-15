@@ -174,7 +174,9 @@ describe('validateZipSafety', () => {
         // Yield far more bytes than the per-entry cap to trip the streaming
         // check immediately.
         const chunk = Buffer.alloc(1024 * 1024)
-        for (let i = 0; i < 25; i++) yield chunk
+        for (let i = 0; i < 25; i++) {
+          yield chunk
+        }
       })()
     )
 
@@ -190,9 +192,15 @@ describe('validateZipSafety', () => {
         }
       },
       on(event, handler) {
-        if (event === 'entry') this._entryHandler = handler
-        if (event === 'end') this._endHandler = handler
-        if (event === 'error') this._errorHandler = handler
+        if (event === 'entry') {
+          this._entryHandler = handler
+        }
+        if (event === 'end') {
+          this._endHandler = handler
+        }
+        if (event === 'error') {
+          this._errorHandler = handler
+        }
       },
       openReadStream(_entry, cb) {
         cb(null, fakeReadStream)
