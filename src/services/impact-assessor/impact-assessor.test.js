@@ -311,6 +311,38 @@ describe('checkBoundary', () => {
     const [, calledOpts] = globalThis.fetch.mock.calls[0]
     expect(calledOpts.headers).toEqual({})
   })
+
+  it('should send the x-api-key header when impactAssessorApiKey is configured', async () => {
+    vi.spyOn(config, 'get').mockImplementation((key) => {
+      if (key === 'tracing.header') {
+        return 'x-cdp-request-id'
+      }
+      if (key === 'impactAssessorApiKey') {
+        return 'ia-secret-key'
+      }
+      return null
+    })
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: {},
+          boundaryGeometryWgs84: {},
+          intersectingEdps: []
+        })
+    })
+
+    await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledOpts.headers['x-api-key']).toBe('ia-secret-key')
+  })
 })
 
 describe('checkBoundaryGeometry', () => {
@@ -698,5 +730,28 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
 
     const [, calledOpts] = globalThis.fetch.mock.calls[0]
     expect(calledOpts.headers).toEqual({ 'Content-Type': 'application/json' })
+  })
+
+  it('should send the x-api-key header when impactAssessorApiKey is configured', async () => {
+    vi.spyOn(config, 'get').mockImplementation((key) => {
+      if (key === 'tracing.header') {
+        return 'x-cdp-request-id'
+      }
+      if (key === 'impactAssessorApiKey') {
+        return 'ia-secret-key'
+      }
+      return null
+    })
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ nearbyWwtws: [] })
+    })
+
+    await findNearbyWasteWaterTreatmentWorks(mockGeometry)
+
+    const [, calledOpts] = globalThis.fetch.mock.calls[0]
+    expect(calledOpts.headers['x-api-key']).toBe('ia-secret-key')
   })
 })

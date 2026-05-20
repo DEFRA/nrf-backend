@@ -7,6 +7,21 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 const logger = createLogger()
 
 /**
+ * Build request headers for impact assessor calls: trace header plus the
+ * service-to-service x-api-key when configured.
+ * @param {object} [extraHeaders]
+ * @returns {object}
+ */
+function impactAssessorHeaders(extraHeaders) {
+  const headers = withTraceId(config.get('tracing.header'), extraHeaders)
+  const apiKey = config.get('impactAssessorApiKey')
+  if (apiKey) {
+    headers['x-api-key'] = apiKey
+  }
+  return headers
+}
+
+/**
  * Get the impact assessor base URL
  * @returns {string}
  */
@@ -39,7 +54,7 @@ export async function findNearbyWasteWaterTreatmentWorks(geometry) {
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: withTraceId(config.get('tracing.header'), {
+      headers: impactAssessorHeaders({
         'Content-Type': 'application/json'
       }),
       body: JSON.stringify({ geometry })
@@ -146,7 +161,7 @@ async function postBoundaryCheck(
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: withTraceId(config.get('tracing.header')),
+      headers: impactAssessorHeaders(),
       body: formData
     })
 
