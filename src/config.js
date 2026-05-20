@@ -118,11 +118,26 @@ const config = convict({
       env: 'TRACING_HEADER'
     }
   },
+  apiKey: {
+    doc: 'Shared service-to-service API key required on the x-api-key header for all non-public routes',
+    format: String,
+    default: '',
+    sensitive: true,
+    env: 'BACKEND_API_KEY'
+  },
+  impactAssessorApiKey: {
+    doc: 'API key sent to the impact-assessor service on outbound calls (x-api-key header)',
+    format: String,
+    default: '',
+    sensitive: true,
+    env: 'IMPACT_ASSESSOR_API_KEY'
+  },
   notify: {
     apiKey: {
       doc: 'API key for Notify',
       format: String,
       default: '',
+      sensitive: true,
       env: 'NOTIFY_API_KEY'
     },
     templateIds: {

@@ -12,7 +12,8 @@ export default defineConfig({
       S3_FORCE_PATH_STYLE: 'true',
       AWS_ACCESS_KEY_ID: 'test',
       AWS_SECRET_ACCESS_KEY: 'test',
-      AWS_REGION: 'eu-west-2'
+      AWS_REGION: 'eu-west-2',
+      BACKEND_API_KEY: 'test-api-key'
     },
     coverage: {
       provider: 'v8',

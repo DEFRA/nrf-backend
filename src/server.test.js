@@ -6,6 +6,10 @@ vi.mock('./config.js', () => ({
   }
 }))
 
+vi.mock('./plugins/auth.js', () => ({
+  auth: { plugin: { name: 'auth', register: vi.fn() } }
+}))
+
 vi.mock('./plugins/router.js', () => ({
   router: { plugin: { name: 'router', register: vi.fn() } }
 }))
