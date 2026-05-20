@@ -49,4 +49,4 @@ const auth = {
   }
 }
 
-export { auth, STRATEGY_NAME }
+export { auth }
