@@ -98,6 +98,22 @@ describe('Patch quote endpoint', () => {
     expect(notifySendEmail).toHaveBeenCalled()
   })
 
+  it('should include a quote access link in the email', async () => {
+    const postResponse = await createQuote(getServer())
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendPatchRequest({
+      server: getServer(),
+      reference,
+      payload: validEdpsPayload
+    })
+
+    const emailOptions = notifySendEmail.mock.calls[0][2]
+    expect(emailOptions.personalisation.quoteAccessLink).toMatch(
+      new RegExp(`/quote/${reference}/[A-Za-z0-9_-]{43}$`)
+    )
+  })
+
   it('should write the email sent date to the database', async () => {
     const postResponse = await createQuote(getServer())
     const { reference } = JSON.parse(postResponse.payload)

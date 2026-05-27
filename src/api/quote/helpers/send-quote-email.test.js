@@ -18,14 +18,18 @@ describe('sendQuoteEmail', () => {
     peopleCount: null
   }
   const wasteWaterTreatmentWorks = 'Great Billing WRC'
+  const nrfServiceUrl = 'http://localhost:3000'
+  const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
 
   it('calls sendEmail with the correct arguments', () => {
     sendQuoteEmail({
       recipientEmailAddress,
       nrfQuoteReference,
+      nrfServiceUrl,
       edps,
       development,
-      wasteWaterTreatmentWorks
+      wasteWaterTreatmentWorks,
+      quoteAccessLink
     })
     expect(sendEmail).toHaveBeenCalledWith({
       recipientEmailAddress,
@@ -36,7 +40,8 @@ describe('sendQuoteEmail', () => {
         developmentDescription: 'Housing with a total of 5 residential units',
         wasteWaterTreatmentWorks: 'Great Billing WRC',
         levyAmount: '£100 - £200',
-        nrfServiceUrl: expect.any(String)
+        nrfServiceUrl,
+        quoteAccessLink
       },
       templateId: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c'
     })
@@ -51,9 +56,11 @@ describe('sendQuoteEmail', () => {
     const result = await sendQuoteEmail({
       recipientEmailAddress,
       nrfQuoteReference,
+      nrfServiceUrl,
       edps,
       development,
-      wasteWaterTreatmentWorks
+      wasteWaterTreatmentWorks,
+      quoteAccessLink
     })
     expect(result).toBe(sendEmailResult)
   })
