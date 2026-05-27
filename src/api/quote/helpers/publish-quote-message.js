@@ -1,7 +1,7 @@
 import { publishEvent } from '../../../services/sns/publish-event.js'
 import { config } from '../../../config.js'
 
-export const publishQuoteMessage = ({ quoteData, logger }) => {
+export const publishQuoteMessage = ({ quoteData, logger, traceId }) => {
   return publishEvent(
     {
       topicArn: config.get('sns.topic.nrfQuoteEstimateRequest.arn'),
@@ -11,7 +11,8 @@ export const publishQuoteMessage = ({ quoteData, logger }) => {
         developmentTypes: quoteData.developmentTypes,
         residentialBuildingCount: quoteData.residentialBuildingCount,
         peopleCount: quoteData.peopleCount,
-        wasteWaterTreatmentWorksId: quoteData.wasteWaterTreatmentWorksId
+        wasteWaterTreatmentWorksId: quoteData.wasteWaterTreatmentWorksId,
+        traceId
       }
     },
     logger

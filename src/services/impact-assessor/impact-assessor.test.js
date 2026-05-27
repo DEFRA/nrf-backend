@@ -1,11 +1,15 @@
-import { getTraceId } from '@defra/hapi-tracing'
+import { withTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 
-vi.mock('@defra/hapi-tracing', () => ({
-  getTraceId: vi.fn()
-}))
+vi.mock('@defra/hapi-tracing', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    withTraceId: vi.fn((_, headers = {}) => headers)
+  }
+})
 
 const {
   getImpactAssessorUrl,
@@ -39,7 +43,9 @@ describe('getImpactAssessorUrl', () => {
   })
 
   it('should return localhost fallback when no config or environment', () => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
 
     expect(getImpactAssessorUrl()).toBe('http://localhost:8085')
@@ -50,7 +56,9 @@ describe('checkBoundary', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -66,7 +74,10 @@ describe('checkBoundary', () => {
       boundaryMetadata: { areaHa: 42.5 }
     }
 
-    vi.mocked(getTraceId).mockReturnValue('trace-456')
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => ({
+      ...headers,
+      'x-cdp-request-id': 'trace-456'
+    }))
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -279,7 +290,7 @@ describe('checkBoundary', () => {
   })
 
   it('should omit the tracing header when no trace id is set', async () => {
-    vi.mocked(getTraceId).mockReturnValue(undefined)
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -317,7 +328,9 @@ describe('checkBoundaryGeometry', () => {
   }
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -333,7 +346,10 @@ describe('checkBoundaryGeometry', () => {
       boundaryMetadata: { areaHa: 10.0 }
     }
 
-    vi.mocked(getTraceId).mockReturnValue('trace-789')
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => ({
+      ...headers,
+      'x-cdp-request-id': 'trace-789'
+    }))
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -548,7 +564,9 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
   }
 
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -561,7 +579,10 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
       { wwtwId: '101', wwtwName: 'Great Billing WRC', distanceKm: 3.2 }
     ]
 
-    vi.mocked(getTraceId).mockReturnValue('trace-123')
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => ({
+      ...headers,
+      'x-cdp-request-id': 'trace-123'
+    }))
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -666,7 +687,7 @@ describe('findNearbyWasteWaterTreatmentWorks', () => {
   })
 
   it('should omit the tracing header when no trace id is set', async () => {
-    vi.mocked(getTraceId).mockReturnValue(undefined)
+    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

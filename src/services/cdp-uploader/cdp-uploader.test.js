@@ -9,6 +9,17 @@ vi.mock('@hapi/wreck', () => ({
   }
 }))
 
+vi.mock('@defra/hapi-tracing', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    withTraceId: vi.fn((_, headers = {}) => ({
+      ...headers,
+      'x-cdp-request-id': 'trace-test-id'
+    }))
+  }
+})
+
 const { getCdpUploaderUrl, initiateUpload, getUploadStatus, getUploadDetails } =
   await import('./cdp-uploader.js')
 
@@ -78,7 +89,10 @@ describe('initiateUpload', () => {
           s3Path: 'uploads',
           metadata: undefined
         }),
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-cdp-request-id': 'trace-test-id'
+        },
         json: true
       })
     )
@@ -148,7 +162,10 @@ describe('getUploadStatus', () => {
     expect(result).toEqual({ uploadStatus: 'ready' })
     expect(Wreck.get).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
-      { json: true }
+      {
+        json: true,
+        headers: { 'x-cdp-request-id': 'trace-test-id' }
+      }
     )
   })
 
@@ -200,7 +217,12 @@ describe('getUploadDetails', () => {
     expect(result).toEqual(mockPayload)
     expect(Wreck.get).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
-      { json: true }
+      {
+        json: true,
+        headers: {
+          'x-cdp-request-id': 'trace-test-id'
+        }
+      }
     )
   })
 

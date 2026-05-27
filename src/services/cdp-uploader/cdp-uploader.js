@@ -1,9 +1,12 @@
 import Wreck from '@hapi/wreck'
 
+import { withTraceId } from '@defra/hapi-tracing'
+
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
+const traceHeaderName = config.get('tracing.header')
 
 /**
  * Get the CDP Uploader base URL
@@ -56,9 +59,9 @@ export async function initiateUpload({
 
     const { payload } = await Wreck.post(url, {
       payload: JSON.stringify(body),
-      headers: {
+      headers: withTraceId(traceHeaderName, {
         'Content-Type': 'application/json'
-      },
+      }),
       json: true
     })
 
@@ -96,7 +99,10 @@ export async function getUploadStatus(uploadId) {
   logger.info(`Fetching upload status - url: ${url}, uploadId: ${uploadId}`)
 
   try {
-    const { payload } = await Wreck.get(url, { json: true })
+    const { payload } = await Wreck.get(url, {
+      json: true,
+      headers: withTraceId(traceHeaderName)
+    })
 
     return {
       uploadStatus: payload.uploadStatus ?? 'unknown'
@@ -127,7 +133,10 @@ export async function getUploadDetails(uploadId) {
   logger.info(`Fetching upload details - url: ${url}, uploadId: ${uploadId}`)
 
   try {
-    const { payload } = await Wreck.get(url, { json: true })
+    const { payload } = await Wreck.get(url, {
+      json: true,
+      headers: withTraceId(traceHeaderName)
+    })
 
     return payload
   } catch (error) {
