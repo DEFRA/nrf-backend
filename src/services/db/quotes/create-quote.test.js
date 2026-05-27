@@ -13,7 +13,8 @@ beforeEach(() => {
 })
 
 describe('dbCreateQuote', () => {
-  const mockRow = { id: 1, reference: 'NRF-000001' }
+  const mockUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
+  const mockQuoteRow = { id: 1, reference: 'NRF-000001' }
 
   const mockBoundaryGeojson = {
     boundaryGeometryOriginal: {
@@ -31,8 +32,15 @@ describe('dbCreateQuote', () => {
     intersectingEdps: ['EDP-001']
   }
 
-  it('should insert a new quote with all fields and return it', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
+  const mockDb = () => ({
+    query: vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ id: mockUserId }] })
+      .mockResolvedValueOnce({ rows: [mockQuoteRow] })
+  })
+
+  it('should create a new user and insert quote with all fields', async () => {
+    const db = mockDb()
 
     const result = await dbCreateQuote({
       db,
@@ -50,9 +58,13 @@ describe('dbCreateQuote', () => {
     })
 
     expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO users'),
+      ['developer@housebuilder.com']
+    )
+    expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO quotes'),
       [
-        'developer@housebuilder.com',
+        mockUserId,
         'upload',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
@@ -65,11 +77,11 @@ describe('dbCreateQuote', () => {
         '2026-03-23T00:00:00.000Z'
       ]
     )
-    expect(result).toEqual(mockRow)
+    expect(result).toEqual(mockQuoteRow)
   })
 
   it('should pass null for optional fields when not provided', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
+    const db = mockDb()
 
     await dbCreateQuote({
       db,
@@ -85,7 +97,7 @@ describe('dbCreateQuote', () => {
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO quotes'),
       [
-        'developer@housebuilder.com',
+        mockUserId,
         'draw',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
@@ -101,7 +113,7 @@ describe('dbCreateQuote', () => {
   })
 
   it('should default CRS to 4326 when not present in geometry', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
+    const db = mockDb()
     const geojsonNoCrs = {
       boundaryGeometryOriginal: {
         type: 'Polygon',

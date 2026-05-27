@@ -1,0 +1,83 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="14" author="your-name">
+    <sql>CREATE EXTENSION IF NOT EXISTS citext;</sql>
+    <createTable tableName="users">
+      <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="email" type="CITEXT">
+        <constraints nullable="false" unique="true"/>
+      </column>
+      <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+        <constraints nullable="false"/>
+      </column>
+    </createTable>
+    <rollback>
+      <dropTable tableName="users"/>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="15" author="your-name">
+    <dropColumn tableName="quotes" columnName="email_address"/>
+    <addColumn tableName="quotes">
+      <column name="user_id" type="UUID">
+        <constraints foreignKeyName="fk_quotes_user_id"
+                     references="users(id)"
+                     nullable="true"/>
+      </column>
+    </addColumn>
+    <rollback>
+      <dropColumn tableName="quotes" columnName="user_id"/>
+      <addColumn tableName="quotes">
+        <column name="email_address" type="VARCHAR(320)">
+          <constraints nullable="false"/>
+        </column>
+      </addColumn>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="16" author="your-name">
+    <createTable tableName="quote_access_tokens">
+      <column name="token_hash" type="TEXT">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="quote_id" type="INT">
+        <constraints nullable="false"
+                     foreignKeyName="fk_qat_quote_id"
+                     references="quotes(id)"
+                     deleteCascade="true"/>
+      </column>
+      <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+        <constraints nullable="false"/>
+      </column>
+      <column name="expires_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now() + interval '7 days'">
+        <constraints nullable="false"/>
+      </column>
+      <column name="max_sessions" type="INT" defaultValueNumeric="5">
+        <constraints nullable="false"/>
+      </column>
+      <column name="session_count" type="INT" defaultValueNumeric="0">
+        <constraints nullable="false"/>
+      </column>
+      <column name="first_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
+      <column name="last_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
+    </createTable>
+    <createIndex tableName="quote_access_tokens" indexName="idx_qat_quote">
+      <column name="quote_id"/>
+    </createIndex>
+    <rollback>
+      <dropTable tableName="quote_access_tokens"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
