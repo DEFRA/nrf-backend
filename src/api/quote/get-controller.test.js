@@ -45,12 +45,16 @@ describe('Get quote endpoint', () => {
     expect(JSON.parse(response.payload)).toEqual({
       id: expect.any(Number),
       reference,
+      userId: expect.any(String),
       createdAt: expect.any(String),
       development: expect.any(Object),
       boundary: expect.any(Object),
       wasteWaterTreatmentWorksId: '101',
       wasteWaterTreatmentWorksName: 'Great Billing WRC',
-      email: expect.objectContaining({ sendRequestAt: null }),
+      email: {
+        address: 'developer@housebuilder.com',
+        sendRequestAt: null
+      },
       edps: []
     })
   })
