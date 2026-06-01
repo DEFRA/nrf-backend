@@ -144,6 +144,61 @@ describe('Get quote endpoint', () => {
     })
   })
 
+  describe('with redeem=false (read without consuming a session)', () => {
+    it('should return the quote without incrementing the session count', async () => {
+      const { reference, token } = await createQuoteWithToken(getServer())
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token,
+        redeem: false
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('valid')
+
+      const row = await getAccessTokenRow({
+        server: getServer(),
+        rawToken: token
+      })
+      expect(row.session_count).toBe(0)
+      expect(row.first_viewed_at).toBeNull()
+    })
+
+    it('should return expired when the token is exhausted', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+      const token = await issueAccessToken({
+        server: getServer(),
+        reference,
+        sessionCount: 5,
+        maxSessions: 5
+      })
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token,
+        redeem: false
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('expired')
+    })
+
+    it('should return invalid when the token does not match the quote', async () => {
+      const { reference } = await createQuoteWithToken(getServer())
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: 'a-token-that-was-never-issued',
+        redeem: false
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('invalid')
+    })
+  })
+
   describe('when the quote reference does not resolve', () => {
     it('should return status not_found for an unknown reference', async () => {
       const response = await sendGetRequest({
