@@ -19,7 +19,7 @@ const extractBearerToken = (authorization) =>
  *     summary: Validate an access token and return the quote
  *     description: >
  *       Validates the bearer access token against the quote identified by the
- *       reference (tech spec §4.1 steps 4-5) and redeems a session on success.
+ *       reference and redeems a session on success.
  *       Always responds 200; the outcome is carried in the status field.
  *     parameters:
  *       - in: path

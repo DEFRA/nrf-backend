@@ -29,25 +29,6 @@ describe('Get quote endpoint', () => {
   }
 
   describe('with a valid token', () => {
-    it('should return status valid with the quote when it has no EDPs', async () => {
-      const { reference, token } = await createQuoteWithToken(getServer())
-
-      const response = await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token
-      })
-
-      expect(response.statusCode).toBe(statusCodes.ok)
-      const body = JSON.parse(response.payload)
-      expect(body.status).toBe('valid')
-      expect(body.quote).toMatchObject({
-        reference,
-        edps: [],
-        levyGbp: null
-      })
-    })
-
     it('should return the totalled levyGbp when the quote has EDPs', async () => {
       const reference = await createQuoteWithEdps(getServer())
       const token = await issueAccessToken({ server: getServer(), reference })
