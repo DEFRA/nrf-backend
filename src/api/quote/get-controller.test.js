@@ -4,7 +4,9 @@ import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
   createQuoteWithEdps,
-  sendGetRequest
+  sendGetRequest,
+  issueAccessToken,
+  getAccessTokenRow
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -19,56 +21,170 @@ describe('Get quote endpoint', () => {
     })
   })
 
-  it('should return 200 with the quote when it has no EDPs', async () => {
-    const postResponse = await createQuote(getServer())
+  const createQuoteWithToken = async (server) => {
+    const postResponse = await createQuote(server)
     const { reference } = JSON.parse(postResponse.payload)
+    const token = await issueAccessToken({ server, reference })
+    return { reference, token }
+  }
 
-    const response = await sendGetRequest({ server: getServer(), reference })
+  describe('with a valid token', () => {
+    it('should return status valid with the quote when it has no EDPs', async () => {
+      const { reference, token } = await createQuoteWithToken(getServer())
 
-    expect(response.statusCode).toBe(statusCodes.ok)
-    expect(JSON.parse(response.payload)).toEqual({
-      id: expect.any(Number),
-      reference,
-      userId: expect.any(String),
-      createdAt: expect.any(String),
-      development: expect.any(Object),
-      boundary: expect.any(Object),
-      wasteWaterTreatmentWorksId: '101',
-      wasteWaterTreatmentWorksName: 'Great Billing WRC',
-      email: {
-        address: 'developer@housebuilder.com',
-        sendRequestAt: null
-      },
-      edps: [],
-      levyGbp: null
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      const body = JSON.parse(response.payload)
+      expect(body.status).toBe('valid')
+      expect(body.quote).toMatchObject({
+        reference,
+        edps: [],
+        levyGbp: null
+      })
+    })
+
+    it('should return the totalled levyGbp when the quote has EDPs', async () => {
+      const reference = await createQuoteWithEdps(getServer())
+      const token = await issueAccessToken({ server: getServer(), reference })
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token
+      })
+
+      const { status, quote } = JSON.parse(response.payload)
+      expect(status).toBe('valid')
+      expect(quote.edps).toHaveLength(1)
+      expect(quote.levyGbp).toBe('£100 - £200')
+    })
+
+    it('should consume a session on redemption', async () => {
+      const { reference, token } = await createQuoteWithToken(getServer())
+
+      await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token
+      })
+
+      const row = await getAccessTokenRow({
+        server: getServer(),
+        rawToken: token
+      })
+      expect(row.session_count).toBe(1)
+      expect(row.first_viewed_at).not.toBeNull()
+      expect(row.last_viewed_at).not.toBeNull()
     })
   })
 
-  it('should return the totalled levyGbp when the quote has EDPs', async () => {
-    const reference = await createQuoteWithEdps(getServer())
+  describe('with an invalid token', () => {
+    it('should return status invalid when the Authorization header is missing', async () => {
+      const { reference } = await createQuoteWithToken(getServer())
 
-    const response = await sendGetRequest({ server: getServer(), reference })
+      const response = await sendGetRequest({ server: getServer(), reference })
 
-    const { edps, levyGbp } = JSON.parse(response.payload)
-    expect(edps).toHaveLength(1)
-    expect(levyGbp).toBe('£100 - £200')
-  })
-
-  it('should return 404 when the quote reference does not exist', async () => {
-    const response = await sendGetRequest({
-      server: getServer(),
-      reference: 'NRF-999999'
+      expect(response.statusCode).toBe(statusCodes.ok)
+      const body = JSON.parse(response.payload)
+      expect(body.status).toBe('invalid')
+      expect(body.quote).toBeNull()
     })
 
-    expect(response.statusCode).toBe(statusCodes.notFound)
-  })
+    it('should return status invalid when the token does not match any row', async () => {
+      const { reference } = await createQuoteWithToken(getServer())
 
-  it('should return 400 when the reference format is invalid', async () => {
-    const response = await sendGetRequest({
-      server: getServer(),
-      reference: 'INVALID'
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: 'a-token-that-was-never-issued'
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('invalid')
     })
 
-    expect(response.statusCode).toBe(statusCodes.badRequest)
+    it('should return status invalid when the token belongs to a different quote', async () => {
+      const first = await createQuoteWithToken(getServer())
+      const second = await createQuoteWithToken(getServer())
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference: second.reference,
+        bearerToken: first.token
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('invalid')
+    })
+  })
+
+  describe('with an expired or exhausted token', () => {
+    it('should return status expired when the token has expired', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+      const token = await issueAccessToken({
+        server: getServer(),
+        reference,
+        expiresAt: new Date(Date.now() - 1000).toISOString()
+      })
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      const body = JSON.parse(response.payload)
+      expect(body.status).toBe('expired')
+      expect(body.quote).toBeNull()
+    })
+
+    it('should return status expired when the session budget is exhausted', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+      const token = await issueAccessToken({
+        server: getServer(),
+        reference,
+        sessionCount: 5,
+        maxSessions: 5
+      })
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        bearerToken: token
+      })
+
+      expect(JSON.parse(response.payload).status).toBe('expired')
+    })
+  })
+
+  describe('when the quote reference does not resolve', () => {
+    it('should return status not_found for an unknown reference', async () => {
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference: 'NRF-999999',
+        bearerToken: 'any-token'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      const body = JSON.parse(response.payload)
+      expect(body.status).toBe('not_found')
+      expect(body.quote).toBeNull()
+    })
+
+    it('should return 400 when the reference format is invalid', async () => {
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference: 'INVALID',
+        bearerToken: 'any-token'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
   })
 })

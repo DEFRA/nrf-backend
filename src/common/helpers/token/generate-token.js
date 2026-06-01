@@ -1,7 +1,7 @@
-import { randomBytes, createHash } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
+import { hashToken } from './hash-token.js'
 
 export const generateToken = () => {
   const raw = randomBytes(32).toString('base64url')
-  const hash = createHash('sha256').update(raw).digest('hex')
-  return { raw, hash }
+  return { raw, hash: hashToken(raw) }
 }
