@@ -1,5 +1,5 @@
 /**
- * Atomically redeems a quote access token (tech spec §4.1 step 5).
+ * Atomically redeems a quote access token.
  *
  * Consumes one session against the token when it is live and within its
  * session budget. When redemption fails, a follow-up read distinguishes an
