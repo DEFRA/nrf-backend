@@ -62,7 +62,8 @@ describe('mapQuoteRows', () => {
           impact: { score: 1 },
           levyGbp: { min: 100, max: 200 }
         }
-      ]
+      ],
+      levyGbp: '£100 - £200'
     })
   })
 
@@ -82,6 +83,7 @@ describe('mapQuoteRows', () => {
     const result = mapQuoteRows(rows)
 
     expect(result.edps).toEqual([])
+    expect(result.levyGbp).toBeNull()
   })
 
   it('returns null when rows array is empty', () => {

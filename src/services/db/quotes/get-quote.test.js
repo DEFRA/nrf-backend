@@ -61,7 +61,8 @@ describe('dbGetQuote', () => {
           impact: { score: 1 },
           levyGbp: { min: 100, max: 200 }
         }
-      ]
+      ],
+      levyGbp: '£100 - £200'
     })
   })
 

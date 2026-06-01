@@ -1,63 +1,15 @@
-import { routePath } from '../../routes/quote.js'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
-import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
+import { validEdpsPayload } from '../../test-utils/fixtures/quotePayloads.js'
+import {
+  createQuote,
+  sendGetRequest,
+  sendPatchRequest
+} from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
-
-const validEdpsPayload = {
-  edps: [
-    {
-      edpId: 123,
-      edpName: 'Norfolk Fens east',
-      edpType: 'NUTRIENT',
-      impact: {
-        nitrogenTotal: {
-          amount: 80,
-          unit: 'mg/I TP',
-          band: { min: 1, max: 3 }
-        },
-        phosphorusTotal: {
-          amount: 60,
-          unit: 'mg/I TP',
-          band: { min: 1, max: 4 }
-        }
-      },
-      levyGbp: { min: 100, max: 200 }
-    }
-  ]
-}
-
-const createQuote = (server) =>
-  server.inject({
-    method: 'POST',
-    url: routePath,
-    payload: {
-      boundaryEntryType: 'draw',
-      developmentTypes: ['housing', 'other-residential'],
-      residentialBuildingCount: 10,
-      peopleCount: 5,
-      wasteWaterTreatmentWorksId: '101',
-      wasteWaterTreatmentWorksName: 'Great Billing WRC',
-      email: 'developer@housebuilder.com',
-      boundaryGeojson
-    }
-  })
-
-const sendPatchRequest = ({ server, reference, payload }) =>
-  server.inject({
-    method: 'PATCH',
-    url: `${routePath}/${reference}`,
-    payload
-  })
-
-const sendGetRequest = ({ server, reference }) =>
-  server.inject({
-    method: 'GET',
-    url: `${routePath}/${reference}`
-  })
 
 describe('Patch quote endpoint', () => {
   const getServer = setupTestServer()
@@ -142,7 +94,7 @@ describe('Patch quote endpoint', () => {
     })
 
     const getResponse = await sendGetRequest({ server: getServer(), reference })
-    const { edps } = JSON.parse(getResponse.payload)
+    const { edps, levyGbp } = JSON.parse(getResponse.payload)
 
     expect(edps).toEqual([
       {
@@ -164,6 +116,7 @@ describe('Patch quote endpoint', () => {
         levyGbp: { min: '100.00', max: '200.00' }
       }
     ])
+    expect(levyGbp).toBe('£100 - £200')
   })
 
   it('should return 404 when the quote reference does not exist', async () => {

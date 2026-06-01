@@ -1,42 +1,26 @@
-import { routePath } from '../../routes/quote.js'
+import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
-import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
+import {
+  createQuote,
+  createQuoteWithEdps,
+  sendGetRequest
+} from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
 
-const validPayload = {
-  boundaryEntryType: 'draw',
-  boundaryGeojson,
-  developmentTypes: ['housing', 'other-residential'],
-  residentialBuildingCount: 10,
-  peopleCount: 5,
-  wasteWaterTreatmentWorksId: '101',
-  wasteWaterTreatmentWorksName: 'Great Billing WRC',
-  email: 'developer@housebuilder.com'
-}
-
-const sendPostRequest = ({ server }) => {
-  return server.inject({
-    method: 'POST',
-    url: routePath,
-    payload: validPayload
-  })
-}
-
-const sendGetRequest = ({ server, reference }) => {
-  return server.inject({
-    method: 'GET',
-    url: `${routePath}/${reference}`
-  })
-}
-
 describe('Get quote endpoint', () => {
   const getServer = setupTestServer()
 
-  it('should return 200 with the quote reference', async () => {
-    const postResponse = await sendPostRequest({ server: getServer() })
+  beforeEach(() => {
+    vi.mocked(createNotifyClient).mockReturnValue({
+      sendEmail: vi.fn().mockResolvedValue({ data: { id: 'notify-id' } })
+    })
+  })
+
+  it('should return 200 with the quote when it has no EDPs', async () => {
+    const postResponse = await createQuote(getServer())
     const { reference } = JSON.parse(postResponse.payload)
 
     const response = await sendGetRequest({ server: getServer(), reference })
@@ -55,8 +39,19 @@ describe('Get quote endpoint', () => {
         address: 'developer@housebuilder.com',
         sendRequestAt: null
       },
-      edps: []
+      edps: [],
+      levyGbp: null
     })
+  })
+
+  it('should return the totalled levyGbp when the quote has EDPs', async () => {
+    const reference = await createQuoteWithEdps(getServer())
+
+    const response = await sendGetRequest({ server: getServer(), reference })
+
+    const { edps, levyGbp } = JSON.parse(response.payload)
+    expect(edps).toHaveLength(1)
+    expect(levyGbp).toBe('£100 - £200')
   })
 
   it('should return 404 when the quote reference does not exist', async () => {
