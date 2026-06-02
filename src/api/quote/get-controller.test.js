@@ -39,8 +39,8 @@ describe('Get quote endpoint', () => {
         bearerToken: token
       })
 
-      const { status, quote } = JSON.parse(response.payload)
-      expect(status).toBe('valid')
+      const { accessStatus, quote } = JSON.parse(response.payload)
+      expect(accessStatus).toBe('valid')
       expect(quote.edps).toHaveLength(1)
       expect(quote.levyGbp).toBe('£100 - £200')
     })
@@ -72,7 +72,7 @@ describe('Get quote endpoint', () => {
 
       expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
-      expect(body.status).toBe('invalid')
+      expect(body.accessStatus).toBe('invalid')
       expect(body.quote).toBeNull()
     })
 
@@ -85,7 +85,7 @@ describe('Get quote endpoint', () => {
         bearerToken: 'a-token-that-was-never-issued'
       })
 
-      expect(JSON.parse(response.payload).status).toBe('invalid')
+      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
     })
 
     it('should return status invalid when the token belongs to a different quote', async () => {
@@ -98,7 +98,7 @@ describe('Get quote endpoint', () => {
         bearerToken: first.token
       })
 
-      expect(JSON.parse(response.payload).status).toBe('invalid')
+      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
     })
   })
 
@@ -120,7 +120,7 @@ describe('Get quote endpoint', () => {
 
       expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
-      expect(body.status).toBe('expired')
+      expect(body.accessStatus).toBe('expired')
       expect(body.quote).toBeNull()
     })
 
@@ -140,7 +140,7 @@ describe('Get quote endpoint', () => {
         bearerToken: token
       })
 
-      expect(JSON.parse(response.payload).status).toBe('expired')
+      expect(JSON.parse(response.payload).accessStatus).toBe('expired')
     })
   })
 
@@ -155,7 +155,7 @@ describe('Get quote endpoint', () => {
         redeem: false
       })
 
-      expect(JSON.parse(response.payload).status).toBe('valid')
+      expect(JSON.parse(response.payload).accessStatus).toBe('valid')
 
       const row = await getAccessTokenRow({
         server: getServer(),
@@ -182,7 +182,7 @@ describe('Get quote endpoint', () => {
         redeem: false
       })
 
-      expect(JSON.parse(response.payload).status).toBe('expired')
+      expect(JSON.parse(response.payload).accessStatus).toBe('expired')
     })
 
     it('should return invalid when the token does not match the quote', async () => {
@@ -195,7 +195,7 @@ describe('Get quote endpoint', () => {
         redeem: false
       })
 
-      expect(JSON.parse(response.payload).status).toBe('invalid')
+      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
     })
   })
 
@@ -209,7 +209,7 @@ describe('Get quote endpoint', () => {
 
       expect(response.statusCode).toBe(statusCodes.ok)
       const body = JSON.parse(response.payload)
-      expect(body.status).toBe('not_found')
+      expect(body.accessStatus).toBe('not_found')
       expect(body.quote).toBeNull()
     })
 

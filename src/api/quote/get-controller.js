@@ -58,7 +58,7 @@ const querySchema = joi.object({
  *             schema:
  *               type: object
  *               properties:
- *                 status:
+ *                 accessStatus:
  *                   type: string
  *                   enum: [valid, invalid, expired, not_found]
  *                 quote:
@@ -82,7 +82,7 @@ export const getController = {
 
     if (!quote) {
       return h
-        .response({ status: quoteAccessStatus.notFound, quote: null })
+        .response({ accessStatus: quoteAccessStatus.notFound, quote: null })
         .code(statusCodes.ok)
     }
 
@@ -90,7 +90,7 @@ export const getController = {
 
     if (!token) {
       return h
-        .response({ status: quoteAccessStatus.invalid, quote: null })
+        .response({ accessStatus: quoteAccessStatus.invalid, quote: null })
         .code(statusCodes.ok)
     }
 
@@ -109,13 +109,15 @@ export const getController = {
 
     if (ok) {
       return h
-        .response({ status: quoteAccessStatus.valid, quote })
+        .response({ accessStatus: quoteAccessStatus.valid, quote })
         .code(statusCodes.ok)
     }
 
     return h
       .response({
-        status: expired ? quoteAccessStatus.expired : quoteAccessStatus.invalid,
+        accessStatus: expired
+          ? quoteAccessStatus.expired
+          : quoteAccessStatus.invalid,
         quote: null
       })
       .code(statusCodes.ok)
