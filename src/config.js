@@ -18,6 +18,17 @@ if (isDevelopment) {
   configDotenv()
 }
 
+/**
+ * Convict `format` validator that fails closed at startup when a secret
+ * is unset in production. Allows empty values in dev/test so local stacks
+ * without auth wired still boot.
+ */
+const requireInProduction = (envName) => (val) => {
+  if (isProduction && !val) {
+    throw new Error(`${envName} is required in production`)
+  }
+}
+
 const config = convict({
   serviceVersion: {
     doc: 'The service version, this variable is injected into your docker container in CDP environments',
@@ -118,11 +129,26 @@ const config = convict({
       env: 'TRACING_HEADER'
     }
   },
+  apiKey: {
+    doc: 'Shared service-to-service API key required on the x-api-key header for all non-public routes',
+    format: requireInProduction('BACKEND_API_KEY'),
+    default: '',
+    sensitive: true,
+    env: 'BACKEND_API_KEY'
+  },
+  impactAssessorApiKey: {
+    doc: 'API key sent to the impact-assessor service on outbound calls (x-api-key header)',
+    format: requireInProduction('IMPACT_ASSESSOR_API_KEY'),
+    default: '',
+    sensitive: true,
+    env: 'IMPACT_ASSESSOR_API_KEY'
+  },
   notify: {
     apiKey: {
       doc: 'API key for Notify',
       format: String,
       default: '',
+      sensitive: true,
       env: 'NOTIFY_API_KEY'
     },
     templateIds: {

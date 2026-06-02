@@ -35,6 +35,7 @@ const gitHash = getGitHash()
 const version = {
   method: 'GET',
   path: '/version',
+  options: { auth: false },
   handler: (_request, h) => h.response({ version: gitHash })
 }
 
