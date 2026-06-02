@@ -5,6 +5,7 @@ describe('dbGetQuote', () => {
     const mockRow = {
       id: 1,
       reference: 'NRF-000001',
+      user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
       development_types: ['housing'],
       residential_building_count: 10,
@@ -34,6 +35,7 @@ describe('dbGetQuote', () => {
     expect(result).toEqual({
       id: 1,
       reference: 'NRF-000001',
+      userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       createdAt: '2026-03-23T00:00:00.000Z',
       development: {
         types: ['housing'],
@@ -59,7 +61,8 @@ describe('dbGetQuote', () => {
           impact: { score: 1 },
           levyGbp: { min: 100, max: 200 }
         }
-      ]
+      ],
+      levyGbp: '£100 - £200'
     })
   })
 
@@ -67,6 +70,7 @@ describe('dbGetQuote', () => {
     const mockRow = {
       id: 1,
       reference: 'NRF-000001',
+      user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
       development_types: ['housing'],
       residential_building_count: null,

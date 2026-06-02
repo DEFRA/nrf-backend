@@ -1,7 +1,10 @@
 import Boom from '@hapi/boom'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
+import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
+import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
+import { config } from '../../config.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
@@ -102,12 +105,25 @@ export const patchController = {
     })
 
     if (anyUpdated) {
+      const { raw, hash } = generateToken()
+
+      await dbIssueQuoteAccessToken({
+        db: request.pg,
+        quoteId: id,
+        tokenHash: hash
+      })
+
+      const frontEndBaseUrl = config.get('frontEndBaseUrl')
+      const quoteAccessLink = `${frontEndBaseUrl}/quote/${reference}/${raw}`
+
       const emailResult = await sendQuoteEmail({
         nrfQuoteReference: reference,
+        nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
         edps,
         development,
-        wasteWaterTreatmentWorks: wasteWaterTreatmentWorksName
+        wasteWaterTreatmentWorks: wasteWaterTreatmentWorksName,
+        quoteAccessLink
       })
 
       if (emailResult?.sentDateTime) {
