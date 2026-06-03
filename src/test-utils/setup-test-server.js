@@ -8,9 +8,12 @@ export const withApiKey = (opts = {}) => ({
   }
 })
 
-const wrapServer = (server) => ({
-  inject: (opts) => server.inject(withApiKey(opts))
-})
+const wrapServer = (server) =>
+  Object.create(server, {
+    inject: {
+      value: (opts) => server.inject(withApiKey(opts))
+    }
+  })
 
 export const setupTestServer = () => {
   let server

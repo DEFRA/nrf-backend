@@ -5,7 +5,8 @@ import { validEdpsPayload } from '../../test-utils/fixtures/quotePayloads.js'
 import {
   createQuote,
   sendGetRequest,
-  sendPatchRequest
+  sendPatchRequest,
+  issueAccessToken
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -23,6 +24,19 @@ describe('Patch quote endpoint', () => {
       sendEmail: notifySendEmail
     })
   })
+
+  const getQuote = async (reference) => {
+    const bearerToken = await issueAccessToken({
+      server: getServer(),
+      reference
+    })
+    const response = await sendGetRequest({
+      server: getServer(),
+      reference,
+      bearerToken
+    })
+    return JSON.parse(response.payload).quote
+  }
 
   it('should return 200 when EDP results are saved successfully', async () => {
     const postResponse = await createQuote(getServer())
@@ -76,8 +90,7 @@ describe('Patch quote endpoint', () => {
       payload: validEdpsPayload
     })
 
-    const getResponse = await sendGetRequest({ server: getServer(), reference })
-    const { email } = JSON.parse(getResponse.payload)
+    const { email } = await getQuote(reference)
 
     expect(email.sendRequestAt).not.toBeNull()
     expect(new Date(email.sendRequestAt).getTime()).not.toBeNaN()
@@ -93,8 +106,7 @@ describe('Patch quote endpoint', () => {
       payload: validEdpsPayload
     })
 
-    const getResponse = await sendGetRequest({ server: getServer(), reference })
-    const { edps, levyGbp } = JSON.parse(getResponse.payload)
+    const { edps, levyGbp } = await getQuote(reference)
 
     expect(edps).toEqual([
       {
@@ -207,12 +219,7 @@ describe('Patch quote endpoint', () => {
         payload: validEdpsPayload
       })
 
-      const firstGetResponse = await sendGetRequest({
-        server: getServer(),
-        reference
-      })
-      const firstSentAt = JSON.parse(firstGetResponse.payload).email
-        .sendRequestAt
+      const firstSentAt = (await getQuote(reference)).email.sendRequestAt
 
       const updatedPayload = {
         edps: [{ ...validEdpsPayload.edps[0], levyGbp: { min: 150, max: 250 } }]
@@ -224,12 +231,7 @@ describe('Patch quote endpoint', () => {
         payload: updatedPayload
       })
 
-      const secondGetResponse = await sendGetRequest({
-        server: getServer(),
-        reference
-      })
-      const secondSentAt = JSON.parse(secondGetResponse.payload).email
-        .sendRequestAt
+      const secondSentAt = (await getQuote(reference)).email.sendRequestAt
 
       expect(secondSentAt).not.toBeNull()
       expect(new Date(secondSentAt).getTime()).not.toBeNaN()
@@ -246,12 +248,7 @@ describe('Patch quote endpoint', () => {
         payload: validEdpsPayload
       })
 
-      const firstGetResponse = await sendGetRequest({
-        server: getServer(),
-        reference
-      })
-      const firstSentAt = JSON.parse(firstGetResponse.payload).email
-        .sendRequestAt
+      const firstSentAt = (await getQuote(reference)).email.sendRequestAt
 
       await sendPatchRequest({
         server: getServer(),
@@ -259,12 +256,7 @@ describe('Patch quote endpoint', () => {
         payload: validEdpsPayload
       })
 
-      const secondGetResponse = await sendGetRequest({
-        server: getServer(),
-        reference
-      })
-      const secondSentAt = JSON.parse(secondGetResponse.payload).email
-        .sendRequestAt
+      const secondSentAt = (await getQuote(reference)).email.sendRequestAt
 
       expect(secondSentAt).toBe(firstSentAt)
     })

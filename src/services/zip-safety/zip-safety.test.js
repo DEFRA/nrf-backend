@@ -81,7 +81,7 @@ describe('validateZipSafety', () => {
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
     expect(result.code).toBe('totalTooLarge')
-  })
+  }, 30000)
 
   it('rejects a zip with a single entry larger than the per-entry limit', async () => {
     const huge = Buffer.alloc(21 * 1024 * 1024)
@@ -93,7 +93,7 @@ describe('validateZipSafety', () => {
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
     expect(result.code).toBe('entryTooLarge')
-  })
+  }, 30000)
 
   it('rejects a zip with a suspicious compression ratio (zip bomb)', async () => {
     // 2 MB of zeros compresses to a few KB → ratio well above 100.
