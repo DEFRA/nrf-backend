@@ -1,0 +1,58 @@
+import { resendQuoteLink } from './resend-quote-link.js'
+import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
+import { sendQuoteEmail } from './send-quote-email.js'
+import { config } from '../../../config.js'
+
+vi.mock('../../../services/db/quote-access-tokens/issue-quote-access-token.js')
+vi.mock('./send-quote-email.js')
+
+describe('resendQuoteLink', () => {
+  const db = { query: vi.fn() }
+  const quote = {
+    id: 42,
+    reference: 'NRF-000001',
+    email: { address: 'adeola@example.com' },
+    edps: [{ edpName: 'Norfolk Fens east', levyGbp: { min: 100, max: 200 } }],
+    development: { types: ['housing'], residentialBuildingCount: 5 },
+    wasteWaterTreatmentWorksName: 'Great Billing WRC'
+  }
+
+  it('issues a new token and emails a fresh access link to the quote owner', async () => {
+    await resendQuoteLink({ db, quote })
+
+    expect(dbIssueQuoteAccessToken).toHaveBeenCalledWith({
+      db,
+      quoteId: quote.id,
+      tokenHash: expect.any(String)
+    })
+
+    const frontEndBaseUrl = config.get('frontEndBaseUrl')
+    expect(sendQuoteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientEmailAddress: 'adeola@example.com',
+        nrfQuoteReference: 'NRF-000001',
+        nrfServiceUrl: frontEndBaseUrl,
+        edps: quote.edps,
+        development: quote.development,
+        wasteWaterTreatmentWorks: 'Great Billing WRC',
+        quoteAccessLink: expect.stringMatching(
+          /\/quote\/NRF-000001\/[A-Za-z0-9_-]{43}$/
+        )
+      })
+    )
+  })
+
+  it('issues the token before sending the email so the link is live when received', async () => {
+    const callOrder = []
+    dbIssueQuoteAccessToken.mockImplementation(() => {
+      callOrder.push('issue')
+    })
+    sendQuoteEmail.mockImplementation(() => {
+      callOrder.push('send')
+    })
+
+    await resendQuoteLink({ db, quote })
+
+    expect(callOrder).toEqual(['issue', 'send'])
+  })
+})

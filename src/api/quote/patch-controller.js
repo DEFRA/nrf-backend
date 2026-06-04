@@ -8,6 +8,7 @@ import { config } from '../../config.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
+import { buildQuoteAccessLink } from './helpers/build-quote-access-link.js'
 import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
 
 /**
@@ -114,7 +115,7 @@ export const patchController = {
       })
 
       const frontEndBaseUrl = config.get('frontEndBaseUrl')
-      const quoteAccessLink = `${frontEndBaseUrl}/quote/${reference}/${raw}`
+      const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
 
       const emailResult = await sendQuoteEmail({
         nrfQuoteReference: reference,
