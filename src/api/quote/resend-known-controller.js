@@ -1,3 +1,4 @@
+import Boom from '@hapi/boom'
 import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbReadQuoteAccessToken } from '../../services/db/quote-access-tokens/read-quote-access-token.js'
@@ -87,19 +88,23 @@ export const resendKnownController = {
 
       if (valid || timeExpired) {
         const emailSent = await resendQuoteLink({ db: request.pg, quote })
-        if (emailSent) {
-          return h
-            .response({
-              ok: true,
-              message: `We've sent a new link to ${maskEmail(quote.email.address)}`
-            })
-            .code(statusCodes.ok)
+        if (!emailSent) {
+          // The token was accepted, so this isn't an enumeration concern — the
+          // email genuinely failed to send (e.g. Notify rejected it). Surface it
+          // as a server error rather than a generic success.
+          return Boom.badGateway('Resend email was not sent')
         }
+        return h
+          .response({
+            ok: true,
+            message: `We've sent a new link to ${maskEmail(quote.email.address)}`
+          })
+          .code(statusCodes.ok)
       }
     }
 
-    // Generic response on any miss (no quote, or token absent/mismatched) so we
-    // don't reveal whether the quote or token exists.
+    // Generic response on any miss (no quote, or token absent/mismatched/
+    // session-exhausted) so we don't reveal whether the quote or token exists.
     return h.response({ ok: true }).code(statusCodes.ok)
   }
 }
