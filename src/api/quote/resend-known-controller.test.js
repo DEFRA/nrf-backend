@@ -84,7 +84,7 @@ describe('Resend known quote link endpoint', () => {
       expect(notifySendEmail).toHaveBeenCalled()
     })
 
-    it('returns the generic response without a sent message when Notify rejects the email', async () => {
+    it('returns a 502 when the token was accepted but Notify rejects the email', async () => {
       notifySendEmail.mockRejectedValue(new Error('Notify unavailable'))
       const reference = await createQuoteReference()
       const token = await issueAccessToken({
@@ -99,8 +99,7 @@ describe('Resend known quote link endpoint', () => {
         token
       })
 
-      expect(response.statusCode).toBe(statusCodes.ok)
-      expect(JSON.parse(response.payload)).toEqual({ ok: true })
+      expect(response.statusCode).toBe(statusCodes.badGateway)
     })
   })
 
