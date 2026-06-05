@@ -5,7 +5,11 @@ describe('dbReadQuoteAccessToken', () => {
   const quoteId = 42
 
   it('queries by token hash and quote id without mutating', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [{ live: true }] }) }
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValue({ rows: [{ live: true, time_expired: false }] })
+    }
 
     await dbReadQuoteAccessToken({ db, tokenHash, quoteId })
 
@@ -15,23 +19,44 @@ describe('dbReadQuoteAccessToken', () => {
     expect(normalised).not.toContain('UPDATE')
     expect(normalised).toContain('expires_at > now()')
     expect(normalised).toContain('session_count < max_sessions')
+    expect(normalised).toContain('expires_at <= now()')
     expect(params).toEqual([tokenHash, quoteId])
   })
 
   it('returns valid for a live token', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [{ live: true }] }) }
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValue({ rows: [{ live: true, time_expired: false }] })
+    }
 
     const result = await dbReadQuoteAccessToken({ db, tokenHash, quoteId })
 
-    expect(result).toEqual({ valid: true, expired: false })
+    expect(result).toEqual({ valid: true, expired: false, timeExpired: false })
   })
 
-  it('returns expired when the row exists but is not live', async () => {
-    const db = { query: vi.fn().mockResolvedValue({ rows: [{ live: false }] }) }
+  it('returns time-expired when the token is past its expiry time', async () => {
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValue({ rows: [{ live: false, time_expired: true }] })
+    }
 
     const result = await dbReadQuoteAccessToken({ db, tokenHash, quoteId })
 
-    expect(result).toEqual({ valid: false, expired: true })
+    expect(result).toEqual({ valid: false, expired: true, timeExpired: true })
+  })
+
+  it('returns expired but not time-expired for a session-exhausted token', async () => {
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValue({ rows: [{ live: false, time_expired: false }] })
+    }
+
+    const result = await dbReadQuoteAccessToken({ db, tokenHash, quoteId })
+
+    expect(result).toEqual({ valid: false, expired: true, timeExpired: false })
   })
 
   it('returns neither valid nor expired when no row matches', async () => {
@@ -39,6 +64,6 @@ describe('dbReadQuoteAccessToken', () => {
 
     const result = await dbReadQuoteAccessToken({ db, tokenHash, quoteId })
 
-    expect(result).toEqual({ valid: false, expired: false })
+    expect(result).toEqual({ valid: false, expired: false, timeExpired: false })
   })
 })

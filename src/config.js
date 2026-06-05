@@ -158,6 +158,18 @@ const config = convict({
         default: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c',
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
       }
+    },
+    retryAttempts: {
+      doc: 'Number of attempts to send an email before giving up',
+      format: Number,
+      default: 3,
+      env: 'NOTIFY_RETRY_ATTEMPTS'
+    },
+    retryIntervalMs: {
+      doc: 'Delay between email send retries in milliseconds',
+      format: Number,
+      default: isTest ? 0 : 10000,
+      env: 'NOTIFY_RETRY_INTERVAL_MS'
     }
   },
   cdpUploader: {

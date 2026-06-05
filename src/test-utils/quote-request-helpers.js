@@ -36,6 +36,20 @@ export const sendPatchRequest = ({ server, reference, payload }) =>
     payload
   })
 
+export const sendResendKnownRequest = ({ server, reference, token }) =>
+  server.inject({
+    method: 'POST',
+    url: `${routePath}/${reference}/resend-known`,
+    payload: { token }
+  })
+
+export const sendResendUnknownRequest = ({ server, reference, email }) =>
+  server.inject({
+    method: 'POST',
+    url: `${routePath}/${reference}/resend-unknown`,
+    payload: { email }
+  })
+
 const getQuoteId = async ({ server, reference }) => {
   const { rows } = await server.pg.query(
     'SELECT id FROM quotes WHERE reference = $1',
@@ -74,4 +88,15 @@ export const getAccessTokenRow = async ({ server, rawToken }) => {
     [hashToken(rawToken)]
   )
   return rows[0]
+}
+
+export const getAccessTokenRowsForReference = async ({ server, reference }) => {
+  const { rows } = await server.pg.query(
+    `SELECT t.* FROM quote_access_tokens t
+       JOIN quotes q ON q.id = t.quote_id
+      WHERE q.reference = $1
+      ORDER BY t.created_at`,
+    [reference]
+  )
+  return rows
 }
