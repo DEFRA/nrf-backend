@@ -75,15 +75,17 @@ export const resendKnownController = {
 
     if (quote) {
       const tokenHash = hashToken(request.payload.token)
-      // Accept an expired row here — an expired link is the expected case for
-      // this flow. Existence + quote_id match (live OR expired) is enough.
-      const { valid, expired } = await dbReadQuoteAccessToken({
+      // Accept a live token, or one that has passed its expiry time — a
+      // time-expired link is the expected case for this flow. A token that is
+      // merely session-exhausted (still within its time window) is rejected, so
+      // requesting a new link can't be used to reset the session budget.
+      const { valid, timeExpired } = await dbReadQuoteAccessToken({
         db: request.pg,
         tokenHash,
         quoteId: quote.id
       })
 
-      if (valid || expired) {
+      if (valid || timeExpired) {
         const emailSent = await resendQuoteLink({ db: request.pg, quote })
         if (emailSent) {
           return h

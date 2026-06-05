@@ -104,6 +104,34 @@ describe('Resend known quote link endpoint', () => {
     })
   })
 
+  describe('with a session-exhausted token that has not yet expired', () => {
+    it('returns a generic 200 success, issues no new token and sends no email', async () => {
+      const reference = await createQuoteReference()
+      const token = await issueAccessToken({
+        server: getServer(),
+        reference,
+        sessionCount: 5,
+        maxSessions: 5
+      })
+
+      const response = await sendResendKnownRequest({
+        server: getServer(),
+        reference,
+        token
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(JSON.parse(response.payload)).toEqual({ ok: true })
+      expect(notifySendEmail).not.toHaveBeenCalled()
+
+      const rows = await getAccessTokenRowsForReference({
+        server: getServer(),
+        reference
+      })
+      expect(rows).toHaveLength(1)
+    })
+  })
+
   describe('with a token that does not match the quote', () => {
     it('returns a generic 200 success with no email and issues no new token', async () => {
       const reference = await createQuoteReference()
