@@ -84,13 +84,15 @@ export const resendKnownController = {
       })
 
       if (valid || expired) {
-        await resendQuoteLink({ db: request.pg, quote })
-        return h
-          .response({
-            ok: true,
-            message: `We've sent a new link to ${maskEmail(quote.email.address)}`
-          })
-          .code(statusCodes.ok)
+        const emailSent = await resendQuoteLink({ db: request.pg, quote })
+        if (emailSent) {
+          return h
+            .response({
+              ok: true,
+              message: `We've sent a new link to ${maskEmail(quote.email.address)}`
+            })
+            .code(statusCodes.ok)
+        }
       }
     }
 

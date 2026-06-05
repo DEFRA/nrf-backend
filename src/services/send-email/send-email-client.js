@@ -1,8 +1,7 @@
 import { retryAsyncOperation } from '@defra/nrf-library'
 import { createNotifyClient } from './notify-client.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
-
-const RETRY_INTERVAL_MS = 10000
+import { config } from '../../config.js'
 
 /**
  * @param {object} params
@@ -51,6 +50,7 @@ export const sendEmail = async ({
 }) => {
   const logger = createLogger()
   const notifyClient = createNotifyClient()
+  const { retryAttempts, retryIntervalMs } = config.get('notify')
   try {
     const { notificationId, sentDateTime } = await retryAsyncOperation({
       operation: () =>
@@ -61,7 +61,8 @@ export const sendEmail = async ({
           emailBodyVariables,
           templateId
         }),
-      intervalMs: RETRY_INTERVAL_MS,
+      retries: retryAttempts,
+      intervalMs: retryIntervalMs,
       logger
     })
     logger.info({ templateId, notificationId }, 'Notify sendEmail responded')

@@ -18,7 +18,12 @@ describe('resendQuoteLink', () => {
   }
 
   it('issues a new token and emails a fresh access link to the quote owner', async () => {
-    await resendQuoteLink({ db, quote })
+    sendQuoteEmail.mockResolvedValue({
+      notificationId: 'abc',
+      sentDateTime: '2026-06-05T00:00:00.000Z'
+    })
+
+    const emailSent = await resendQuoteLink({ db, quote })
 
     expect(dbIssueQuoteAccessToken).toHaveBeenCalledWith({
       db,
@@ -40,6 +45,15 @@ describe('resendQuoteLink', () => {
         )
       })
     )
+    expect(emailSent).toBe(true)
+  })
+
+  it('returns false when Notify rejects the email', async () => {
+    sendQuoteEmail.mockResolvedValue(null)
+
+    const emailSent = await resendQuoteLink({ db, quote })
+
+    expect(emailSent).toBe(false)
   })
 
   it('issues the token before sending the email so the link is live when received', async () => {

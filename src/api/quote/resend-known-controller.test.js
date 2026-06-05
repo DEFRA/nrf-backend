@@ -83,6 +83,25 @@ describe('Resend known quote link endpoint', () => {
 
       expect(notifySendEmail).toHaveBeenCalled()
     })
+
+    it('returns the generic response without a sent message when Notify rejects the email', async () => {
+      notifySendEmail.mockRejectedValue(new Error('Notify unavailable'))
+      const reference = await createQuoteReference()
+      const token = await issueAccessToken({
+        server: getServer(),
+        reference,
+        expiresAt: new Date(Date.now() - 1000).toISOString()
+      })
+
+      const response = await sendResendKnownRequest({
+        server: getServer(),
+        reference,
+        token
+      })
+
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(JSON.parse(response.payload)).toEqual({ ok: true })
+    })
   })
 
   describe('with a token that does not match the quote', () => {

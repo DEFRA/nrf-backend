@@ -9,9 +9,13 @@ import { buildQuoteAccessLink } from './build-quote-access-link.js'
  * the quote owner. Issuing the token invalidates any still-live token, so the
  * previous link stops working as soon as a new one is sent.
  *
+ * `sendQuoteEmail` resolves to `null` when Notify rejects the send, so the
+ * boolean return lets callers avoid reporting a delivery that never happened.
+ *
  * @param {object} params
  * @param {{ query: Function }} params.db
  * @param {{ id: number, reference: string, email: { address: string }, edps: object[], development: object, wasteWaterTreatmentWorksName: string }} params.quote
+ * @returns {Promise<boolean>} whether Notify accepted the email
  */
 export const resendQuoteLink = async ({ db, quote }) => {
   const { raw, hash } = generateToken()
@@ -23,7 +27,7 @@ export const resendQuoteLink = async ({ db, quote }) => {
     rawToken: raw
   })
 
-  await sendQuoteEmail({
+  const emailResult = await sendQuoteEmail({
     recipientEmailAddress: quote.email.address,
     nrfQuoteReference: quote.reference,
     nrfServiceUrl: config.get('frontEndBaseUrl'),
@@ -32,4 +36,6 @@ export const resendQuoteLink = async ({ db, quote }) => {
     wasteWaterTreatmentWorks: quote.wasteWaterTreatmentWorksName,
     quoteAccessLink
   })
+
+  return Boolean(emailResult?.sentDateTime)
 }
