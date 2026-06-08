@@ -65,8 +65,8 @@
     "yauzl": "^3.3.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.2",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "@vitest/coverage-v8": "^4.1.8",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
