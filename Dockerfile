@@ -12,7 +12,8 @@ ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
+RUN npm run security-audit
 COPY --chown=node:node ./src ./src
 COPY --chmod=444 .git-has[h] ./
 
@@ -32,7 +33,7 @@ COPY --from=development /home/node/package*.json ./
 COPY --from=development /home/node/src ./src/
 COPY --from=development --chmod=444 /home/node/.git-has[h] ./
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 ARG PORT
 ENV PORT=${PORT}
