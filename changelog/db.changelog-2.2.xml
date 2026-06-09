@@ -1,0 +1,37 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="18" author="your-name">
+    <comment>
+      reference is a stored generated column 'NRF-' || lpad(id * 2654435761 %
+      1000000, 6, 0). The multiplier is coprime with 1000000, so the mapping
+      from id to reference is a bijection: a given id always yields the same
+      reference. Every fresh database therefore reproduces the same references
+      from id 1 onward (NRF-435761, NRF-871522, ...). Journey tests send the
+      magic link to a fixed address on a shared Notify account, so a run could
+      match another database's email for the same reference, whose access token
+      does not exist locally, and the link reads as invalid. Start the sequence
+      at a random offset so concurrent databases issue different references for
+      the same row position. Skipped when rows already exist (e.g. an existing
+      environment) so live references are never disturbed.
+    </comment>
+    <sql splitStatements="false">
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM quotes) THEN
+          PERFORM setval('quotes_id_seq', floor(random() * 900000)::bigint + 1, false);
+        END IF;
+      END $$;
+    </sql>
+    <rollback/>
+  </changeSet>
+
+</databaseChangeLog>
