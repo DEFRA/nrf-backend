@@ -1,0 +1,38 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="17" author="your-name">
+    <comment>
+      Enforce one row per (quote_id, edp_id). A duplicate estimate callback
+      previously inserted a second set of rows for the same quote, which let two
+      access tokens be issued (the second expiring the first). The unique
+      constraint lets a concurrent duplicate INSERT conflict instead of
+      succeeding, so only one callback issues a token and emails the link.
+    </comment>
+    <sql>
+      DELETE FROM quote_edp_results a
+      USING quote_edp_results b
+      WHERE a.quote_id = b.quote_id
+        AND a.edp_id = b.edp_id
+        AND a.id &gt; b.id;
+    </sql>
+    <addUniqueConstraint
+      tableName="quote_edp_results"
+      columnNames="quote_id, edp_id"
+      constraintName="uq_quote_edp_results_quote_edp"/>
+    <rollback>
+      <dropUniqueConstraint
+        tableName="quote_edp_results"
+        constraintName="uq_quote_edp_results_quote_edp"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
