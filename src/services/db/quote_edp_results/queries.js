@@ -11,32 +11,39 @@
  * a quote has several EDPs (a per-row loop could otherwise let each caller win
  * a different row and both proceed).
  */
+/**
+ * @param {object} params
+ * @param {number} params.quoteId
+ * @param {{ edpId: number, edpName: string, edpType: string, impact: object, levyGbp: { min: number, max: number } }} params.edp
+ * @returns {Array} the column values for one quote_edp_results row, in insert order
+ */
+const edpRowValues = ({ quoteId, edp }) => [
+  quoteId,
+  edp.edpId,
+  edp.edpName,
+  edp.edpType,
+  JSON.stringify(edp.impact),
+  edp.levyGbp.min,
+  edp.levyGbp.max
+]
+
 export const dbSaveEdpResults = async ({ db, quoteId, edps }) => {
   if (edps.length === 0) {
     return 0
   }
 
-  const values = []
   const params = []
-  edps.forEach((edp, index) => {
-    const base = index * 7
-    values.push(
-      `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, NOW())`
-    )
-    params.push(
-      quoteId,
-      edp.edpId,
-      edp.edpName,
-      edp.edpType,
-      JSON.stringify(edp.impact),
-      edp.levyGbp.min,
-      edp.levyGbp.max
-    )
+  const rowPlaceholders = edps.map((edp) => {
+    const placeholders = edpRowValues({ quoteId, edp }).map((value) => {
+      params.push(value)
+      return `$${params.length}`
+    })
+    return `(${placeholders.join(', ')}, NOW())`
   })
 
   const { rowCount } = await db.query(
     `INSERT INTO quote_edp_results (quote_id, edp_id, edp_name, edp_type, impact, levy_gbp_min, levy_gbp_max, created_at)
-     VALUES ${values.join(', ')}
+     VALUES ${rowPlaceholders.join(', ')}
      ON CONFLICT (quote_id, edp_id) DO NOTHING`,
     params
   )
