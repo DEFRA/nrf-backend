@@ -130,7 +130,7 @@ export const patchController = {
       if (emailResult?.sentDateTime) {
         await dbUpdateQuoteWithEmailSent({
           db: request.pg,
-          reference: quote.reference,
+          reference,
           data: { emailSendRequestAt: emailResult.sentDateTime }
         })
       }

@@ -32,10 +32,10 @@ describe('saveOrUpdateEdpResults', () => {
   describe('when no existing records exist', () => {
     beforeEach(() => {
       vi.mocked(dbGetEdpResults).mockResolvedValue([])
-      vi.mocked(dbSaveEdpResults).mockResolvedValue()
+      vi.mocked(dbSaveEdpResults).mockResolvedValue(1)
     })
 
-    it('saves all EDPs and returns true', async () => {
+    it('saves all EDPs and returns true when rows are inserted', async () => {
       const result = await saveOrUpdateEdpResults({
         db,
         quoteId: 1,
@@ -48,6 +48,18 @@ describe('saveOrUpdateEdpResults', () => {
         edps: [edp]
       })
       expect(result).toBe(true)
+    })
+
+    it('returns false when a concurrent duplicate inserts no rows', async () => {
+      vi.mocked(dbSaveEdpResults).mockResolvedValue(0)
+
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edp]
+      })
+
+      expect(result).toBe(false)
     })
   })
 

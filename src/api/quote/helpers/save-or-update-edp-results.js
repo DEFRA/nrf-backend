@@ -15,8 +15,11 @@ const sortedStringify = (value) =>
 export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
   const existingEdpResults = await dbGetEdpResults({ db, quoteId })
   if (existingEdpResults.length === 0) {
-    await dbSaveEdpResults({ db, quoteId, edps })
-    return true
+    // Concurrent duplicate callbacks both reach here seeing no rows, but the
+    // unique (quote_id, edp_id) constraint lets only one INSERT land. The loser
+    // inserts nothing and returns false, so it won't issue a second token.
+    const inserted = await dbSaveEdpResults({ db, quoteId, edps })
+    return inserted > 0
   }
 
   let anyUpdated = false
