@@ -6,7 +6,8 @@ import {
   createQuote,
   sendGetRequest,
   sendPatchRequest,
-  issueAccessToken
+  issueAccessToken,
+  getAccessTokenRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -162,6 +163,59 @@ describe('Patch quote endpoint', () => {
     })
 
     expect(response.statusCode).toBe(statusCodes.badRequest)
+  })
+
+  describe('when duplicate PATCH callbacks race for the same reference', () => {
+    const liveTokens = (rows) =>
+      rows.filter((row) => new Date(row.expires_at).getTime() > Date.now())
+
+    it('issues a single live token so the emailed link stays valid', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      const [first, second] = await Promise.all([
+        sendPatchRequest({
+          server: getServer(),
+          reference,
+          payload: validEdpsPayload
+        }),
+        sendPatchRequest({
+          server: getServer(),
+          reference,
+          payload: validEdpsPayload
+        })
+      ])
+
+      expect(first.statusCode).toBe(statusCodes.ok)
+      expect(second.statusCode).toBe(statusCodes.ok)
+
+      const tokenRows = await getAccessTokenRowsForReference({
+        server: getServer(),
+        reference
+      })
+      expect(tokenRows).toHaveLength(1)
+      expect(liveTokens(tokenRows)).toHaveLength(1)
+    })
+
+    it('sends only one email', async () => {
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      await Promise.all([
+        sendPatchRequest({
+          server: getServer(),
+          reference,
+          payload: validEdpsPayload
+        }),
+        sendPatchRequest({
+          server: getServer(),
+          reference,
+          payload: validEdpsPayload
+        })
+      ])
+
+      expect(notifySendEmail).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('when a second PATCH request is sent for the same reference', () => {
