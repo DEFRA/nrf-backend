@@ -2,9 +2,12 @@
  * Atomically redeems a quote access token.
  *
  * Consumes one session against the token when it is live and within its
- * session budget. When redemption fails, a follow-up read distinguishes an
- * expired/exhausted token (row present) from an unknown token (row absent or
- * belonging to a different quote).
+ * session budget. When redemption fails, a follow-up read reports `expired`
+ * only when the token is genuinely past its expiry time — a session-exhausted
+ * but still-live token is not `expired`. This matches the resend-known
+ * contract, which only honours time-expired tokens for a one-click resend, so
+ * the access page and the resend endpoint agree on which links offer the
+ * one-click button.
  *
  * @param {object} params
  * @param {{ query: Function }} params.db
@@ -31,11 +34,12 @@ export const dbRedeemQuoteAccessToken = async ({ db, tokenHash, quoteId }) => {
   }
 
   const { rows: existing } = await db.query(
-    `SELECT 1 FROM quote_access_tokens
+    `SELECT expires_at <= now() AS time_expired
+     FROM quote_access_tokens
      WHERE token_hash = $1
        AND quote_id   = $2`,
     [tokenHash, quoteId]
   )
 
-  return { redeemed: false, expired: existing.length > 0 }
+  return { redeemed: false, expired: existing[0]?.time_expired === true }
 }
