@@ -34,21 +34,32 @@ describe('dbRedeemQuoteAccessToken', () => {
     expect(db.query).toHaveBeenCalledTimes(1)
   })
 
-  it('returns expired when redemption fails but a matching row exists', async () => {
+  it('returns expired when redemption fails and the token is time-expired', async () => {
     const db = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
+        .mockResolvedValueOnce({ rows: [{ time_expired: true }] })
     }
 
     const result = await dbRedeemQuoteAccessToken({ db, tokenHash, quoteId })
 
     expect(result).toEqual({ redeemed: false, expired: true })
-    expect(db.query.mock.calls[1][0]).toContain(
-      'SELECT 1 FROM quote_access_tokens'
-    )
+    expect(db.query.mock.calls[1][0]).toContain('FROM quote_access_tokens')
     expect(db.query.mock.calls[1][1]).toEqual([tokenHash, quoteId])
+  })
+
+  it('returns not expired when redemption fails because the token is session-exhausted but still live', async () => {
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ time_expired: false }] })
+    }
+
+    const result = await dbRedeemQuoteAccessToken({ db, tokenHash, quoteId })
+
+    expect(result).toEqual({ redeemed: false, expired: false })
   })
 
   it('returns not expired when no matching row exists', async () => {

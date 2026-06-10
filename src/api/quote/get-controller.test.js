@@ -124,7 +124,7 @@ describe('Get quote endpoint', () => {
       expect(body.quote).toBeNull()
     })
 
-    it('should return status expired when the session budget is exhausted', async () => {
+    it('should return status invalid when the session budget is exhausted but the token has not yet expired', async () => {
       const postResponse = await createQuote(getServer())
       const { reference } = JSON.parse(postResponse.payload)
       const token = await issueAccessToken({
@@ -140,7 +140,7 @@ describe('Get quote endpoint', () => {
         bearerToken: token
       })
 
-      expect(JSON.parse(response.payload).accessStatus).toBe('expired')
+      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
     })
   })
 
