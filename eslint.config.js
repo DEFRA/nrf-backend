@@ -1,4 +1,5 @@
 import neostandard from 'neostandard'
+import noSecrets from 'eslint-plugin-no-secrets'
 
 export default [
   ...neostandard({
@@ -11,5 +12,9 @@ export default [
     rules: {
       curly: ['error', 'all']
     }
+  },
+  {
+    plugins: { 'no-secrets': noSecrets },
+    rules: { 'no-secrets/no-secrets': ['error', { tolerance: 4.5 }] }
   }
 ]
