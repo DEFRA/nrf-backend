@@ -80,5 +80,8 @@
     "vitest": "^4.1.8",
     "vitest-fetch-mock": "^0.4.5",
     "yazl": "^3.3.1"
+  },
+  "overrides": {
+    "joi": "$joi"
   }
 }
