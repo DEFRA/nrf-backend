@@ -57,15 +57,7 @@ export const loggerOptions = {
       url: {
         path: request.url.pathname
       },
-      ...(traceId
-        ? {
-            trace: { id: traceId },
-            http: {
-              request: { headers: { [tracingHeader]: traceId } }
-            },
-            req: { headers: { [tracingHeader]: traceId } }
-          }
-        : {})
+      ...(traceId ? { trace: { id: traceId } } : {})
     }
   }
 }

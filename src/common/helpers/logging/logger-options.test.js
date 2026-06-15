@@ -62,11 +62,7 @@ describe('#loggerOptions', () => {
 
       expect(loggerOptions.getChildBindings(mockRequest)).toEqual({
         url: { path: '/quotes/NRF-687396' },
-        trace: { id: 'trace-from-header' },
-        http: {
-          request: { headers: { 'x-cdp-request-id': 'trace-from-header' } }
-        },
-        req: { headers: { 'x-cdp-request-id': 'trace-from-header' } }
+        trace: { id: 'trace-from-header' }
       })
     })
   })
