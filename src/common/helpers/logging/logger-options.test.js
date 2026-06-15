@@ -9,7 +9,8 @@ vi.mock('../../../config.js', () => ({
       const values = {
         log: { isEnabled: true, level: 'info', format: 'ecs', redact: [] },
         serviceName: 'test-service',
-        serviceVersion: '1.0.0'
+        serviceVersion: '1.0.0',
+        'tracing.header': 'x-cdp-request-id'
       }
       return values[key]
     }
@@ -50,6 +51,22 @@ describe('#loggerOptions', () => {
 
       expect(loggerOptions.getChildBindings(mockRequest)).toEqual({
         url: { path: '/some/path' }
+      })
+    })
+
+    test('returns trace fields when request has tracing header', () => {
+      const mockRequest = {
+        url: { pathname: '/quotes/NRF-687396' },
+        headers: { 'x-cdp-request-id': 'trace-from-header' }
+      }
+
+      expect(loggerOptions.getChildBindings(mockRequest)).toEqual({
+        url: { path: '/quotes/NRF-687396' },
+        trace: { id: 'trace-from-header' },
+        http: {
+          request: { headers: { 'x-cdp-request-id': 'trace-from-header' } }
+        },
+        req: { headers: { 'x-cdp-request-id': 'trace-from-header' } }
       })
     })
   })
