@@ -114,7 +114,7 @@ The OpenAPI spec is generated from `@openapi` JSDoc annotations in the route and
 
 An AI (Claude Code) skill is provided to audit and fix the `@openapi` annotations so they match the actual endpoint implementations.
 
-Run it from the project root with:
+Run it from nrf-solution with:
 
 ```shell
 /sync-swagger
@@ -200,6 +200,12 @@ the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github
 ### SonarCloud
 
 Instructions for setting up SonarCloud can be found in [sonar-project.properties](./sonar-project.properties)
+
+## Database diagram
+
+[Quote database diagram](./docs/quote-database-diagram.md)
+
+Generated using the `create-database-diagram` skill in [nrf-solution](https://github.com/DEFRA/nrf-solution) repository.
 
 ## Licence
 
