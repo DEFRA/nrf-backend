@@ -5,7 +5,6 @@ import {
   checkBoundaryRoute,
   checkBoundaryGeometryRoute
 } from '../routes/boundary.js'
-import { nearbyWasteWaterTreatmentWorksRoute } from '../routes/wwtw.js'
 import { quote } from '../routes/quote.js'
 
 const router = {
@@ -19,8 +18,7 @@ const router = {
           initiateUpload,
           uploadStatus,
           checkBoundaryRoute,
-          checkBoundaryGeometryRoute,
-          nearbyWasteWaterTreatmentWorksRoute
+          checkBoundaryGeometryRoute
         ].concat(quote)
       )
     }

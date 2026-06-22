@@ -11,8 +11,6 @@ const baseRow = {
   boundary_geodata: '{"type":"Polygon"}',
   boundary_entry_type: 'upload',
   boundary_filename: 'site-boundary.shp',
-  waste_water_treatment_works_id: '101',
-  waste_water_treatment_works_name: 'Great Billing WRC',
   email_address: 'developer@housebuilder.com',
   email_send_request_at: null
 }
@@ -48,8 +46,6 @@ describe('mapQuoteRows', () => {
         userInputType: 'upload',
         filename: 'site-boundary.shp'
       },
-      wasteWaterTreatmentWorksId: '101',
-      wasteWaterTreatmentWorksName: 'Great Billing WRC',
       email: {
         address: 'developer@housebuilder.com',
         sendRequestAt: null

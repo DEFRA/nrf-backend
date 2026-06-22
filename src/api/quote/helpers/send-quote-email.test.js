@@ -17,7 +17,6 @@ describe('sendQuoteEmail', () => {
     residentialBuildingCount: 5,
     peopleCount: null
   }
-  const wasteWaterTreatmentWorks = 'Great Billing WRC'
   const nrfServiceUrl = 'http://localhost:3000'
   const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
 
@@ -28,7 +27,6 @@ describe('sendQuoteEmail', () => {
       nrfServiceUrl,
       edps,
       development,
-      wasteWaterTreatmentWorks,
       quoteAccessLink
     })
     expect(sendEmail).toHaveBeenCalledWith({
@@ -38,7 +36,6 @@ describe('sendQuoteEmail', () => {
         nrfQuoteReference,
         edpNames: 'Norfolk Fens east',
         developmentDescription: 'Housing with a total of 5 residential units',
-        wasteWaterTreatmentWorks: 'Great Billing WRC',
         levyAmount: '£100 - £200',
         nrfServiceUrl,
         quoteAccessLink
@@ -59,7 +56,6 @@ describe('sendQuoteEmail', () => {
       nrfServiceUrl,
       edps,
       development,
-      wasteWaterTreatmentWorks,
       quoteAccessLink
     })
     expect(result).toBe(sendEmailResult)

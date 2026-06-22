@@ -11,7 +11,6 @@ export const publishQuoteMessage = ({ quoteData, logger, traceId }) => {
         developmentTypes: quoteData.developmentTypes,
         residentialBuildingCount: quoteData.residentialBuildingCount,
         peopleCount: quoteData.peopleCount,
-        wasteWaterTreatmentWorksId: quoteData.wasteWaterTreatmentWorksId,
         traceId
       }
     },

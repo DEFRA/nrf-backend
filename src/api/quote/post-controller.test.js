@@ -25,8 +25,6 @@ const validPayload = {
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
   peopleCount: 5,
-  wasteWaterTreatmentWorksId: '101',
-  wasteWaterTreatmentWorksName: 'Great Billing WRC',
   email: 'developer@housebuilder.com',
   boundaryGeojson
 }
@@ -62,7 +60,6 @@ describe('Submit quote endpoint', () => {
           developmentTypes: ['housing', 'other-residential'],
           residentialBuildingCount: 10,
           peopleCount: 5,
-          wasteWaterTreatmentWorksId: '101',
           boundaryGeojson,
           reference: expect.stringMatching(/NRF-\d{6}/),
           traceId: 'trace-abc-123'

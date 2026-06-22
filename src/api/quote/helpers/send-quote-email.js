@@ -10,7 +10,6 @@ import { getLevyAmount } from './get-levy-amount.js'
  * @param {string} params.nrfServiceUrl
  * @param {Array<{edpName: string, levyGbp: {min: number, max: number}}>} params.edps
  * @param {{types: string[], residentialBuildingCount: number, peopleCount: number}} params.development
- * @param {string} params.wasteWaterTreatmentWorks
  * @param {string} params.quoteAccessLink
  */
 export const sendQuoteEmail = ({
@@ -19,7 +18,6 @@ export const sendQuoteEmail = ({
   nrfServiceUrl,
   edps,
   development,
-  wasteWaterTreatmentWorks,
   quoteAccessLink
 }) => {
   const { templateIds } = config.get('notify')
@@ -31,7 +29,6 @@ export const sendQuoteEmail = ({
       nrfQuoteReference,
       edpNames: edps.map(({ edpName }) => edpName).join(', '),
       developmentDescription,
-      wasteWaterTreatmentWorks,
       levyAmount: getLevyAmount(edps),
       nrfServiceUrl,
       quoteAccessLink
