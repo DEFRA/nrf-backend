@@ -94,8 +94,7 @@ export const patchController = {
       id,
       reference,
       email: { address },
-      development,
-      wasteWaterTreatmentWorksName
+      development
     } = quote
     const { edps } = request.payload
 
@@ -123,7 +122,6 @@ export const patchController = {
         recipientEmailAddress: address,
         edps,
         development,
-        wasteWaterTreatmentWorks: wasteWaterTreatmentWorksName,
         quoteAccessLink
       })
 

@@ -51,8 +51,6 @@ describe('dbCreateQuote', () => {
         boundaryFilename: 'site-boundary.shp',
         developmentTypes: ['housing'],
         residentialBuildingCount: 10,
-        wasteWaterTreatmentWorksId: '101',
-        wasteWaterTreatmentWorksName: 'Great Billing WRC',
         peopleCount: undefined
       }
     })
@@ -72,8 +70,6 @@ describe('dbCreateQuote', () => {
         ['housing'],
         10,
         null,
-        '101',
-        'Great Billing WRC',
         '2026-03-23T00:00:00.000Z'
       ]
     )
@@ -105,8 +101,6 @@ describe('dbCreateQuote', () => {
         ['other-residential'],
         null,
         5,
-        null,
-        null,
         '2026-03-23T00:00:00.000Z'
       ]
     )

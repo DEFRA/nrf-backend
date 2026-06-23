@@ -41,44 +41,6 @@ export function getImpactAssessorUrl() {
 }
 
 /**
- * Find Waste Water Treatment Works catchments near an RLB geometry
- * @param {object} geometry - RLB geometry as GeoJSON dict (EPSG:27700)
- * @returns {Promise<{nearbyWwtws?: Array, error?: string}>}
- */
-export async function findNearbyWasteWaterTreatmentWorks(geometry) {
-  const baseUrl = getImpactAssessorUrl()
-  const url = `${baseUrl}/wwtw/nearby`
-
-  logger.info(`Fetching nearby WWTWs - url: ${url}`)
-
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: impactAssessorHeaders({
-        'Content-Type': 'application/json'
-      }),
-      body: JSON.stringify({ geometry })
-    })
-
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}))
-      const detail =
-        errorBody.error ?? errorBody.detail ?? `HTTP ${response.status}`
-      logger.error(
-        `Nearby WWTW request failed - url: ${url}, status: ${response.status}, detail: ${detail}`
-      )
-      return { error: detail, statusCode: response.status }
-    }
-
-    const body = await response.json()
-    return { nearbyWwtws: body.nearbyWwtws ?? [] }
-  } catch (error) {
-    logger.error(error, `Error calling impact assessor - url: ${url}`)
-    return { error: 'Unable to contact impact assessor service' }
-  }
-}
-
-/**
  * Send a geometry file to the impact assessor's /check-boundary endpoint.
  *
  * For zip uploads the caller also supplies `boundaryFilename`: the bare

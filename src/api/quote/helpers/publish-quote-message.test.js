@@ -10,8 +10,7 @@ const quoteData = {
   boundaryGeojson: { type: 'Polygon', coordinates: [] },
   developmentTypes: ['housing'],
   residentialBuildingCount: 10,
-  peopleCount: 5,
-  wasteWaterTreatmentWorksId: '101'
+  peopleCount: 5
 }
 
 describe('publishQuoteMessage', () => {

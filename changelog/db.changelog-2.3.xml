@@ -1,0 +1,23 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="19" author="your-name">
+    <dropColumn tableName="quotes" columnName="waste_water_treatment_works_id"/>
+    <dropColumn tableName="quotes" columnName="waste_water_treatment_works_name"/>
+    <rollback>
+      <addColumn tableName="quotes">
+        <column name="waste_water_treatment_works_id" type="VARCHAR(255)"/>
+        <column name="waste_water_treatment_works_name" type="VARCHAR(255)"/>
+      </addColumn>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
