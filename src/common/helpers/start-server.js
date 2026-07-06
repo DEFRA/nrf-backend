@@ -1,9 +1,12 @@
+import { enableAuditing } from '@defra/cdp-auditing'
 import { config } from '../../config.js'
 
 import { createServer } from '../../server.js'
 import { checkCdpUploaderHealth } from './cdp-uploader-health.js'
 
 async function startServer() {
+  enableAuditing(config.get('audit.isEnabled'))
+
   const server = await createServer()
   await server.start()
 

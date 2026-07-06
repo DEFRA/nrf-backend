@@ -14,10 +14,10 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
   const { rows: userRows } = await db.query(
     `INSERT INTO users (email) VALUES ($1)
      ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-     RETURNING id`,
+     RETURNING id, (xmax = 0) AS created`,
     [email]
   )
-  const userId = userRows[0].id
+  const { id: userId, created: userCreated } = userRows[0]
 
   const createdAt = getCurrentISODateTime()
   const crsWgs84 = 4326
@@ -41,5 +41,5 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
       createdAt
     ]
   )
-  return rows[0]
+  return { ...rows[0], userId, userCreated }
 }

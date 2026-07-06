@@ -1,15 +1,12 @@
 import { dbCreateQuote } from './create-quote.js'
 
-const mockGetCurrentISODateTime = vi.hoisted(() =>
-  vi.fn().mockReturnValue('2026-03-23T00:00:00.000Z')
-)
-
-vi.mock('../../../common/helpers/date-time.js', () => ({
-  getCurrentISODateTime: mockGetCurrentISODateTime
-}))
-
 beforeEach(() => {
-  mockGetCurrentISODateTime.mockReturnValue('2026-03-23T00:00:00.000Z')
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-03-23T00:00:00.000Z'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('dbCreateQuote', () => {
@@ -35,7 +32,7 @@ describe('dbCreateQuote', () => {
   const mockDb = () => ({
     query: vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{ id: mockUserId }] })
+      .mockResolvedValueOnce({ rows: [{ id: mockUserId, created: true }] })
       .mockResolvedValueOnce({ rows: [mockQuoteRow] })
   })
 
@@ -73,7 +70,11 @@ describe('dbCreateQuote', () => {
         '2026-03-23T00:00:00.000Z'
       ]
     )
-    expect(result).toEqual(mockQuoteRow)
+    expect(result).toEqual({
+      ...mockQuoteRow,
+      userId: mockUserId,
+      userCreated: true
+    })
   })
 
   it('should pass null for optional fields when not provided', async () => {

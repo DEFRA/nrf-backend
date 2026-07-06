@@ -1,4 +1,6 @@
+import { audit } from '@defra/cdp-auditing'
 import Boom from '@hapi/boom'
+import { auditEvents } from '../../common/constants/audit-events.js'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
 import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
@@ -81,7 +83,7 @@ export const patchController = {
       payload: patchSchema
     }
   },
-  handler: async (request, h) => {
+  async handler(request, h) {
     const quote = await dbGetQuote({
       db: request.pg,
       reference: request.params.reference
@@ -133,6 +135,15 @@ export const patchController = {
         })
       }
     }
+
+    audit({
+      event: {
+        category: auditEvents.quote.category,
+        action: auditEvents.quote.updateQuote,
+        actor: { type: 'impact-assessor' }
+      },
+      context: { quote }
+    })
 
     return h.response().code(statusCodes.ok)
   }
