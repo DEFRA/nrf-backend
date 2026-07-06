@@ -1,4 +1,5 @@
 import { audit } from '@defra/cdp-auditing'
+import { auditEvents } from '../../common/constants/audit-events.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/create-quote.js'
 import { quoteSchema } from './validation/post-schema.js'
@@ -81,15 +82,18 @@ export const postController = {
 
     if (quote.userCreated) {
       audit({
-        event: { category: 'user', action: 'create-user' },
+        event: {
+          category: auditEvents.user.category,
+          action: auditEvents.user.createUser
+        },
         context: { user: { id: quote.userId, email } }
       })
     }
 
     audit({
       event: {
-        category: 'quote',
-        action: 'create-quote',
+        category: auditEvents.quote.category,
+        action: auditEvents.quote.createQuote,
         actor: { type: 'user', id: quote.userId }
       },
       context: { quote }
