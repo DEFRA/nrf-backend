@@ -1,3 +1,4 @@
+import { audit } from '@defra/cdp-auditing'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbCreateQuote } from '../../services/db/quotes/create-quote.js'
 import { quoteSchema } from './validation/post-schema.js'
@@ -71,11 +72,29 @@ export const postController = {
       payload: quoteSchema
     }
   },
-  handler: async (request, h) => {
+  async handler(request, h) {
+    const { email } = request.payload
     const quote = await dbCreateQuote({
       db: request.pg,
       quoteData: request.payload
     })
+
+    if (quote.userCreated) {
+      audit({
+        event: { category: 'user', action: 'create-user' },
+        context: { user: { id: quote.userId, email } }
+      })
+    }
+
+    audit({
+      event: {
+        category: 'quote',
+        action: 'create-quote',
+        actor: { type: 'user', id: quote.userId }
+      },
+      context: { quote }
+    })
+
     const traceId = getTraceId()
     await publishQuoteMessage({
       quoteData: {

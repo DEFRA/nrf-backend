@@ -301,6 +301,14 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
+  audit: {
+    isEnabled: {
+      doc: 'Enable audit logging',
+      format: Boolean,
+      default: !isTest,
+      env: 'AUDIT_ENABLED'
+    }
+  },
   sns: {
     endpoint: {
       doc: 'AWS SNS endpoint (from cdp-app-config defaults)',
