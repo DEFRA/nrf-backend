@@ -1,3 +1,4 @@
+import { audit } from '@defra/cdp-auditing'
 import { routePath } from '../../routes/quote.js'
 import { publishEvent } from '../../services/sns/publish-event.js'
 import { getTraceId } from '@defra/hapi-tracing'
@@ -5,6 +6,7 @@ import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
 
+vi.mock('@defra/cdp-auditing')
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
 vi.mock('@defra/hapi-tracing', async (importOriginal) => {
@@ -46,6 +48,47 @@ describe('Submit quote endpoint', () => {
     const { reference } = JSON.parse(response.payload)
     expect(reference).toMatch(/NRF-\d{6}/)
     expect(response.headers.location).toBe(`/quotes/${reference}`)
+  })
+
+  it('should audit the create-quote event', async () => {
+    const response = await sendPostRequest({
+      server: getServer(),
+      payload: validPayload
+    })
+    const { reference } = JSON.parse(response.payload)
+
+    expect(vi.mocked(audit)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: {
+          category: 'quote',
+          action: 'create-quote',
+          actor: { type: 'user', id: expect.any(String) }
+        },
+        context: {
+          quote: expect.objectContaining({ reference })
+        }
+      })
+    )
+  })
+
+  it('should audit the create-user event when a new user is created', async () => {
+    const uniqueEmail = `new-user-${Date.now()}@housebuilder.com`
+    await sendPostRequest({
+      server: getServer(),
+      payload: { ...validPayload, email: uniqueEmail }
+    })
+
+    expect(vi.mocked(audit)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: {
+          category: 'user',
+          action: 'create-user'
+        },
+        context: {
+          user: expect.objectContaining({ email: uniqueEmail })
+        }
+      })
+    )
   })
 
   it('should publish an SNS event with the quote payload', async () => {

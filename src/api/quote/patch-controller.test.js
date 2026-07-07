@@ -1,3 +1,4 @@
+import { audit } from '@defra/cdp-auditing'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
@@ -10,6 +11,7 @@ import {
   getAccessTokenRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
 
+vi.mock('@defra/cdp-auditing')
 vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
 
@@ -140,6 +142,35 @@ describe('Patch quote endpoint', () => {
     })
 
     expect(response.statusCode).toBe(statusCodes.notFound)
+  })
+
+  it('should audit the update-quote event with the fully updated quote', async () => {
+    const postResponse = await createQuote(getServer())
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendPatchRequest({
+      server: getServer(),
+      reference,
+      payload: validEdpsPayload
+    })
+
+    expect(vi.mocked(audit)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: {
+          category: 'quote',
+          action: 'update-quote',
+          actor: { type: 'impact-assessor' }
+        },
+        context: {
+          quote: expect.objectContaining({
+            reference,
+            edps: expect.arrayContaining([
+              expect.objectContaining({ edpId: validEdpsPayload.edps[0].edpId })
+            ])
+          })
+        }
+      })
+    )
   })
 
   it('should return 400 when edps is missing', async () => {
