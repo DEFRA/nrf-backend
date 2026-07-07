@@ -1,6 +1,7 @@
 import { quoteSchema } from './post-schema.js'
 
 const validPayload = {
+  planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson: { type: 'Feature', geometry: {} },
   developmentTypes: ['housing'],

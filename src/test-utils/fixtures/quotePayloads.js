@@ -1,6 +1,7 @@
 import { boundaryGeojson } from './boundaryGeojson.js'
 
 export const validQuotePayload = {
+  planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson,
   developmentTypes: ['housing', 'other-residential'],
