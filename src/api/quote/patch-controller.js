@@ -136,13 +136,18 @@ export const patchController = {
       }
     }
 
+    const updatedQuote = await dbGetQuote({
+      db: request.pg,
+      reference
+    })
+
     audit({
       event: {
         category: auditEvents.quote.category,
         action: auditEvents.quote.updateQuote,
         actor: { type: 'impact-assessor' }
       },
-      context: { quote }
+      context: { quote: updatedQuote }
     })
 
     return h.response().code(statusCodes.ok)
