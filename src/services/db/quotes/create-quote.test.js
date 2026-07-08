@@ -42,6 +42,7 @@ describe('dbCreateQuote', () => {
     const result = await dbCreateQuote({
       db,
       quoteData: {
+        planningType: 'full-planning-permission',
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'upload',
         boundaryGeojson: mockBoundaryGeojson,
@@ -60,6 +61,7 @@ describe('dbCreateQuote', () => {
       expect.stringContaining('INSERT INTO quotes'),
       [
         mockUserId,
+        'full-planning-permission',
         'upload',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
@@ -83,6 +85,7 @@ describe('dbCreateQuote', () => {
     await dbCreateQuote({
       db,
       quoteData: {
+        planningType: 'full-planning-permission',
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'draw',
         boundaryGeojson: mockBoundaryGeojson,
@@ -95,6 +98,7 @@ describe('dbCreateQuote', () => {
       expect.stringContaining('INSERT INTO quotes'),
       [
         mockUserId,
+        'full-planning-permission',
         'draw',
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,

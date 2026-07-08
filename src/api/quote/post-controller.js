@@ -20,10 +20,18 @@ import { getTraceId } from '@defra/hapi-tracing'
  *           schema:
  *             type: object
  *             required:
+ *               - planningType
  *               - boundaryEntryType
  *               - developmentTypes
  *               - email
  *             properties:
+ *               planningType:
+ *                 type: string
+ *                 enum:
+ *                   - full-planning-permission
+ *                   - outline-planning-permission
+ *                   - hybrid-planning-permission
+ *                   - other
  *               boundaryEntryType:
  *                 type: string
  *                 enum: [draw, upload]

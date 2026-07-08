@@ -7,6 +7,7 @@ vi.mock('../../services/send-email/notify-client.js')
 vi.mock('../../services/sns/publish-event.js')
 
 const validPayload = {
+  planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson,
   developmentTypes: ['housing', 'other-residential'],

@@ -20,6 +20,15 @@ const safeBoundaryFilename = (value, helpers) => {
 }
 
 export const quoteSchema = joi.object({
+  planningType: joi
+    .string()
+    .valid(
+      'full-planning-permission',
+      'outline-planning-permission',
+      'hybrid-planning-permission',
+      'other'
+    )
+    .required(),
   boundaryEntryType: joi.string().valid('draw', 'upload').required(),
   boundaryGeojson: joi.object().required(),
   // Present for 'upload' entries (the inner .shp for zips, or the uploaded

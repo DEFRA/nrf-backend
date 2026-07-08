@@ -1,6 +1,6 @@
 import { getLevyAmount } from '../../../api/quote/helpers/get-levy-amount.js'
 
-export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.email_send_request_at, q.boundary_entry_type, q.boundary_filename, q.development_types, q.residential_building_count, q.people_count, q.created_at, ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326)) AS boundary_geodata,
+export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.email_send_request_at, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.development_types, q.residential_building_count, q.people_count, q.created_at, ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326)) AS boundary_geodata,
         u.email AS email_address,
         e.edp_id, e.edp_name, e.edp_type, e.impact, e.levy_gbp_min, e.levy_gbp_max
  FROM quotes q
@@ -35,6 +35,7 @@ export const mapQuoteRows = (rows) => {
     reference: row.reference,
     userId: row.user_id,
     createdAt: row.created_at,
+    planningType: row.planning_type,
     development: {
       types: row.development_types,
       residentialBuildingCount: row.residential_building_count,

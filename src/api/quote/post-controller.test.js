@@ -23,6 +23,7 @@ const sendPostRequest = ({ server, payload }) => {
 }
 
 const validPayload = {
+  planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
