@@ -25,9 +25,7 @@ const sendPostRequest = ({ server, payload }) => {
 const validPayload = {
   planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
-  developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
-  peopleCount: 5,
   email: 'developer@housebuilder.com',
   boundaryGeojson
 }
@@ -101,9 +99,7 @@ describe('Submit quote endpoint', () => {
       expect.objectContaining({
         topicArn: expect.any(String),
         data: {
-          developmentTypes: ['housing', 'other-residential'],
           residentialBuildingCount: 10,
-          peopleCount: 5,
           boundaryGeojson,
           reference: expect.stringMatching(/NRF-\d{6}/),
           traceId: 'trace-abc-123'
@@ -132,31 +128,11 @@ describe('Submit quote endpoint', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
     })
 
-    it('should return 400 if developmentTypes is missing', async () => {
-      const { developmentTypes: _, ...rest } = validPayload
-      const response = await sendPostRequest({
-        server: getServer(),
-        payload: rest
-      })
-      expect(response.statusCode).toBe(statusCodes.badRequest)
-    })
-
-    it('should return 400 if residentialBuildingCount is missing when developmentTypes includes housing', async () => {
+    it('should return 400 if residentialBuildingCount is missing', async () => {
       const { residentialBuildingCount: _, ...rest } = validPayload
       const response = await sendPostRequest({
         server: getServer(),
         payload: rest
-      })
-      expect(response.statusCode).toBe(statusCodes.badRequest)
-    })
-
-    it('should return 400 if residentialBuildingCount is sent without housing in developmentTypes', async () => {
-      const response = await sendPostRequest({
-        server: getServer(),
-        payload: {
-          ...validPayload,
-          developmentTypes: ['other-residential']
-        }
       })
       expect(response.statusCode).toBe(statusCodes.badRequest)
     })

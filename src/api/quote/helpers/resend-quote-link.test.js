@@ -11,10 +11,10 @@ describe('resendQuoteLink', () => {
   const quote = {
     id: 42,
     reference: 'NRF-000001',
+    planningType: 'full-planning-permission',
+    residentialBuildingCount: 5,
     email: { address: 'adeola@example.com' },
-    edps: [{ edpName: 'Norfolk Fens east', levyGbp: { min: 100, max: 200 } }],
-    development: { types: ['housing'], residentialBuildingCount: 5 },
-    wasteWaterTreatmentWorksName: 'Great Billing WRC'
+    edps: [{ edpName: 'Norfolk Fens east', levyGbp: { min: 100, max: 200 } }]
   }
 
   it('issues a new token and emails a fresh access link to the quote owner', async () => {
@@ -38,8 +38,8 @@ describe('resendQuoteLink', () => {
         nrfQuoteReference: 'NRF-000001',
         nrfServiceUrl: frontEndBaseUrl,
         edps: quote.edps,
-        development: quote.development,
-        wasteWaterTreatmentWorks: 'Great Billing WRC',
+        residentialBuildingCount: quote.residentialBuildingCount,
+        planningType: quote.planningType,
         quoteAccessLink: expect.stringMatching(
           /\/quote\/NRF-000001\/[A-Za-z0-9_-]{43}$/
         )

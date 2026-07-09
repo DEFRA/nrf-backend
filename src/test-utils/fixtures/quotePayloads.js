@@ -4,9 +4,7 @@ export const validQuotePayload = {
   planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson,
-  developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
-  peopleCount: 5,
   email: 'developer@housebuilder.com'
 }
 

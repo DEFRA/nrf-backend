@@ -1,6 +1,5 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
-import { getDevelopmentDescription } from './get-development-description.js'
 import { getLevyAmount } from './get-levy-amount.js'
 
 /**
@@ -9,7 +8,8 @@ import { getLevyAmount } from './get-levy-amount.js'
  * @param {string} params.nrfQuoteReference
  * @param {string} params.nrfServiceUrl
  * @param {Array<{edpName: string, levyGbp: {min: number, max: number}}>} params.edps
- * @param {{types: string[], residentialBuildingCount: number, peopleCount: number}} params.development
+ * @param {number} params.residentialBuildingCount
+ * @param {string} params.planningType
  * @param {string} params.quoteAccessLink
  */
 export const sendQuoteEmail = ({
@@ -17,18 +17,19 @@ export const sendQuoteEmail = ({
   nrfQuoteReference,
   nrfServiceUrl,
   edps,
-  development,
+  residentialBuildingCount,
+  planningType,
   quoteAccessLink
 }) => {
   const { templateIds } = config.get('notify')
-  const developmentDescription = getDevelopmentDescription(development)
   return sendEmail({
     recipientEmailAddress,
     emailReference: nrfQuoteReference,
     emailBodyVariables: {
       nrfQuoteReference,
-      edpNames: edps.map(({ edpName }) => edpName).join(', '),
-      developmentDescription,
+      edpNames: edps.map(({ edpName }) => edpName),
+      residentialBuildingCount,
+      planningType,
       levyAmount: getLevyAmount(edps),
       nrfServiceUrl,
       quoteAccessLink

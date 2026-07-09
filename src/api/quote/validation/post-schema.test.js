@@ -4,7 +4,6 @@ const validPayload = {
   planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson: { type: 'Feature', geometry: {} },
-  developmentTypes: ['housing'],
   residentialBuildingCount: 10,
   email: 'developer@housebuilder.com'
 }
@@ -94,10 +93,6 @@ describe('quoteSchema', () => {
       expect(error).toBeDefined()
     })
 
-    // Defence-in-depth: even though the upload path strips hostile names
-    // before they ever reach this endpoint, the schema is re-validated here
-    // so a client that POSTs directly to /quotes cannot write attacker
-    // content into quotes.boundary_filename.
     it.each([
       '<script>alert(1)</script>.shp',
       'boundary"><img src=x onerror=alert(1)>.shp',
@@ -114,10 +109,6 @@ describe('quoteSchema', () => {
     })
 
     it('strips a path-traversal payload down to its harmless basename', () => {
-      // The shared validator takes the basename before checking the
-      // allowlist. "../../etc/passwd.shp" becomes "passwd.shp", which is a
-      // legal filename, so the request is accepted and the stored value is
-      // the stripped name — not the traversal string.
       const { error, value } = validate({
         ...validPayload,
         boundaryEntryType: 'upload',
@@ -128,48 +119,8 @@ describe('quoteSchema', () => {
     })
   })
 
-  describe('developmentTypes', () => {
-    it('accepts housing', () => {
-      const { error } = validate(validPayload)
-      expect(error).toBeUndefined()
-    })
-
-    it('accepts other-residential', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['other-residential'],
-        residentialBuildingCount: undefined,
-        peopleCount: 5
-      })
-      expect(error).toBeUndefined()
-    })
-
-    it('accepts both types together', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['housing', 'other-residential'],
-        peopleCount: 5
-      })
-      expect(error).toBeUndefined()
-    })
-
-    it('rejects an invalid type', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['commercial']
-      })
-      expect(error).toBeDefined()
-    })
-
-    it('is required', () => {
-      const { developmentTypes: _, ...rest } = validPayload
-      const { error } = validate(rest)
-      expect(error).toBeDefined()
-    })
-  })
-
   describe('residentialBuildingCount', () => {
-    it('is required when developmentTypes includes housing', () => {
+    it('is required', () => {
       const { residentialBuildingCount: _, ...rest } = validPayload
       const { error } = validate(rest)
       expect(error).toBeDefined()
@@ -198,52 +149,6 @@ describe('quoteSchema', () => {
       })
       expect(error).toBeDefined()
     })
-
-    it('errors if sent when developmentTypes does not include housing', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['other-residential'],
-        residentialBuildingCount: 10,
-        peopleCount: 5
-      })
-      expect(error).toBeDefined()
-    })
-  })
-
-  describe('peopleCount', () => {
-    it('is required when developmentTypes includes other-residential', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['other-residential'],
-        residentialBuildingCount: undefined
-      })
-      expect(error).toBeDefined()
-    })
-
-    it('must be at least 1', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['other-residential'],
-        residentialBuildingCount: undefined,
-        peopleCount: 0
-      })
-      expect(error).toBeDefined()
-    })
-
-    it('must be an integer', () => {
-      const { error } = validate({
-        ...validPayload,
-        developmentTypes: ['other-residential'],
-        residentialBuildingCount: undefined,
-        peopleCount: 2.5
-      })
-      expect(error).toBeDefined()
-    })
-
-    it('errors if sent when developmentTypes does not include other-residential', () => {
-      const { error } = validate({ ...validPayload, peopleCount: 5 })
-      expect(error).toBeDefined()
-    })
   })
 
   describe('email', () => {
@@ -267,27 +172,18 @@ describe('quoteSchema', () => {
     })
 
     it('rejects an email exceeding 254 characters', () => {
-      // local(64) + @(1) + domain(190) = 255 — one over the limit
-      // domain: 63 + 1 + 63 + 1 + 63 + 1 + 58 + 1 + 2 = 253... build carefully
-      // Use .co (2-char tld) so Joi accepts it; 63.63.61.co = 63+1+63+1+61+1+2 = 192, total = 257 — trim down
-      // Simplest: local(10) + @(1) + domain(244) = 255
       const local = 'a'.repeat(10)
-      // domain of 244 chars: 63.63.63.52.co = 63+1+63+1+63+1+52+1+2 = 247 — adjust
-      // 63+1+63+1+63+1+49+1+2 = 244
       const domain = `${'b'.repeat(63)}.${'b'.repeat(63)}.${'b'.repeat(63)}.${'b'.repeat(49)}.co`
-      const email = `${local}@${domain}` // 10 + 1 + 244 = 255
+      const email = `${local}@${domain}`
       expect(email.length).toBe(255)
       const { error } = validate({ ...validPayload, email })
       expect(error).toBeDefined()
     })
 
     it('accepts an email at the 254 character boundary', () => {
-      // Joi enforces RFC 5321's 254-char total limit via its email validator
-      // local(10) + @(1) + domain(243) = 254
-      // 63+1+63+1+63+1+48+1+2 = 243
       const local = 'a'.repeat(10)
       const domain = `${'b'.repeat(63)}.${'b'.repeat(63)}.${'b'.repeat(63)}.${'b'.repeat(48)}.co`
-      const email = `${local}@${domain}` // 10 + 1 + 243 = 254
+      const email = `${local}@${domain}`
       expect(email.length).toBe(254)
       const { error } = validate({ ...validPayload, email })
       expect(error).toBeUndefined()

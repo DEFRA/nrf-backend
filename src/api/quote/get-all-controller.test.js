@@ -10,9 +10,7 @@ const validPayload = {
   planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson,
-  developmentTypes: ['housing', 'other-residential'],
   residentialBuildingCount: 10,
-  peopleCount: 5,
   email: 'developer@housebuilder.com'
 }
 
@@ -50,7 +48,7 @@ describe('Get all quotes endpoint', () => {
       id: expect.any(Number),
       reference: expect.stringMatching(/^NRF-\d{6}$/),
       createdAt: expect.any(String),
-      development: expect.any(Object),
+      residentialBuildingCount: expect.any(Number),
       boundary: expect.any(Object),
       email: expect.any(Object),
       edps: expect.any(Array)

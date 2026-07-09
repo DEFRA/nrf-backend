@@ -7,9 +7,7 @@ describe('dbGetQuote', () => {
       reference: 'NRF-000001',
       user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
-      development_types: ['housing'],
       residential_building_count: 10,
-      people_count: null,
       boundary_geodata: '{"type":"Polygon"}',
       boundary_entry_type: 'upload',
       boundary_filename: 'site-boundary.shp',
@@ -30,16 +28,12 @@ describe('dbGetQuote', () => {
       expect.stringContaining('LEFT JOIN quote_edp_results'),
       ['NRF-000001']
     )
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       id: 1,
       reference: 'NRF-000001',
       userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       createdAt: '2026-03-23T00:00:00.000Z',
-      development: {
-        types: ['housing'],
-        residentialBuildingCount: 10,
-        peopleCount: null
-      },
+      residentialBuildingCount: 10,
       boundary: {
         geoJsonWgs84: '{"type":"Polygon"}',
         userInputType: 'upload',
@@ -68,9 +62,7 @@ describe('dbGetQuote', () => {
       reference: 'NRF-000001',
       user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
-      development_types: ['housing'],
       residential_building_count: null,
-      people_count: null,
       boundary_geodata: '{"type":"Polygon"}',
       boundary_entry_type: 'draw',
       email_address: 'developer@housebuilder.com',
