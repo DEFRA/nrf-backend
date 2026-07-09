@@ -14,7 +14,7 @@ import { buildQuoteAccessLink } from './build-quote-access-link.js'
  *
  * @param {object} params
  * @param {{ query: Function }} params.db
- * @param {{ id: number, reference: string, email: { address: string }, edps: object[], development: object, wasteWaterTreatmentWorksName: string }} params.quote
+ * @param {{ id: number, reference: string, planningType: string, residentialBuildingCount: number, email: { address: string }, edps: object[] }} params.quote
  * @returns {Promise<boolean>} whether Notify accepted the email
  */
 export const resendQuoteLink = async ({ db, quote }) => {
@@ -32,8 +32,8 @@ export const resendQuoteLink = async ({ db, quote }) => {
     nrfQuoteReference: quote.reference,
     nrfServiceUrl: config.get('frontEndBaseUrl'),
     edps: quote.edps,
-    development: quote.development,
-    wasteWaterTreatmentWorks: quote.wasteWaterTreatmentWorksName,
+    residentialBuildingCount: quote.residentialBuildingCount,
+    planningType: quote.planningType,
     quoteAccessLink
   })
 

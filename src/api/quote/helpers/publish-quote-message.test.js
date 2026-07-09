@@ -8,9 +8,7 @@ const logger = { info: vi.fn(), error: vi.fn() }
 const quoteData = {
   reference: 'NRF-123456',
   boundaryGeojson: { type: 'Polygon', coordinates: [] },
-  developmentTypes: ['housing'],
-  residentialBuildingCount: 10,
-  peopleCount: 5
+  residentialBuildingCount: 10
 }
 
 describe('publishQuoteMessage', () => {

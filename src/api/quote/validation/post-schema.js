@@ -43,20 +43,12 @@ export const quoteSchema = joi.object({
     .custom(safeBoundaryFilename, 'safe boundary filename')
     .optional()
     .allow(null),
-  developmentTypes: joi
-    .array()
-    .items(joi.string().valid('housing', 'other-residential'))
+  residentialBuildingCount: joi
+    .number()
+    .integer()
+    .min(1)
+    .max(MAX_RESIDENTIAL_UNITS)
     .required(),
-  residentialBuildingCount: joi.when('developmentTypes', {
-    is: joi.array().has(joi.valid('housing')),
-    then: joi.number().integer().min(1).max(MAX_RESIDENTIAL_UNITS).required(),
-    otherwise: joi.any().forbidden()
-  }),
-  peopleCount: joi.when('developmentTypes', {
-    is: joi.array().has(joi.valid('other-residential')),
-    then: joi.number().integer().min(1).required(),
-    otherwise: joi.any().forbidden()
-  }),
   email: joi
     .string()
     .trim()

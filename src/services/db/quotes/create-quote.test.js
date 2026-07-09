@@ -47,9 +47,7 @@ describe('dbCreateQuote', () => {
         boundaryEntryType: 'upload',
         boundaryGeojson: mockBoundaryGeojson,
         boundaryFilename: 'site-boundary.shp',
-        developmentTypes: ['housing'],
-        residentialBuildingCount: 10,
-        peopleCount: undefined
+        residentialBuildingCount: 10
       }
     })
 
@@ -66,9 +64,7 @@ describe('dbCreateQuote', () => {
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
         'site-boundary.shp',
-        ['housing'],
         10,
-        null,
         '2026-03-23T00:00:00.000Z'
       ]
     )
@@ -79,7 +75,7 @@ describe('dbCreateQuote', () => {
     })
   })
 
-  it('should pass null for optional fields when not provided', async () => {
+  it('should pass null for boundaryFilename when not provided', async () => {
     const db = mockDb()
 
     await dbCreateQuote({
@@ -89,8 +85,7 @@ describe('dbCreateQuote', () => {
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'draw',
         boundaryGeojson: mockBoundaryGeojson,
-        developmentTypes: ['other-residential'],
-        peopleCount: 5
+        residentialBuildingCount: 10
       }
     })
 
@@ -103,9 +98,7 @@ describe('dbCreateQuote', () => {
         JSON.stringify(mockBoundaryGeojson.boundaryGeometryOriginal),
         27700,
         null,
-        ['other-residential'],
-        null,
-        5,
+        10,
         '2026-03-23T00:00:00.000Z'
       ]
     )
@@ -134,7 +127,7 @@ describe('dbCreateQuote', () => {
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'draw',
         boundaryGeojson: geojsonNoCrs,
-        developmentTypes: ['housing']
+        residentialBuildingCount: 10
       }
     })
 

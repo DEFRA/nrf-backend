@@ -96,7 +96,8 @@ export const patchController = {
       id,
       reference,
       email: { address },
-      development
+      residentialBuildingCount,
+      planningType
     } = quote
     const { edps } = request.payload
 
@@ -123,7 +124,8 @@ export const patchController = {
         nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
         edps,
-        development,
+        residentialBuildingCount,
+        planningType,
         quoteAccessLink
       })
 

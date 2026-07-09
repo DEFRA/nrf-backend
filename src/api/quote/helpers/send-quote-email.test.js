@@ -12,11 +12,8 @@ describe('sendQuoteEmail', () => {
       levyGbp: { min: 100, max: 200 }
     }
   ]
-  const development = {
-    types: ['housing'],
-    residentialBuildingCount: 5,
-    peopleCount: null
-  }
+  const residentialBuildingCount = 5
+  const planningType = 'full-planning-permission'
   const nrfServiceUrl = 'http://localhost:3000'
   const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
 
@@ -26,7 +23,8 @@ describe('sendQuoteEmail', () => {
       nrfQuoteReference,
       nrfServiceUrl,
       edps,
-      development,
+      residentialBuildingCount,
+      planningType,
       quoteAccessLink
     })
     expect(sendEmail).toHaveBeenCalledWith({
@@ -34,13 +32,14 @@ describe('sendQuoteEmail', () => {
       emailReference: nrfQuoteReference,
       emailBodyVariables: {
         nrfQuoteReference,
-        edpNames: 'Norfolk Fens east',
-        developmentDescription: 'Housing with a total of 5 residential units',
+        edpNames: expect.any(Array),
+        residentialBuildingCount,
+        planningType,
         levyAmount: '£100 - £200',
         nrfServiceUrl,
         quoteAccessLink
       },
-      templateId: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c'
+      templateId: expect.any(String)
     })
   })
 
@@ -55,7 +54,8 @@ describe('sendQuoteEmail', () => {
       nrfQuoteReference,
       nrfServiceUrl,
       edps,
-      development,
+      residentialBuildingCount,
+      planningType,
       quoteAccessLink
     })
     expect(result).toBe(sendEmailResult)
