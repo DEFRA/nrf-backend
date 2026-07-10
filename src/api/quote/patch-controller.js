@@ -97,7 +97,8 @@ export const patchController = {
       reference,
       email: { address },
       residentialBuildingCount,
-      planningType
+      planningType,
+      disableAnalyticsAudit
     } = quote
     const { edps } = request.payload
 
@@ -143,14 +144,16 @@ export const patchController = {
       reference
     })
 
-    audit({
-      event: {
-        category: auditEvents.quote.category,
-        action: auditEvents.quote.updateQuote,
-        actor: { type: 'impact-assessor' }
-      },
-      context: { quote: updatedQuote }
-    })
+    if (!disableAnalyticsAudit) {
+      audit({
+        event: {
+          category: auditEvents.quote.category,
+          action: auditEvents.quote.updateQuote,
+          actor: { type: 'impact-assessor' }
+        },
+        context: { quote: updatedQuote }
+      })
+    }
 
     return h.response().code(statusCodes.ok)
   }

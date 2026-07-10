@@ -7,7 +7,8 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     boundaryGeojson,
     boundaryFilename,
     residentialBuildingCount,
-    email
+    email,
+    disableAnalyticsAudit
   } = quoteData
 
   const { rows: userRows } = await db.query(
@@ -25,8 +26,8 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     boundaryGeometryOriginal.crs?.properties?.name.split('::')?.[1]
   const crs = crsFromGeometry ? Number.parseInt(crsFromGeometry, 10) : crsWgs84
   const { rows } = await db.query(
-    `INSERT INTO quotes (user_id, planning_type, boundary_entry_type, boundary_geodata, boundary_filename, residential_building_count, created_at)
-     VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), $5), $6, $7, $8)
+    `INSERT INTO quotes (user_id, planning_type, boundary_entry_type, boundary_geodata, boundary_filename, residential_building_count, disable_analytics_audit, created_at)
+     VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), $5), $6, $7, $8, $9)
      RETURNING id, reference`,
     [
       userId,
@@ -36,6 +37,7 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
       crs,
       boundaryFilename ?? null,
       residentialBuildingCount,
+      disableAnalyticsAudit ?? false,
       createdAt
     ]
   )
