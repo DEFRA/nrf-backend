@@ -88,24 +88,26 @@ export const postController = {
       quoteData: request.payload
     })
 
-    if (quote.userCreated) {
+    if (!request.payload.disableAnalyticsAudit) {
+      if (quote.userCreated) {
+        audit({
+          event: {
+            category: auditEvents.user.category,
+            action: auditEvents.user.createUser
+          },
+          context: { user: { id: quote.userId, email } }
+        })
+      }
+
       audit({
         event: {
-          category: auditEvents.user.category,
-          action: auditEvents.user.createUser
+          category: auditEvents.quote.category,
+          action: auditEvents.quote.createQuote,
+          actor: { type: 'user', id: quote.userId }
         },
-        context: { user: { id: quote.userId, email } }
+        context: { quote }
       })
     }
-
-    audit({
-      event: {
-        category: auditEvents.quote.category,
-        action: auditEvents.quote.createQuote,
-        actor: { type: 'user', id: quote.userId }
-      },
-      context: { quote }
-    })
 
     const traceId = getTraceId()
     await publishQuoteMessage({

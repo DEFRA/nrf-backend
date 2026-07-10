@@ -45,6 +45,7 @@ describe('mapQuoteRows', () => {
         address: 'developer@housebuilder.com',
         sendRequestAt: null
       },
+      disableAnalyticsAudit: false,
       edps: [
         {
           edpId: 'EDP-001',

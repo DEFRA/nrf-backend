@@ -65,6 +65,7 @@ describe('dbCreateQuote', () => {
         27700,
         'site-boundary.shp',
         10,
+        false,
         '2026-03-23T00:00:00.000Z'
       ]
     )
@@ -99,6 +100,7 @@ describe('dbCreateQuote', () => {
         27700,
         null,
         10,
+        false,
         '2026-03-23T00:00:00.000Z'
       ]
     )
