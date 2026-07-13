@@ -8,7 +8,7 @@ export const publishQuoteMessage = ({ quoteData, logger, traceId }) => {
       data: {
         reference: quoteData.reference,
         boundaryGeojson: quoteData.boundaryGeojson,
-        residentialBuildingCount: quoteData.residentialBuildingCount,
+        housingUnits: quoteData.housingUnits,
         traceId
       }
     },

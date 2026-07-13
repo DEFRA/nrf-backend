@@ -9,7 +9,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.email_se
 
 /**
  * @param {object[]} rows - Raw database rows for a single quote (all sharing the same quote id)
- * @returns {{ id: string, reference: string, userId: string, createdAt: Date, residentialBuildingCount: number, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, levyGbp: { min: number, max: number } }> } | null}
+ * @returns {{ id: string, reference: string, userId: string, createdAt: Date, housingUnits: number, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, levyGbp: { min: number, max: number } }> } | null}
  */
 export const mapQuoteRows = (rows) => {
   if (!rows.length) {
@@ -36,7 +36,7 @@ export const mapQuoteRows = (rows) => {
     userId: row.user_id,
     createdAt: row.created_at,
     planningType: row.planning_type,
-    residentialBuildingCount: row.residential_building_count,
+    housingUnits: row.residential_building_count,
     boundary: {
       geoJsonWgs84: row.boundary_geodata,
       userInputType: row.boundary_entry_type,

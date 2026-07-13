@@ -47,7 +47,7 @@ describe('dbCreateQuote', () => {
         boundaryEntryType: 'upload',
         boundaryGeojson: mockBoundaryGeojson,
         boundaryFilename: 'site-boundary.shp',
-        residentialBuildingCount: 10
+        housingUnits: 10
       }
     })
 
@@ -86,7 +86,7 @@ describe('dbCreateQuote', () => {
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'draw',
         boundaryGeojson: mockBoundaryGeojson,
-        residentialBuildingCount: 10
+        housingUnits: 10
       }
     })
 
@@ -129,7 +129,7 @@ describe('dbCreateQuote', () => {
         email: 'developer@housebuilder.com',
         boundaryEntryType: 'draw',
         boundaryGeojson: geojsonNoCrs,
-        residentialBuildingCount: 10
+        housingUnits: 10
       }
     })
 

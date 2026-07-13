@@ -8,7 +8,7 @@ import { getLevyAmount } from './get-levy-amount.js'
  * @param {string} params.nrfQuoteReference
  * @param {string} params.nrfServiceUrl
  * @param {Array<{edpName: string, levyGbp: {min: number, max: number}}>} params.edps
- * @param {number} params.residentialBuildingCount
+ * @param {number} params.housingUnits
  * @param {string} params.planningType
  * @param {string} params.quoteAccessLink
  */
@@ -17,7 +17,7 @@ export const sendQuoteEmail = ({
   nrfQuoteReference,
   nrfServiceUrl,
   edps,
-  residentialBuildingCount,
+  housingUnits,
   planningType,
   quoteAccessLink
 }) => {
@@ -28,7 +28,7 @@ export const sendQuoteEmail = ({
     emailBodyVariables: {
       nrfQuoteReference,
       edpNames: edps.map(({ edpName }) => edpName),
-      residentialBuildingCount,
+      housingUnits,
       planningType,
       levyAmount: getLevyAmount(edps),
       nrfServiceUrl,

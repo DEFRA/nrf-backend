@@ -43,7 +43,7 @@ export const quoteSchema = joi.object({
     .custom(safeBoundaryFilename, 'safe boundary filename')
     .optional()
     .allow(null),
-  residentialBuildingCount: joi
+  housingUnits: joi
     .number()
     .integer()
     .min(1)

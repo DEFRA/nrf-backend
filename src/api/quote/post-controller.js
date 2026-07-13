@@ -35,20 +35,11 @@ import { getTraceId } from '@defra/hapi-tracing'
  *               boundaryEntryType:
  *                 type: string
  *                 enum: [draw, upload]
- *               developmentTypes:
- *                 type: array
- *                 items:
- *                   type: string
- *                   enum: [housing, other-residential]
- *               residentialBuildingCount:
+ *               housingUnits:
  *                 type: integer
  *                 minimum: 1
  *                 maximum: 999999
  *                 description: Required when developmentTypes includes housing
- *               peopleCount:
- *                 type: integer
- *                 minimum: 1
- *                 description: Required when developmentTypes includes other-residential
  *               email:
  *                 type: string
  *                 format: email

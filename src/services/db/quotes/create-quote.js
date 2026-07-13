@@ -6,7 +6,7 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
     boundaryEntryType,
     boundaryGeojson,
     boundaryFilename,
-    residentialBuildingCount,
+    housingUnits,
     email,
     disableAnalyticsAudit
   } = quoteData
@@ -36,7 +36,7 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
       JSON.stringify(boundaryGeometryOriginal),
       crs,
       boundaryFilename ?? null,
-      residentialBuildingCount,
+      housingUnits,
       disableAnalyticsAudit ?? false,
       createdAt
     ]
