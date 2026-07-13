@@ -96,7 +96,7 @@ export const patchController = {
       id,
       reference,
       email: { address },
-      residentialBuildingCount,
+      housingUnits,
       planningType,
       disableAnalyticsAudit
     } = quote
@@ -125,7 +125,7 @@ export const patchController = {
         nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
         edps,
-        residentialBuildingCount,
+        housingUnits,
         planningType,
         quoteAccessLink
       })

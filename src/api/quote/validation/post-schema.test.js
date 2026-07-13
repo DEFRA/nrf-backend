@@ -4,7 +4,7 @@ const validPayload = {
   planningType: 'full-planning-permission',
   boundaryEntryType: 'draw',
   boundaryGeojson: { type: 'Feature', geometry: {} },
-  residentialBuildingCount: 10,
+  housingUnits: 10,
   email: 'developer@housebuilder.com'
 }
 
@@ -119,9 +119,9 @@ describe('quoteSchema', () => {
     })
   })
 
-  describe('residentialBuildingCount', () => {
+  describe('housingUnits', () => {
     it('is required', () => {
-      const { residentialBuildingCount: _, ...rest } = validPayload
+      const { housingUnits: _, ...rest } = validPayload
       const { error } = validate(rest)
       expect(error).toBeDefined()
     })
@@ -129,7 +129,7 @@ describe('quoteSchema', () => {
     it('must be at least 1', () => {
       const { error } = validate({
         ...validPayload,
-        residentialBuildingCount: 0
+        housingUnits: 0
       })
       expect(error).toBeDefined()
     })
@@ -137,7 +137,7 @@ describe('quoteSchema', () => {
     it('must not exceed 999999', () => {
       const { error } = validate({
         ...validPayload,
-        residentialBuildingCount: 1000000
+        housingUnits: 1000000
       })
       expect(error).toBeDefined()
     })
@@ -145,7 +145,7 @@ describe('quoteSchema', () => {
     it('must be an integer', () => {
       const { error } = validate({
         ...validPayload,
-        residentialBuildingCount: 1.5
+        housingUnits: 1.5
       })
       expect(error).toBeDefined()
     })

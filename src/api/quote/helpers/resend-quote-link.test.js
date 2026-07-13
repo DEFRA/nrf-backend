@@ -12,7 +12,7 @@ describe('resendQuoteLink', () => {
     id: 42,
     reference: 'NRF-000001',
     planningType: 'full-planning-permission',
-    residentialBuildingCount: 5,
+    housingUnits: 5,
     email: { address: 'adeola@example.com' },
     edps: [{ edpName: 'Norfolk Fens east', levyGbp: { min: 100, max: 200 } }]
   }
@@ -38,7 +38,7 @@ describe('resendQuoteLink', () => {
         nrfQuoteReference: 'NRF-000001',
         nrfServiceUrl: frontEndBaseUrl,
         edps: quote.edps,
-        residentialBuildingCount: quote.residentialBuildingCount,
+        housingUnits: quote.housingUnits,
         planningType: quote.planningType,
         quoteAccessLink: expect.stringMatching(
           /\/quote\/NRF-000001\/[A-Za-z0-9_-]{43}$/

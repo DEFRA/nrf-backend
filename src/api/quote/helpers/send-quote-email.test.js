@@ -12,7 +12,7 @@ describe('sendQuoteEmail', () => {
       levyGbp: { min: 100, max: 200 }
     }
   ]
-  const residentialBuildingCount = 5
+  const housingUnits = 5
   const planningType = 'full-planning-permission'
   const nrfServiceUrl = 'http://localhost:3000'
   const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
@@ -23,7 +23,7 @@ describe('sendQuoteEmail', () => {
       nrfQuoteReference,
       nrfServiceUrl,
       edps,
-      residentialBuildingCount,
+      housingUnits,
       planningType,
       quoteAccessLink
     })
@@ -33,7 +33,7 @@ describe('sendQuoteEmail', () => {
       emailBodyVariables: {
         nrfQuoteReference,
         edpNames: expect.any(Array),
-        residentialBuildingCount,
+        housingUnits,
         planningType,
         levyAmount: '£100 - £200',
         nrfServiceUrl,
@@ -54,7 +54,7 @@ describe('sendQuoteEmail', () => {
       nrfQuoteReference,
       nrfServiceUrl,
       edps,
-      residentialBuildingCount,
+      housingUnits,
       planningType,
       quoteAccessLink
     })

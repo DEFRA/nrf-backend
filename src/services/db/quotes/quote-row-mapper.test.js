@@ -35,7 +35,7 @@ describe('mapQuoteRows', () => {
       userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       createdAt: '2026-03-23T00:00:00.000Z',
       planningType: undefined,
-      residentialBuildingCount: 10,
+      housingUnits: 10,
       boundary: {
         geoJsonWgs84: '{"type":"Polygon"}',
         userInputType: 'upload',
