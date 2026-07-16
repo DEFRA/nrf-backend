@@ -61,7 +61,12 @@ services:
       - cdp-tenant
 
   cdp-uploader:
-    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-latest}
+    # Pinned: the moving `latest` tag silently broke these integration tests when
+    # cdp-uploader 1.17.0/1.18.0 shipped (2026-07-14) — 1.18.0 rejects the relative
+    # `redirect` we send ("Failed to convert path to absolute url") and marks uploads
+    # as errored. 1.16.0 is the last known-good. Override with CDP_UPLOADER_VERSION.
+    # Follow-up ticket: make the backend compatible with >= 1.17.0 and unpin.
+    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-1.16.0}
     ports:
       - '7338:7337'
     links:
