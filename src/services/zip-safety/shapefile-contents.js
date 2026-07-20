@@ -1,4 +1,5 @@
 import yauzl from 'yauzl'
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
 
 import { validateSafeFilename } from '../../common/helpers/safe-filename.js'
 
@@ -21,7 +22,7 @@ const REQUIRED_SHAPEFILE_EXTENSIONS = [SHP_EXT, SHX_EXT, DBF_EXT, PRJ_EXT]
 
 /**
  * @typedef {{ ok: true, shapefileName: string }
- *   | { ok: false, code: string, message: string }} ShapefileContentsResult
+ *   | { ok: false, code: string }} ShapefileContentsResult
  */
 
 /**
@@ -50,11 +51,7 @@ export function validateShapefileZipContents(buffer) {
   return new Promise((resolve) => {
     yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
       if (err) {
-        resolve({
-          ok: false,
-          code: 'invalidZip',
-          message: 'The uploaded file is not a valid zip archive.'
-        })
+        resolve({ ok: false, code: BOUNDARY_ERRORS.UPLOAD.INVALID_ZIP })
         return
       }
 
@@ -73,11 +70,7 @@ export function validateShapefileZipContents(buffer) {
       })
 
       zipfile.on('error', () => {
-        resolve({
-          ok: false,
-          code: 'invalidZip',
-          message: 'The uploaded zip is malformed.'
-        })
+        resolve({ ok: false, code: BOUNDARY_ERRORS.UPLOAD.INVALID_ZIP })
       })
 
       zipfile.readEntry()
@@ -93,12 +86,7 @@ function checkContents(fileNames) {
   const shpFiles = fileNames.filter((n) => n.toLowerCase().endsWith(SHP_EXT))
 
   if (shpFiles.length === 0) {
-    return {
-      ok: false,
-      code: 'noShapefile',
-      message:
-        'Zip must contain a shapefile (.shp with .shx, .dbf and .prj companions).'
-    }
+    return { ok: false, code: BOUNDARY_ERRORS.UPLOAD.ZIP_MISSING_SHAPEFILE }
   }
 
   // Deterministic tiebreaker when a zip contains multiple .shp entries: pick
@@ -131,8 +119,7 @@ function checkContents(fileNames) {
   if (missing.length > 0) {
     return {
       ok: false,
-      code: 'missingShapefileComponents',
-      message: `Shapefile is missing required companion files: ${missing.join(', ')}. A shapefile zip must contain ${REQUIRED_SHAPEFILE_EXTENSIONS.join(', ')} files with the same name.`
+      code: BOUNDARY_ERRORS.UPLOAD.ZIP_MISSING_SHAPEFILE_PARTS
     }
   }
 

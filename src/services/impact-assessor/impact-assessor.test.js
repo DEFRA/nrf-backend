@@ -167,11 +167,11 @@ describe('checkBoundary', () => {
     )
 
     expect(result).toEqual({
-      error: 'Unable to contact impact assessor service'
+      error: 'impact_assessor_unreachable'
     })
   })
 
-  it('should fall back to HTTP status string when error body has neither error nor detail', async () => {
+  it('should fall back to a generic code when error body has neither error nor detail', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: statusCodes.internalServerError,
@@ -185,12 +185,12 @@ describe('checkBoundary', () => {
     )
 
     expect(result).toEqual({
-      error: `HTTP ${statusCodes.internalServerError}`,
+      error: 'boundary_check_failed',
       statusCode: statusCodes.internalServerError
     })
   })
 
-  it('should fall back to HTTP status string when error response body is not JSON', async () => {
+  it('should fall back to a generic code when error response body is not JSON', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: statusCodes.badGateway,
@@ -204,7 +204,7 @@ describe('checkBoundary', () => {
     )
 
     expect(result).toEqual({
-      error: `HTTP ${statusCodes.badGateway}`,
+      error: 'boundary_check_failed',
       statusCode: statusCodes.badGateway
     })
   })
@@ -456,7 +456,7 @@ describe('checkBoundaryGeometry', () => {
     const result = await checkBoundaryGeometry(mockGeometry)
 
     expect(result).toEqual({
-      error: 'Unable to contact impact assessor service'
+      error: 'impact_assessor_unreachable'
     })
   })
 

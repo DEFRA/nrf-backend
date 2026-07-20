@@ -1,5 +1,6 @@
 import joi from 'joi'
 import { withTraceId } from '@defra/hapi-tracing'
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -129,13 +130,16 @@ async function postBoundaryCheck(
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}))
-      const detail =
-        errorBody.error ?? errorBody.detail ?? `HTTP ${response.status}`
+      const code =
+        errorBody.error ??
+        errorBody.detail ??
+        BOUNDARY_ERRORS.SERVICE.CHECK_FAILED
       logger.error(
-        `Boundary check failed - url: ${url}, status: ${response.status}, detail: ${detail}`
+        { url, statusCode: response.status, code },
+        'Boundary check failed'
       )
       return {
-        error: detail,
+        error: code,
         statusCode: response.status,
         ...(errorBody.boundaryGeometryOriginal && {
           boundaryGeometryOriginal: errorBody.boundaryGeometryOriginal
@@ -153,7 +157,7 @@ async function postBoundaryCheck(
         `Impact assessor returned unexpected response structure - url: ${url}`
       )
       return {
-        error: 'Received an unexpected response from the boundary check service'
+        error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_BAD_RESPONSE
       }
     }
 
@@ -173,7 +177,7 @@ async function postBoundaryCheck(
     }
   } catch (error) {
     logger.error(error, `Error calling impact assessor - url: ${url}`)
-    return { error: 'Unable to contact impact assessor service' }
+    return { error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_UNREACHABLE }
   }
 }
 

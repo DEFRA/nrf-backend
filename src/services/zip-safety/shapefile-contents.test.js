@@ -28,14 +28,14 @@ describe('validateShapefileZipContents', () => {
     const zip = await buildZip([{ name: 'boundary.geojson', content: '{}' }])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('noShapefile')
+    expect(result.code).toBe('zip_missing_shapefile')
   })
 
   it('rejects a zip containing only a .kml file', async () => {
     const zip = await buildZip([{ name: 'boundary.kml', content: '<kml/>' }])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('noShapefile')
+    expect(result.code).toBe('zip_missing_shapefile')
   })
 
   it('rejects a zip with no shapefile at all', async () => {
@@ -45,7 +45,7 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('noShapefile')
+    expect(result.code).toBe('zip_missing_shapefile')
   })
 
   it('rejects a shapefile missing the .prj companion', async () => {
@@ -56,8 +56,7 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('missingShapefileComponents')
-    expect(result.message).toMatch(/\.prj/)
+    expect(result.code).toBe('zip_missing_shapefile_parts')
   })
 
   it('rejects a shapefile missing the .shx companion', async () => {
@@ -68,18 +67,14 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('missingShapefileComponents')
-    expect(result.message).toMatch(/\.shx/)
+    expect(result.code).toBe('zip_missing_shapefile_parts')
   })
 
   it('rejects a shapefile missing multiple companions and lists them all', async () => {
     const zip = await buildZip([{ name: 'boundary.shp', content: 'shp' }])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('missingShapefileComponents')
-    expect(result.message).toMatch(/\.shx/)
-    expect(result.message).toMatch(/\.dbf/)
-    expect(result.message).toMatch(/\.prj/)
+    expect(result.code).toBe('zip_missing_shapefile_parts')
   })
 
   it('rejects a shapefile whose companion files have a different stem', async () => {
@@ -91,7 +86,7 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('missingShapefileComponents')
+    expect(result.code).toBe('zip_missing_shapefile_parts')
   })
 
   it('matches companion files case-insensitively', async () => {
@@ -153,14 +148,13 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('missingShapefileComponents')
-    expect(result.message).toMatch(/\.prj/)
+    expect(result.code).toBe('zip_missing_shapefile_parts')
   })
 
   it('rejects a buffer that is not a valid zip', async () => {
     const result = await validateShapefileZipContents(Buffer.from('not a zip'))
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('invalidZip')
+    expect(result.code).toBe('invalid_zip')
   })
 
   it('rejects a .shp entry whose filename contains unsafe characters', async () => {
@@ -177,6 +171,6 @@ describe('validateShapefileZipContents', () => {
     ])
     const result = await validateShapefileZipContents(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('unsafeFilename')
+    expect(result.code).toBe('unsafe_filename')
   })
 })

@@ -145,7 +145,7 @@ describe('Boundary routes', () => {
 
     it('should return error from impact assessor', async () => {
       vi.mocked(checkBoundary).mockResolvedValue({
-        error: 'Unsupported file format',
+        error: 'unsupported_file_type',
         statusCode: statusCodes.badRequest
       })
 
@@ -162,11 +162,10 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('Unsupported file format')
-      expect(body.maxFileSizeMb).toBe(2)
+      expect(body.error).toBe('unsupported_file_type')
     }, 30_000)
 
-    it('should return 413 with maxFileSizeMb when file is too large', async () => {
+    it('should return 413 when the impact assessor reports the file is too large', async () => {
       vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
         uploadStatus: 'ready',
         form: {
@@ -184,7 +183,7 @@ describe('Boundary routes', () => {
         contentType: 'application/json'
       })
       vi.mocked(checkBoundary).mockResolvedValue({
-        error: 'File too large. Maximum upload size is 2 MB.',
+        error: 'file_size_too_large',
         statusCode: 413
       })
 
@@ -195,8 +194,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(413)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('File too large. Maximum upload size is 2 MB.')
-      expect(body.maxFileSizeMb).toBe(2)
+      expect(body.error).toBe('file_size_too_large')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()
@@ -271,7 +269,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.notFound)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('No file found for this upload')
+      expect(body.error).toBe('upload_file_missing')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })
@@ -296,8 +294,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.payloadTooLarge)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('The selected file must be smaller than 2.1 MB')
-      expect(body.maxFileSizeMb).toBe(2)
+      expect(body.error).toBe('file_size_too_large')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })
@@ -322,8 +319,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('The selected file contains a virus')
-      expect(body.maxFileSizeMb).toBeUndefined()
+      expect(body.error).toBe('file_rejected_by_uploader')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })
@@ -347,7 +343,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('The uploaded file was rejected')
+      expect(body.error).toBe('file_rejected_by_uploader')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })
@@ -375,7 +371,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badGateway)
       const body = JSON.parse(response.payload)
-      expect(body.error).toBe('Failed to retrieve uploaded file')
+      expect(body.error).toBe('s3_download_failed')
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
       vi.mocked(s3Client.downloadFromS3).mockRestore()
@@ -447,7 +443,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/too many files/i)
+      expect(body.error).toBe('zip_too_many_files')
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
@@ -482,7 +478,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/unsafe to extract/i)
+      expect(body.error).toBe('zip_entry_too_large')
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
@@ -520,9 +516,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/missing required companion files/i)
-      expect(body.error).toMatch(/\.dbf/)
-      expect(body.error).toMatch(/\.prj/)
+      expect(body.error).toBe('zip_missing_shapefile_parts')
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
@@ -685,7 +679,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/unsupported characters/i)
+      expect(body.error).toBe('unsafe_filename')
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
@@ -725,7 +719,7 @@ describe('Boundary routes', () => {
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
       const body = JSON.parse(response.payload)
-      expect(body.error).toMatch(/unsupported characters/i)
+      expect(body.error).toBe('unsafe_filename')
       expect(checkBoundary).not.toHaveBeenCalled()
 
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()

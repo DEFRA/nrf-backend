@@ -59,8 +59,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('tooManyFiles')
-    expect(result.message).toMatch(/too many files/i)
+    expect(result.code).toBe('zip_too_many_files')
   })
 
   it('rejects a zip whose total uncompressed size exceeds the limit', async () => {
@@ -80,7 +79,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('totalTooLarge')
+    expect(result.code).toBe('zip_total_too_large')
   }, 30000)
 
   it('rejects a zip with a single entry larger than the per-entry limit', async () => {
@@ -92,7 +91,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('entryTooLarge')
+    expect(result.code).toBe('zip_entry_too_large')
   }, 30000)
 
   it('rejects a zip with a suspicious compression ratio (zip bomb)', async () => {
@@ -102,7 +101,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('suspiciousCompressionRatio')
+    expect(result.code).toBe('zip_entry_too_large')
   })
 
   it('rejects a zip containing a nested zip', async () => {
@@ -114,8 +113,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(zip)
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('nestedZip')
-    expect(result.message).toMatch(/nested zip/i)
+    expect(result.code).toBe('zip_nested_zip')
   })
 
   it('rejects a zip with a zip-slip path traversal entry', async () => {
@@ -131,7 +129,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(Buffer.from('ignored'))
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('zipSlip')
+    expect(result.code).toBe('zip_unsafe_path')
 
     spy.mockRestore()
   })
@@ -147,7 +145,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(Buffer.from('ignored'))
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('zipSlip')
+    expect(result.code).toBe('zip_unsafe_path')
 
     spy.mockRestore()
   })
@@ -155,7 +153,7 @@ describe('validateZipSafety', () => {
   it('rejects a buffer that is not a valid zip', async () => {
     const result = await validateZipSafety(Buffer.from('not a zip file'))
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('invalidZip')
+    expect(result.code).toBe('invalid_zip')
   })
 
   it('catches a doctored entry that under-reports its size during streaming', async () => {
@@ -216,7 +214,7 @@ describe('validateZipSafety', () => {
 
     const result = await validateZipSafety(Buffer.from('ignored'))
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('entryTooLarge')
+    expect(result.code).toBe('zip_entry_too_large')
 
     spy.mockRestore()
   })

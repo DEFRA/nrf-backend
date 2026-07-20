@@ -1,9 +1,10 @@
 import yauzl from 'yauzl'
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
 
 import { config } from '../../config.js'
 
 /**
- * @typedef {{ ok: true } | { ok: false, code: string, message: string }} ValidationResult
+ * @typedef {{ ok: true } | { ok: false, code: string }} ValidationResult
  *
  * @typedef {object} Limits
  * @property {number} maxEntries
@@ -24,9 +25,9 @@ import { config } from '../../config.js'
  *   - streamed verification of declared sizes (catches doctored central
  *     directories that lie about uncompressedSize)
  *
- * Returns `{ ok: true }` on success, or `{ ok: false, code, message }` on
- * the first failure. Stops at the first problem so a malicious zip cannot
- * burn extra resources.
+ * Returns `{ ok: true }` on success, or `{ ok: false, code }` on the first
+ * failure. Stops at the first problem so a malicious zip cannot burn extra
+ * resources.
  *
  * @param {Buffer} buffer
  * @returns {Promise<ValidationResult>}
@@ -37,7 +38,7 @@ export function validateZipSafety(buffer) {
   return new Promise((resolve) => {
     yauzl.fromBuffer(buffer, { lazyEntries: true }, (err, zipfile) => {
       if (err) {
-        resolve(invalidZip('The uploaded file is not a valid zip archive.'))
+        resolve(invalidZip())
         return
       }
       walkZip(zipfile, limits, resolve)
@@ -67,12 +68,7 @@ function readLimits() {
 function walkZip(zipfile, limits, resolve) {
   if (zipfile.entryCount > limits.maxEntries) {
     zipfile.close()
-    resolve(
-      rejection(
-        'tooManyFiles',
-        `Zip contains too many files (${zipfile.entryCount}). Maximum allowed is ${limits.maxEntries}.`
-      )
-    )
+    resolve(rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_TOO_MANY_FILES))
     return
   }
 
@@ -88,8 +84,8 @@ function walkZip(zipfile, limits, resolve) {
     resolve(result)
   }
 
-  zipfile.on('error', (zipErr) => {
-    settle(invalidZip(`The uploaded zip is malformed: ${zipErr.message}`))
+  zipfile.on('error', () => {
+    settle(invalidZip())
   })
 
   zipfile.on('entry', (entry) => {
@@ -145,42 +141,27 @@ function checkEntryHeaders(entry, limits, state) {
   const name = entry.fileName
 
   if (name.toLowerCase().endsWith('.zip')) {
-    return rejection(
-      'nestedZip',
-      `Zip contains a nested zip file (${name}). Nested zips are not allowed.`
-    )
+    return rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_NESTED_ZIP)
   }
 
   if (name.includes('..') || name.startsWith('/')) {
-    return rejection(
-      'zipSlip',
-      `Zip contains an entry with an unsafe path (${name}).`
-    )
+    return rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_UNSAFE_PATH)
   }
 
   if (entry.uncompressedSize > limits.maxEntryBytes) {
-    return rejection(
-      'entryTooLarge',
-      `Zip entry "${name}" is too large when uncompressed (${entry.uncompressedSize} bytes). Maximum per-file size is ${limits.maxEntryBytes} bytes.`
-    )
+    return rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_ENTRY_TOO_LARGE)
   }
 
   if (
     entry.compressedSize > 0 &&
     entry.uncompressedSize / entry.compressedSize > limits.maxCompressionRatio
   ) {
-    return rejection(
-      'suspiciousCompressionRatio',
-      `Zip entry "${name}" appears to be unsafe to extract and has been rejected.`
-    )
+    return rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_ENTRY_TOO_LARGE)
   }
 
   state.totalUncompressed += entry.uncompressedSize
   if (state.totalUncompressed > limits.maxTotalBytes) {
-    return rejection(
-      'totalTooLarge',
-      `Zip would expand to more than ${limits.maxTotalBytes} bytes when uncompressed. Maximum allowed total is ${limits.maxTotalBytes} bytes.`
-    )
+    return rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_TOTAL_TOO_LARGE)
   }
 
   return null
@@ -197,20 +178,16 @@ function checkEntryHeaders(entry, limits, state) {
  * @param {(result: ValidationResult) => void} settle
  */
 function verifyEntryStream(zipfile, entry, perEntryCap, settle) {
-  const name = entry.fileName
-
   zipfile.openReadStream(entry, (streamErr, readStream) => {
     if (streamErr) {
-      settle(
-        invalidZip(`Failed to read zip entry "${name}": ${streamErr.message}`)
-      )
+      settle(invalidZip())
       return
     }
 
     const ctx = { actualBytes: 0, aborted: false }
 
     readStream.on('data', (chunk) => {
-      onStreamData(chunk, ctx, name, perEntryCap, readStream, settle)
+      onStreamData(chunk, ctx, perEntryCap, readStream, settle)
     })
 
     readStream.on('end', () => {
@@ -219,11 +196,9 @@ function verifyEntryStream(zipfile, entry, perEntryCap, settle) {
       }
     })
 
-    readStream.on('error', (rsErr) => {
+    readStream.on('error', () => {
       if (!ctx.aborted) {
-        settle(
-          invalidZip(`Failed to read zip entry "${name}": ${rsErr.message}`)
-        )
+        settle(invalidZip())
       }
     })
   })
@@ -232,12 +207,11 @@ function verifyEntryStream(zipfile, entry, perEntryCap, settle) {
 /**
  * @param {Buffer} chunk
  * @param {{ actualBytes: number, aborted: boolean }} ctx
- * @param {string} name
  * @param {number} perEntryCap
  * @param {import('node:stream').Readable} readStream
  * @param {(result: ValidationResult) => void} settle
  */
-function onStreamData(chunk, ctx, name, perEntryCap, readStream, settle) {
+function onStreamData(chunk, ctx, perEntryCap, readStream, settle) {
   if (ctx.aborted) {
     return
   }
@@ -245,28 +219,21 @@ function onStreamData(chunk, ctx, name, perEntryCap, readStream, settle) {
   if (ctx.actualBytes > perEntryCap) {
     ctx.aborted = true
     readStream.destroy()
-    settle(
-      rejection(
-        'entryTooLarge',
-        `Zip entry "${name}" appears to be unsafe to extract and has been rejected.`
-      )
-    )
+    settle(rejection(BOUNDARY_ERRORS.UPLOAD.ZIP_ENTRY_TOO_LARGE))
   }
 }
 
 /**
  * @param {string} code
- * @param {string} message
  * @returns {ValidationResult}
  */
-function rejection(code, message) {
-  return { ok: false, code, message }
+function rejection(code) {
+  return { ok: false, code }
 }
 
 /**
- * @param {string} message
  * @returns {ValidationResult}
  */
-function invalidZip(message) {
-  return rejection('invalidZip', message)
+function invalidZip() {
+  return rejection(BOUNDARY_ERRORS.UPLOAD.INVALID_ZIP)
 }

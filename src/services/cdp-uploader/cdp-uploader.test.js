@@ -235,7 +235,7 @@ describe('getUploadDetails', () => {
 
     expect(result).toEqual({
       uploadStatus: 'error',
-      error: 'Unable to fetch upload details',
+      error: 'upload_status_check_failed',
       statusCode: 404
     })
   })
@@ -247,7 +247,7 @@ describe('getUploadDetails', () => {
 
     expect(result).toEqual({
       uploadStatus: 'error',
-      error: 'Unable to fetch upload details',
+      error: 'upload_status_check_failed',
       statusCode: undefined
     })
   })
