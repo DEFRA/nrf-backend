@@ -7,8 +7,10 @@ import { buildZip } from '../../test-utils/build-zip.js'
  * Build a stub yauzl ZipFile for tests that need to simulate a malicious or
  * malformed central directory that the real yazl writer would refuse to
  * produce.
+ * @param {Array<object>} entries
+ * @param {{ openReadStream?: Function }} [overrides]
  */
-function makeFakeZipfile(entries) {
+function makeFakeZipfile(entries, overrides = {}) {
   let index = 0
   const handlers = {}
   return {
@@ -24,9 +26,11 @@ function makeFakeZipfile(entries) {
         handlers.end?.()
       }
     },
-    openReadStream(entry, cb) {
-      cb(null, Readable.from(Buffer.alloc(entry.uncompressedSize ?? 0)))
-    },
+    openReadStream:
+      overrides.openReadStream ??
+      ((entry, cb) => {
+        cb(null, Readable.from(Buffer.alloc(entry.uncompressedSize ?? 0)))
+      }),
     close() {}
   }
 }
@@ -154,6 +158,69 @@ describe('validateZipSafety', () => {
     const result = await validateZipSafety(Buffer.from('not a zip file'))
     expect(result.ok).toBe(false)
     expect(result.code).toBe('invalid_zip')
+  })
+
+  it('rejects when the zipfile emits an error while walking entries', async () => {
+    const yauzlMod = await import('yauzl')
+    const fakeZipfile = {
+      entryCount: 1,
+      handlers: {},
+      on(event, handler) {
+        this.handlers[event] = handler
+      },
+      readEntry() {
+        this.handlers.error(new Error('corrupt central directory'))
+      },
+      close() {}
+    }
+    const spy = vi
+      .spyOn(yauzlMod.default, 'fromBuffer')
+      .mockImplementation((_buf, _opts, cb) => cb(null, fakeZipfile))
+
+    const result = await validateZipSafety(Buffer.from('ignored'))
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('invalid_zip')
+
+    spy.mockRestore()
+  })
+
+  it('rejects when opening the entry read stream fails', async () => {
+    const yauzlMod = await import('yauzl')
+    const fakeZipfile = makeFakeZipfile(
+      [{ fileName: 'boundary.shp', uncompressedSize: 5, compressedSize: 5 }],
+      { openReadStream: (_entry, cb) => cb(new Error('cannot open stream')) }
+    )
+    const spy = vi
+      .spyOn(yauzlMod.default, 'fromBuffer')
+      .mockImplementation((_buf, _opts, cb) => cb(null, fakeZipfile))
+
+    const result = await validateZipSafety(Buffer.from('ignored'))
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('invalid_zip')
+
+    spy.mockRestore()
+  })
+
+  it('rejects when the entry read stream emits an error', async () => {
+    const yauzlMod = await import('yauzl')
+    const fakeReadStream = new Readable({
+      read() {
+        this.emit('error', new Error('stream broke'))
+      }
+    })
+    const fakeZipfile = makeFakeZipfile(
+      [{ fileName: 'boundary.shp', uncompressedSize: 5, compressedSize: 5 }],
+      { openReadStream: (_entry, cb) => cb(null, fakeReadStream) }
+    )
+    const spy = vi
+      .spyOn(yauzlMod.default, 'fromBuffer')
+      .mockImplementation((_buf, _opts, cb) => cb(null, fakeZipfile))
+
+    const result = await validateZipSafety(Buffer.from('ignored'))
+    expect(result.ok).toBe(false)
+    expect(result.code).toBe('invalid_zip')
+
+    spy.mockRestore()
   })
 
   it('catches a doctored entry that under-reports its size during streaming', async () => {
