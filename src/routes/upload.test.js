@@ -21,10 +21,7 @@ describe('Upload routes', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: '/quote/upload-received',
-          s3Bucket: 'boundaries',
-          s3Path: 'test-uploads',
-          metadata: { source: 'test' }
+          redirect: '/quote/upload-received'
         }
       })
 
@@ -37,10 +34,20 @@ describe('Upload routes', () => {
       expect(initiateUploadService).toHaveBeenCalledWith({
         redirect: '/quote/upload-received',
         s3Bucket: 'boundaries',
-        s3Path: 'test-uploads',
-        metadata: { source: 'test' },
+        s3Path: 'boundaries/',
+        metadata: {},
         maxFileSize: 2 * 1024 * 1024
       })
+    })
+
+    it('should reject a request that omits the redirect', async () => {
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/upload/initiate',
+        payload: {}
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
     })
   })
 

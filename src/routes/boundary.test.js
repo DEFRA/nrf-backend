@@ -24,9 +24,7 @@ async function uploadFileAndWaitUntilReady(server, fileBuffer, filename) {
     method: 'POST',
     url: '/upload/initiate',
     payload: {
-      redirect: '/quote/upload-received',
-      s3Bucket: 'boundaries',
-      s3Path: 'integration-test'
+      redirect: '/quote/upload-received'
     }
   })
 
@@ -127,9 +125,7 @@ describe('Boundary routes', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: '/quote/upload-received',
-          s3Bucket: 'boundaries',
-          s3Path: 'integration-test'
+          redirect: '/quote/upload-received'
         }
       })
 
