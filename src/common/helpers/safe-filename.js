@@ -1,3 +1,5 @@
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
+
 /**
  * Shared validation for user-supplied filenames that we intend to persist or
  * render. Applied at trust boundaries so the rest of the pipeline (logs, DB,
@@ -22,7 +24,7 @@ const SAFE_FILENAME_PATTERN = /^(?=.*[A-Za-z0-9])[A-Za-z0-9 ._()-]{1,255}$/
 
 /**
  * @typedef {{ ok: true, filename: string }
- *   | { ok: false, code: 'unsafeFilename', message: string }} SafeFilenameResult
+ *   | { ok: false, code: 'unsafe_filename' }} SafeFilenameResult
  */
 
 /**
@@ -41,9 +43,7 @@ const SAFE_FILENAME_PATTERN = /^(?=.*[A-Za-z0-9])[A-Za-z0-9 ._()-]{1,255}$/
  */
 export function validateSafeFilename(name) {
   if (typeof name !== 'string' || name.length === 0) {
-    return unsafeFilename(
-      'The boundary filename is missing or empty. Please re-upload the file.'
-    )
+    return unsafeFilename()
   }
 
   // Handle both forward- and back-slashes — zip tools on Windows routinely
@@ -55,20 +55,15 @@ export function validateSafeFilename(name) {
   const base = cut === -1 ? name : name.slice(cut + 1)
 
   if (!SAFE_FILENAME_PATTERN.test(base)) {
-    return unsafeFilename(
-      'The boundary filename contains unsupported characters. ' +
-        'Use letters, numbers, spaces, dots, underscores, hyphens or parentheses, ' +
-        'and rename the file before uploading it again.'
-    )
+    return unsafeFilename()
   }
 
   return { ok: true, filename: base }
 }
 
 /**
- * @param {string} message
  * @returns {SafeFilenameResult}
  */
-function unsafeFilename(message) {
-  return { ok: false, code: 'unsafeFilename', message }
+function unsafeFilename() {
+  return { ok: false, code: BOUNDARY_ERRORS.UPLOAD.UNSAFE_FILENAME }
 }

@@ -1,10 +1,10 @@
 import joi from 'joi'
+import { MAX_BOUNDARY_FILE_SIZE_MB } from '@defra/nrf-library'
 
 import {
   initiateUpload as initiateUploadService,
   getUploadStatus
 } from '../services/cdp-uploader/cdp-uploader.js'
-import { config } from '../config.js'
 
 /**
  * @openapi
@@ -55,8 +55,7 @@ const initiateUpload = {
     }
   },
   handler: async (request, h) => {
-    const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
-    const maxFileSize = maxFileSizeMb * 1024 * 1024
+    const maxFileSize = MAX_BOUNDARY_FILE_SIZE_MB * 1024 * 1024
     const result = await initiateUploadService({
       ...request.payload,
       maxFileSize

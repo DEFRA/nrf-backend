@@ -1,6 +1,7 @@
 import Wreck from '@hapi/wreck'
 
 import { withTraceId } from '@defra/hapi-tracing'
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -148,7 +149,7 @@ export async function getUploadDetails(uploadId) {
     )
     return {
       uploadStatus: 'error',
-      error: 'Unable to fetch upload details',
+      error: BOUNDARY_ERRORS.UPLOAD.UPLOAD_STATUS_CHECK_FAILED,
       statusCode
     }
   }

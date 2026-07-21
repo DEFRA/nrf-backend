@@ -14,7 +14,7 @@ const MAX_BOUNDARY_FILENAME_LENGTH = 255
 const safeBoundaryFilename = (value, helpers) => {
   const result = validateSafeFilename(value)
   if (!result.ok) {
-    return helpers.error('any.invalid', { message: result.message })
+    return helpers.error('any.invalid')
   }
   return result.filename
 }

@@ -26,7 +26,7 @@ describe('validateSafeFilename', () => {
     it.each(cases)('rejects %s', (name) => {
       const result = validateSafeFilename(name)
       expect(result.ok).toBe(false)
-      expect(result.code).toBe('unsafeFilename')
+      expect(result.code).toBe('unsafe_filename')
     })
   })
 
@@ -41,7 +41,7 @@ describe('validateSafeFilename', () => {
     it.each(cases)('rejects filename with control chars: %j', (name) => {
       const result = validateSafeFilename(name)
       expect(result.ok).toBe(false)
-      expect(result.code).toBe('unsafeFilename')
+      expect(result.code).toBe('unsafe_filename')
     })
   })
 
@@ -74,7 +74,7 @@ describe('validateSafeFilename', () => {
   it('rejects an empty string', () => {
     const result = validateSafeFilename('')
     expect(result.ok).toBe(false)
-    expect(result.code).toBe('unsafeFilename')
+    expect(result.code).toBe('unsafe_filename')
   })
 
   it('rejects non-string input', () => {

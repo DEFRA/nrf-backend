@@ -1,4 +1,5 @@
 import joi from 'joi'
+import { BOUNDARY_ERRORS } from '@defra/nrf-library'
 
 import { getUploadDetails } from '../services/cdp-uploader/cdp-uploader.js'
 import { downloadFromS3 } from '../services/s3/s3-client.js'
@@ -28,29 +29,32 @@ async function getFileFromUpload(uploadId, h) {
   if (uploadDetails.uploadStatus !== 'ready') {
     return {
       error: h
-        .response({
-          error: `Upload is not ready (status: ${uploadDetails.uploadStatus})`
-        })
+        .response({ error: BOUNDARY_ERRORS.UPLOAD.UPLOAD_NOT_READY })
         .code(statusCodes.badRequest)
     }
   }
 
   const uploadedFile = uploadDetails.form?.file
   if (uploadDetails.numberOfRejectedFiles > 0) {
-    const error = uploadedFile?.errorMessage ?? 'The uploaded file was rejected'
+    // CDP Uploader's own rejection message is third-party text we don't
+    // control, so this pattern match (not a display string) is the only way
+    // to tell a size rejection apart from other rejections (virus scan,
+    // mime-type mismatch, etc).
+    const rejectionMessage =
+      uploadedFile?.errorMessage ?? 'file rejected by uploader'
     logger.error(
-      `File rejected by uploader - uploadId: ${uploadId}, error: ${error}`
+      { uploadId, error: rejectionMessage },
+      'File rejected by uploader'
     )
-    const isTooLarge = /smaller than|too large|size/i.test(error)
+    const isTooLarge = /smaller than|too large|size/i.test(rejectionMessage)
     const statusCode = isTooLarge
       ? statusCodes.payloadTooLarge
       : statusCodes.badRequest
-    const response = { error }
-    if (isTooLarge) {
-      response.maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
-    }
+    const code = isTooLarge
+      ? BOUNDARY_ERRORS.UPLOAD.FILE_SIZE_TOO_LARGE
+      : BOUNDARY_ERRORS.UPLOAD.FILE_REJECTED_BY_UPLOADER
     return {
-      error: h.response(response).code(statusCode)
+      error: h.response({ error: code }).code(statusCode)
     }
   }
 
@@ -60,7 +64,7 @@ async function getFileFromUpload(uploadId, h) {
     )
     return {
       error: h
-        .response({ error: 'No file found for this upload' })
+        .response({ error: BOUNDARY_ERRORS.UPLOAD.UPLOAD_FILE_MISSING })
         .code(statusCodes.notFound)
     }
   }
@@ -107,7 +111,7 @@ async function resolveBoundaryFilename(
         `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${safe.code}`
       )
       return {
-        error: h.response({ error: safe.message }).code(statusCodes.badRequest)
+        error: h.response({ error: safe.code }).code(statusCodes.badRequest)
       }
     }
     return { isZip: false, boundaryFilename: safe.filename }
@@ -123,9 +127,7 @@ async function resolveBoundaryFilename(
       `Upload filename rejected by safe-filename check - uploadId: ${uploadId}, code: ${outerSafe.code}`
     )
     return {
-      error: h
-        .response({ error: outerSafe.message })
-        .code(statusCodes.badRequest)
+      error: h.response({ error: outerSafe.code }).code(statusCodes.badRequest)
     }
   }
 
@@ -135,9 +137,7 @@ async function resolveBoundaryFilename(
   })
   if (!zipCheck.ok) {
     return {
-      error: h
-        .response({ error: zipCheck.message })
-        .code(statusCodes.badRequest)
+      error: h.response({ error: zipCheck.code }).code(statusCodes.badRequest)
     }
   }
 
@@ -147,8 +147,7 @@ async function resolveBoundaryFilename(
 function buildBoundaryResponse(result, boundaryFilename, h) {
   if (result.error) {
     const statusCode = result.statusCode ?? statusCodes.badGateway
-    const maxFileSizeMb = config.get('cdpUploader.maxFileSizeMb')
-    const response = { error: result.error, maxFileSizeMb }
+    const response = { error: result.error }
     if (result.boundaryGeometryOriginal) {
       response.boundaryGeometryOriginal = result.boundaryGeometryOriginal
     }
@@ -174,7 +173,7 @@ async function downloadFile(fileInfo, h) {
     )
     return {
       error: h
-        .response({ error: 'Failed to retrieve uploaded file' })
+        .response({ error: BOUNDARY_ERRORS.UPLOAD.S3_DOWNLOAD_FAILED })
         .code(statusCodes.badGateway)
     }
   }
