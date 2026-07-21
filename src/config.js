@@ -189,7 +189,7 @@ const config = convict({
     s3Path: {
       doc: 'Path prefix within the S3 bucket for uploads',
       format: String,
-      default: 'boundaries/',
+      default: '',
       env: 'CDP_UPLOADER_S3_PATH'
     }
   },

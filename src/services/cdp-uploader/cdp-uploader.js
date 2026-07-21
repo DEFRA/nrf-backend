@@ -53,7 +53,10 @@ export async function initiateUpload({
   )
 
   try {
-    const body = { redirect, s3Bucket, s3Path, metadata }
+    const body = { redirect, s3Bucket, metadata }
+    if (s3Path) {
+      body.s3Path = s3Path
+    }
     if (maxFileSize != null) {
       body.maxFileSize = maxFileSize
     }
