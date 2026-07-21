@@ -86,8 +86,8 @@ describe('initiateUpload', () => {
         payload: JSON.stringify({
           redirect: 'http://localhost:3000/done',
           s3Bucket: 'my-bucket',
-          s3Path: 'uploads',
-          metadata: undefined
+          metadata: undefined,
+          s3Path: 'uploads'
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -96,6 +96,24 @@ describe('initiateUpload', () => {
         json: true
       })
     )
+  })
+
+  it('should omit s3Path from the payload when it is empty', async () => {
+    vi.mocked(Wreck.post).mockResolvedValue({
+      payload: {
+        uploadId: 'abc-123',
+        uploadUrl: '/upload/abc-123'
+      }
+    })
+
+    await initiateUpload({
+      redirect: 'http://localhost:3000/done',
+      s3Bucket: 'my-bucket',
+      s3Path: ''
+    })
+
+    const [, options] = vi.mocked(Wreck.post).mock.calls[0]
+    expect(JSON.parse(options.payload)).not.toHaveProperty('s3Path')
   })
 
   it('should include maxFileSize in the payload when provided', async () => {

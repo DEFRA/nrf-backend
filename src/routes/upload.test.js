@@ -4,6 +4,7 @@ import {
 } from '../services/cdp-uploader/cdp-uploader.js'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
+import { config } from '../config.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js')
 
@@ -21,10 +22,7 @@ describe('Upload routes', () => {
         method: 'POST',
         url: '/upload/initiate',
         payload: {
-          redirect: '/quote/upload-received',
-          s3Bucket: 'boundaries',
-          s3Path: 'test-uploads',
-          metadata: { source: 'test' }
+          redirect: '/quote/upload-received'
         }
       })
 
@@ -36,11 +34,21 @@ describe('Upload routes', () => {
       )
       expect(initiateUploadService).toHaveBeenCalledWith({
         redirect: '/quote/upload-received',
-        s3Bucket: 'boundaries',
-        s3Path: 'test-uploads',
-        metadata: { source: 'test' },
+        s3Bucket: config.get('cdpUploader.bucket'),
+        s3Path: config.get('cdpUploader.s3Path'),
+        metadata: {},
         maxFileSize: 2 * 1024 * 1024
       })
+    })
+
+    it('should reject a request that omits the redirect', async () => {
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/upload/initiate',
+        payload: {}
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
     })
   })
 

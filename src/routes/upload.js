@@ -5,6 +5,7 @@ import {
   initiateUpload as initiateUploadService,
   getUploadStatus
 } from '../services/cdp-uploader/cdp-uploader.js'
+import { config } from '../config.js'
 
 /**
  * @openapi
@@ -21,16 +22,9 @@ import {
  *             type: object
  *             required:
  *               - redirect
- *               - s3Bucket
  *             properties:
  *               redirect:
  *                 type: string
- *               s3Bucket:
- *                 type: string
- *               s3Path:
- *                 type: string
- *               metadata:
- *                 type: object
  *     responses:
  *       200:
  *         description: Upload initiated successfully
@@ -47,18 +41,17 @@ const initiateUpload = {
   options: {
     validate: {
       payload: joi.object({
-        redirect: joi.string().uri({ relativeOnly: true }).required(),
-        s3Bucket: joi.string().required(),
-        s3Path: joi.string().optional(),
-        metadata: joi.object().optional()
+        redirect: joi.string().uri({ relativeOnly: true }).required()
       })
     }
   },
-  handler: async (request, h) => {
-    const maxFileSize = MAX_BOUNDARY_FILE_SIZE_MB * 1024 * 1024
+  async handler(request, h) {
     const result = await initiateUploadService({
-      ...request.payload,
-      maxFileSize
+      redirect: request.payload.redirect,
+      s3Bucket: config.get('cdpUploader.bucket'),
+      s3Path: config.get('cdpUploader.s3Path'),
+      metadata: {},
+      maxFileSize: MAX_BOUNDARY_FILE_SIZE_MB * 1024 * 1024
     })
     return h.response(result)
   }
