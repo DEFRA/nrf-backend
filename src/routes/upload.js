@@ -45,7 +45,7 @@ const initiateUpload = {
       })
     }
   },
-  handler: async (request, h) => {
+  async handler(request, h) {
     const result = await initiateUploadService({
       redirect: request.payload.redirect,
       s3Bucket: config.get('cdpUploader.bucket'),
