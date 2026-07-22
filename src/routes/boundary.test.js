@@ -206,11 +206,13 @@ describe('Boundary routes', () => {
         features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
       }
 
+      const mockMetadata = { bounds: {}, centre: [1, 52] }
       vi.mocked(checkBoundary).mockResolvedValue({
         error: 'Invalid geometry',
         statusCode: statusCodes.badRequest,
         boundaryGeometryOriginal: mockOriginalGeometry,
-        boundaryGeometryWgs84: mockWgs84Geometry
+        boundaryGeometryWgs84: mockWgs84Geometry,
+        boundaryMetadata: mockMetadata
       })
 
       const uploadId = await uploadFileAndWaitUntilReady(
@@ -229,6 +231,7 @@ describe('Boundary routes', () => {
       expect(body.error).toBe('Invalid geometry')
       expect(body.boundaryGeometryOriginal).toEqual(mockOriginalGeometry)
       expect(body.boundaryGeometryWgs84).toEqual(mockWgs84Geometry)
+      expect(body.boundaryMetadata).toEqual(mockMetadata)
     }, 30_000)
 
     it('should default to 502 when impact assessor returns error without status code', async () => {
@@ -295,7 +298,7 @@ describe('Boundary routes', () => {
       vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
     })
 
-    it('should return 400 when file is rejected for a non-size reason', async () => {
+    it('should return 400 with a virus code when the file contains a virus', async () => {
       vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
         uploadStatus: 'ready',
         numberOfRejectedFiles: 1,
@@ -304,6 +307,56 @@ describe('Boundary routes', () => {
             fileStatus: 'rejected',
             hasError: true,
             errorMessage: 'The selected file contains a virus'
+          }
+        }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('file_contains_virus')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return 400 with a missing-file code when the file is empty', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            hasError: true,
+            errorMessage: 'The selected file is empty'
+          }
+        }
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('upload_file_missing')
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+    })
+
+    it('should return 400 when file is rejected for another reason', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            hasError: true,
+            errorMessage: 'The selected file must be a PNG'
           }
         }
       })
