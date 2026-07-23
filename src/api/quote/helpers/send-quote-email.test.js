@@ -34,7 +34,7 @@ describe('sendQuoteEmail', () => {
         nrfQuoteReference,
         edpNames: expect.any(Array),
         housingUnits,
-        planningType,
+        planningType: 'Full planning permission',
         levyAmount: '£100 - £200',
         nrfServiceUrl,
         quoteAccessLink
