@@ -1,6 +1,7 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
 import { getLevyAmount } from './get-levy-amount.js'
+import { getPlanningTypeDisplay } from './get-planning-type-display.js'
 
 /**
  * @param {object} params
@@ -29,7 +30,7 @@ export const sendQuoteEmail = ({
       nrfQuoteReference,
       edpNames: edps.map(({ edpName }) => edpName),
       housingUnits,
-      planningType,
+      planningType: getPlanningTypeDisplay(planningType),
       levyAmount: getLevyAmount(edps),
       nrfServiceUrl,
       quoteAccessLink
