@@ -139,7 +139,8 @@ describe('checkBoundary', () => {
         Promise.resolve({
           error: 'Invalid geometry',
           boundaryGeometryOriginal: mockOriginalGeometry,
-          boundaryGeometryWgs84: mockWgs84Geometry
+          boundaryGeometryWgs84: mockWgs84Geometry,
+          boundaryMetadata: { bounds: {}, centre: [1, 52] }
         })
     })
 
@@ -153,7 +154,8 @@ describe('checkBoundary', () => {
       error: 'Invalid geometry',
       statusCode: statusCodes.badRequest,
       boundaryGeometryOriginal: mockOriginalGeometry,
-      boundaryGeometryWgs84: mockWgs84Geometry
+      boundaryGeometryWgs84: mockWgs84Geometry,
+      boundaryMetadata: { bounds: {}, centre: [1, 52] }
     })
   })
 

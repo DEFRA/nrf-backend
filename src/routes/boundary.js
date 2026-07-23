@@ -16,6 +16,34 @@ import { createLogger } from '../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+// CDP Uploader's rejection message is third-party text we don't control, so
+// pattern matching it (not a display string) is the only way to tell the
+// rejection reasons apart. Anything unrecognised stays a generic rejection.
+function classifyRejection(rejectionMessage) {
+  if (/virus/i.test(rejectionMessage)) {
+    return {
+      code: BOUNDARY_ERRORS.UPLOAD.FILE_CONTAINS_VIRUS,
+      statusCode: statusCodes.badRequest
+    }
+  }
+  if (/smaller than|too large|size/i.test(rejectionMessage)) {
+    return {
+      code: BOUNDARY_ERRORS.UPLOAD.FILE_SIZE_TOO_LARGE,
+      statusCode: statusCodes.payloadTooLarge
+    }
+  }
+  if (/empty/i.test(rejectionMessage)) {
+    return {
+      code: BOUNDARY_ERRORS.UPLOAD.UPLOAD_FILE_MISSING,
+      statusCode: statusCodes.badRequest
+    }
+  }
+  return {
+    code: BOUNDARY_ERRORS.UPLOAD.FILE_REJECTED_BY_UPLOADER,
+    statusCode: statusCodes.badRequest
+  }
+}
+
 async function getFileFromUpload(uploadId, h) {
   const uploadDetails = await getUploadDetails(uploadId)
 
@@ -36,23 +64,13 @@ async function getFileFromUpload(uploadId, h) {
 
   const uploadedFile = uploadDetails.form?.file
   if (uploadDetails.numberOfRejectedFiles > 0) {
-    // CDP Uploader's own rejection message is third-party text we don't
-    // control, so this pattern match (not a display string) is the only way
-    // to tell a size rejection apart from other rejections (virus scan,
-    // mime-type mismatch, etc).
     const rejectionMessage =
       uploadedFile?.errorMessage ?? 'file rejected by uploader'
     logger.error(
       { uploadId, error: rejectionMessage },
       'File rejected by uploader'
     )
-    const isTooLarge = /smaller than|too large|size/i.test(rejectionMessage)
-    const statusCode = isTooLarge
-      ? statusCodes.payloadTooLarge
-      : statusCodes.badRequest
-    const code = isTooLarge
-      ? BOUNDARY_ERRORS.UPLOAD.FILE_SIZE_TOO_LARGE
-      : BOUNDARY_ERRORS.UPLOAD.FILE_REJECTED_BY_UPLOADER
+    const { code, statusCode } = classifyRejection(rejectionMessage)
     return {
       error: h.response({ error: code }).code(statusCode)
     }
@@ -153,6 +171,9 @@ function buildBoundaryResponse(result, boundaryFilename, h) {
     }
     if (result.boundaryGeometryWgs84) {
       response.boundaryGeometryWgs84 = result.boundaryGeometryWgs84
+    }
+    if (result.boundaryMetadata) {
+      response.boundaryMetadata = result.boundaryMetadata
     }
     return h.response(response).code(statusCode)
   }

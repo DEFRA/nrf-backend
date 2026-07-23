@@ -146,6 +146,9 @@ async function postBoundaryCheck(
         }),
         ...(errorBody.boundaryGeometryWgs84 && {
           boundaryGeometryWgs84: errorBody.boundaryGeometryWgs84
+        }),
+        ...(errorBody.boundaryMetadata && {
+          boundaryMetadata: errorBody.boundaryMetadata
         })
       }
     }
