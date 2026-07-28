@@ -72,6 +72,18 @@ describe('dbGetAllQuotes', () => {
     expect(result[0].edps[1]).toMatchObject({ edpId: 'EDP-002' })
   })
 
+  it('returns null boundary geodata rather than failing when the row has an unrecognised SRID', async () => {
+    const db = {
+      query: vi.fn().mockResolvedValue({
+        rows: [makeRow({ boundary_geodata: null })]
+      })
+    }
+
+    const result = await dbGetAllQuotes({ db })
+
+    expect(result[0].boundary.geoJsonWgs84).toBeNull()
+  })
+
   it('returns multiple quotes', async () => {
     const db = {
       query: vi.fn().mockResolvedValue({
