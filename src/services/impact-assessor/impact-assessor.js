@@ -168,6 +168,7 @@ async function postBoundaryCheck(
       boundaryGeometryOriginal,
       boundaryGeometryWgs84,
       intersectingEdps,
+      intersectingExcludedAreas,
       boundaryMetadata
     } = geojson
     return {
@@ -175,6 +176,7 @@ async function postBoundaryCheck(
         boundaryGeometryOriginal,
         boundaryGeometryWgs84,
         intersectingEdps,
+        intersectingExcludedAreas,
         boundaryMetadata
       }
     }
@@ -189,6 +191,7 @@ const boundaryCheckResponseSchema = joi
     boundaryGeometryOriginal: joi.object().required(),
     boundaryGeometryWgs84: joi.object().required(),
     intersectingEdps: joi.array().required(),
+    intersectingExcludedAreas: joi.array().required(),
     boundaryMetadata: joi.any()
   })
   .unknown(true)

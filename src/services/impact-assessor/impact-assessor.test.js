@@ -67,6 +67,7 @@ describe('checkBoundary', () => {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
       intersectingEdps: ['edp-1'],
+      intersectingExcludedAreas: ['Exclusion Zone A'],
       boundaryMetadata: { areaHa: 42.5 }
     }
 
@@ -91,6 +92,7 @@ describe('checkBoundary', () => {
         boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
         boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
         intersectingEdps: mockResponse.intersectingEdps,
+        intersectingExcludedAreas: mockResponse.intersectingExcludedAreas,
         boundaryMetadata: mockResponse.boundaryMetadata
       }
     })
@@ -252,6 +254,49 @@ describe('checkBoundary', () => {
     expect(result.geojson).toBeUndefined()
   })
 
+  it('should return error when intersectingExcludedAreas is missing from the response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: []
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingExcludedAreas is not an array', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: [],
+          intersectingExcludedAreas: 'not-an-array'
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
   it('should return error when the response body is unexpected JSON (no geometry fields)', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -296,7 +341,8 @@ describe('checkBoundary', () => {
         Promise.resolve({
           boundaryGeometryOriginal: {},
           boundaryGeometryWgs84: {},
-          intersectingEdps: []
+          intersectingEdps: [],
+          intersectingExcludedAreas: []
         })
     })
 
@@ -328,7 +374,8 @@ describe('checkBoundary', () => {
         Promise.resolve({
           boundaryGeometryOriginal: {},
           boundaryGeometryWgs84: {},
-          intersectingEdps: []
+          intersectingEdps: [],
+          intersectingExcludedAreas: []
         })
     })
 
@@ -373,6 +420,7 @@ describe('checkBoundaryGeometry', () => {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
       intersectingEdps: ['edp-1'],
+      intersectingExcludedAreas: [],
       boundaryMetadata: { areaHa: 10.0 }
     }
 
@@ -393,6 +441,7 @@ describe('checkBoundaryGeometry', () => {
         boundaryGeometryOriginal: mockResponse.boundaryGeometryOriginal,
         boundaryGeometryWgs84: mockResponse.boundaryGeometryWgs84,
         intersectingEdps: mockResponse.intersectingEdps,
+        intersectingExcludedAreas: mockResponse.intersectingExcludedAreas,
         boundaryMetadata: mockResponse.boundaryMetadata
       }
     })
@@ -495,6 +544,41 @@ describe('checkBoundaryGeometry', () => {
     expect(result.geojson).toBeUndefined()
   })
 
+  it('should return error when intersectingExcludedAreas is missing from the response', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: []
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when intersectingExcludedAreas is not an array', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: [],
+          intersectingExcludedAreas: 'not-an-array'
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
   it('should return error when the response body is unexpected JSON', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -540,7 +624,8 @@ describe('checkBoundaryGeometry', () => {
         Promise.resolve({
           boundaryGeometryOriginal: {},
           boundaryGeometryWgs84: {},
-          intersectingEdps: []
+          intersectingEdps: [],
+          intersectingExcludedAreas: []
         })
     })
 
@@ -564,7 +649,8 @@ describe('checkBoundaryGeometry', () => {
         Promise.resolve({
           boundaryGeometryOriginal: {},
           boundaryGeometryWgs84: {},
-          intersectingEdps: []
+          intersectingEdps: [],
+          intersectingExcludedAreas: []
         })
     })
 
