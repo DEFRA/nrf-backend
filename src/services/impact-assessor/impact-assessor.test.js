@@ -252,7 +252,7 @@ describe('checkBoundary', () => {
     expect(result.geojson).toBeUndefined()
   })
 
-  it('should return error when the response body is unexpected JSON (no geometry fields)', async () => {
+  it('should return impact_assessor_bad_response when a 200 body is unexpected JSON (no geometry fields)', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ unexpected: 'shape' })
@@ -264,7 +264,7 @@ describe('checkBoundary', () => {
       'application/geo+json'
     )
 
-    expect(result.error).toBeDefined()
+    expect(result.error).toBe('impact_assessor_bad_response')
     expect(result.geojson).toBeUndefined()
   })
 
