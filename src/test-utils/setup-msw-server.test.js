@@ -69,7 +69,9 @@ describe('setupMswServer', () => {
   describe('closes the server when the describe scope ends', () => {
     describe('while the server is running', () => {
       setupMswServer(
-        http.get('https://test.example/health', () => HttpResponse.json({ ok: true }))
+        http.get('https://test.example/health', () =>
+          HttpResponse.json({ ok: true })
+        )
       )
 
       it('intercepts requests while the scope is active', async () => {
