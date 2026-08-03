@@ -108,8 +108,7 @@ async function postBoundaryCheck(
   size,
   { boundaryFilename } = {}
 ) {
-  const baseUrl = getImpactAssessorUrl()
-  const url = `${baseUrl}/check-boundary`
+  const url = `${getImpactAssessorUrl()}/check-boundary`
   logger.info(
     `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}, boundaryFilename: ${boundaryFilename ?? '(n/a)'}`
   )
