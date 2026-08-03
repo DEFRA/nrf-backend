@@ -110,11 +110,9 @@ async function postBoundaryCheck(
 ) {
   const baseUrl = getImpactAssessorUrl()
   const url = `${baseUrl}/check-boundary`
-
   logger.info(
     `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}, boundaryFilename: ${boundaryFilename ?? '(n/a)'}`
   )
-
   const formData = new FormData()
   formData.append('geometry_file', blob, filename)
   if (boundaryFilename) {
