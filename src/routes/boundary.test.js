@@ -137,6 +137,8 @@ describe('Boundary routes', () => {
       })
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('upload_not_ready')
     })
 
     it('should return error from impact assessor', async () => {
