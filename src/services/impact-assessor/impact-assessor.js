@@ -108,13 +108,10 @@ async function postBoundaryCheck(
   size,
   { boundaryFilename } = {}
 ) {
-  const baseUrl = getImpactAssessorUrl()
-  const url = `${baseUrl}/check-boundary`
-
+  const url = `${getImpactAssessorUrl()}/check-boundary`
   logger.info(
     `Sending boundary check - url: ${url}, filename: ${filename}, size: ${size}, boundaryFilename: ${boundaryFilename ?? '(n/a)'}`
   )
-
   const formData = new FormData()
   formData.append('geometry_file', blob, filename)
   if (boundaryFilename) {
@@ -168,6 +165,7 @@ async function postBoundaryCheck(
       boundaryGeometryOriginal,
       boundaryGeometryWgs84,
       intersectingEdps,
+      intersectingExcludedAreas,
       boundaryMetadata
     } = geojson
     return {
@@ -175,6 +173,7 @@ async function postBoundaryCheck(
         boundaryGeometryOriginal,
         boundaryGeometryWgs84,
         intersectingEdps,
+        intersectingExcludedAreas,
         boundaryMetadata
       }
     }
@@ -189,6 +188,7 @@ const boundaryCheckResponseSchema = joi
     boundaryGeometryOriginal: joi.object().required(),
     boundaryGeometryWgs84: joi.object().required(),
     intersectingEdps: joi.array().required(),
+    intersectingExcludedAreas: joi.array().required(),
     boundaryMetadata: joi.any()
   })
   .unknown(true)

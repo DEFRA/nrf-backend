@@ -237,6 +237,14 @@ async function downloadFile(fileInfo, h) {
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                 intersectingExcludedAreas:
+ *                   type: array
+ *                   description: >
+ *                     Names of EDP exclusion zones that intersect the boundary.
+ *                     Non-empty means the boundary is ineligible for the EDP and
+ *                     the user must use the Habitat Regulations instead.
+ *                   items:
+ *                     type: string
  *                 boundaryFilename:
  *                   type: string
  *                   description: >
@@ -375,6 +383,14 @@ const geometrySchema = joi
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                 intersectingExcludedAreas:
+ *                   type: array
+ *                   description: >
+ *                     Names of EDP exclusion zones that intersect the boundary.
+ *                     Non-empty means the boundary is ineligible for the EDP and
+ *                     the user must use the Habitat Regulations instead.
+ *                   items:
+ *                     type: string
  *       400:
  *         description: Invalid or unreadable geometry
  *       413:

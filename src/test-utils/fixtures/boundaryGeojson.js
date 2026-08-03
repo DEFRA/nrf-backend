@@ -22,5 +22,6 @@ export const boundaryGeojson = {
       label: 'River Wensum SAC',
       n2k_site_name: 'River Wensum SAC'
     }
-  ]
+  ],
+  intersectingExcludedAreas: []
 }
