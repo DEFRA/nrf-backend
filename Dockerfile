@@ -11,7 +11,7 @@ ARG PORT_DEBUG
 ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
-COPY --chown=node:node package*.json ./
+COPY --chown=node:node package*.json .npmrc ./
 RUN npm ci --ignore-scripts
 RUN npm run security-audit
 COPY --chown=node:node ./src ./src
@@ -29,7 +29,7 @@ USER root
 RUN apk add --no-cache curl
 USER node
 
-COPY --from=development /home/node/package*.json ./
+COPY --from=development /home/node/package*.json /home/node/.npmrc ./
 COPY --from=development /home/node/src ./src/
 COPY --from=development --chmod=444 /home/node/.git-has[h] ./
 
