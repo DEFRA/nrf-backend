@@ -21,4 +21,5 @@
   <include file="changelog/db.changelog-2.4.xml" />
   <include file="changelog/db.changelog-2.5.xml" />
   <include file="changelog/db.changelog-2.6.xml" />
+  <include file="changelog/db.changelog-2.7.xml" />
 </databaseChangeLog>

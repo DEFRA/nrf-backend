@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { audit } from '@defra/cdp-auditing'
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
@@ -8,7 +10,8 @@ import {
   sendGetRequest,
   sendPatchRequest,
   issueAccessToken,
-  getAccessTokenRowsForReference
+  getAccessTokenRowsForReference,
+  getEmailNotificationRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('@defra/cdp-auditing')
@@ -20,9 +23,12 @@ describe('Patch quote endpoint', () => {
   let notifySendEmail
 
   beforeEach(() => {
+    // Each accepted send returns a fresh Notify notification UUID — the id is
+    // now persisted to a UUID column, so a single hard-coded value would
+    // collide across quotes under the UNIQUE constraint.
     notifySendEmail = vi
       .fn()
-      .mockResolvedValue({ data: { id: 'notify-id-123' } })
+      .mockImplementation(async () => ({ data: { id: randomUUID() } }))
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
     })
@@ -97,6 +103,29 @@ describe('Patch quote endpoint', () => {
 
     expect(email.sendRequestAt).not.toBeNull()
     expect(new Date(email.sendRequestAt).getTime()).not.toBeNaN()
+  })
+
+  it('should record the Notify notification id so its status can be polled', async () => {
+    const postResponse = await createQuote(getServer())
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendPatchRequest({
+      server: getServer(),
+      reference,
+      payload: validEdpsPayload
+    })
+
+    const rows = await getEmailNotificationRowsForReference({
+      server: getServer(),
+      reference
+    })
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].email_type).toBe('quote_result')
+    expect(rows[0].notification_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
+    expect(rows[0].status).toBeNull()
   })
 
   it('should return the saved EDPs when the quote is retrieved after patching', async () => {

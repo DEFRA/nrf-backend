@@ -18,6 +18,12 @@ vi.mock('./plugins/swagger.js', () => ({
   swagger: { plugin: { name: 'swagger', register: vi.fn() } }
 }))
 
+vi.mock('./plugins/notify-status-poller.js', () => ({
+  notifyStatusPoller: {
+    plugin: { name: 'notify-status-poller', register: vi.fn() }
+  }
+}))
+
 vi.mock('./common/helpers/logging/request-logger.js', () => ({
   requestLogger: { plugin: { name: 'requestLogger', register: vi.fn() } }
 }))

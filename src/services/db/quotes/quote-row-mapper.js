@@ -1,4 +1,5 @@
 import { getLevyAmount } from '../../../api/quote/helpers/get-levy-amount.js'
+import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.js'
 
 // ST_Transform looks up the geometry's SRID in spatial_ref_sys and throws if
 // it's not a recognised one — since ST_SetSRID (used on insert) never
@@ -11,10 +12,18 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.email_se
           ELSE NULL
         END AS boundary_geodata,
         u.email AS email_address,
+        en.email_status, en.email_notification_id,
         e.edp_id, e.edp_name, e.edp_type, e.impact, e.levy_gbp_min, e.levy_gbp_max
  FROM quotes q
  LEFT JOIN users u ON u.id = q.user_id
- LEFT JOIN quote_edp_results e ON e.quote_id = q.id`
+ LEFT JOIN quote_edp_results e ON e.quote_id = q.id
+ LEFT JOIN LATERAL (
+   SELECT status AS email_status, notification_id AS email_notification_id
+     FROM quote_email_notifications
+    WHERE quote_id = q.id
+    ORDER BY created_at DESC
+    LIMIT 1
+ ) en ON true`
 
 /**
  * @param {object[]} rows - Raw database rows for a single quote (all sharing the same quote id)
@@ -53,7 +62,11 @@ export const mapQuoteRows = (rows) => {
     },
     email: {
       address: row.email_address,
-      sendRequestAt: row.email_send_request_at
+      sendRequestAt: row.email_send_request_at,
+      status: row.email_status ?? null,
+      notifyStatusUrl: row.email_notification_id
+        ? buildNotifyStatusUrl(row.email_notification_id)
+        : null
     },
     disableAnalyticsAudit: row.disable_analytics_audit ?? false,
     edps,

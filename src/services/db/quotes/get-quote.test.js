@@ -13,6 +13,8 @@ describe('dbGetQuote', () => {
       boundary_filename: 'site-boundary.shp',
       email_address: 'developer@housebuilder.com',
       email_send_request_at: null,
+      email_status: 'delivered',
+      email_notification_id: '47cbb989-9546-418c-8828-232c3dc57537',
       edp_id: 'EDP-001',
       edp_name: 'Test EDP',
       edp_type: 'flood',
@@ -54,6 +56,7 @@ describe('dbGetQuote', () => {
       ],
       levyGbp: '£100 - £200'
     })
+    expect(result.email.status).toBe('delivered')
   })
 
   it('should return the quote with empty edps when no edp results exist', async () => {

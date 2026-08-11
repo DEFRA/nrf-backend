@@ -100,3 +100,17 @@ export const getAccessTokenRowsForReference = async ({ server, reference }) => {
   )
   return rows
 }
+
+export const getEmailNotificationRowsForReference = async ({
+  server,
+  reference
+}) => {
+  const { rows } = await server.pg.query(
+    `SELECT n.* FROM quote_email_notifications n
+       JOIN quotes q ON q.id = n.quote_id
+      WHERE q.reference = $1
+      ORDER BY n.created_at`,
+    [reference]
+  )
+  return rows
+}

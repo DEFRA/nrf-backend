@@ -1,4 +1,9 @@
 import { mapQuoteRows } from './quote-row-mapper.js'
+import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.js'
+
+vi.mock('../../../common/helpers/notify-status-url.js', () => ({
+  buildNotifyStatusUrl: vi.fn()
+}))
 
 const baseRow = {
   id: 1,
@@ -43,7 +48,9 @@ describe('mapQuoteRows', () => {
       },
       email: {
         address: 'developer@housebuilder.com',
-        sendRequestAt: null
+        sendRequestAt: null,
+        status: null,
+        notifyStatusUrl: null
       },
       disableAnalyticsAudit: false,
       edps: [
@@ -56,6 +63,34 @@ describe('mapQuoteRows', () => {
         }
       ],
       levyGbp: '£100 - £200'
+    })
+  })
+
+  it('maps the latest email notification status and builds a Notify status URL', () => {
+    vi.mocked(buildNotifyStatusUrl).mockReturnValue('https://status/abc')
+    const notificationId = '47cbb989-9546-418c-8828-232c3dc57537'
+    const rows = [
+      {
+        ...baseRow,
+        email_status: 'delivered',
+        email_notification_id: notificationId,
+        edp_id: null,
+        edp_name: null,
+        edp_type: null,
+        impact: null,
+        levy_gbp_min: null,
+        levy_gbp_max: null
+      }
+    ]
+
+    const result = mapQuoteRows(rows)
+
+    expect(buildNotifyStatusUrl).toHaveBeenCalledWith(notificationId)
+    expect(result.email).toEqual({
+      address: 'developer@housebuilder.com',
+      sendRequestAt: null,
+      status: 'delivered',
+      notifyStatusUrl: 'https://status/abc'
     })
   })
 

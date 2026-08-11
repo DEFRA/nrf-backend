@@ -4,6 +4,19 @@ import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
+// Rejects 0/negative/fractional values and coerces env strings to a number.
+// Used for poller sizing where a 0 would silently disable the job (e.g.
+// `LIMIT 0` or `created_at > now()` selecting no rows) rather than failing loud.
+convict.addFormat({
+  name: 'positive-integer',
+  coerce: (val) => Number(val),
+  validate: (val) => {
+    if (!Number.isInteger(val) || val < 1) {
+      throw new Error('must be a positive integer (>= 1)')
+    }
+  }
+})
+
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
@@ -170,6 +183,38 @@ const config = convict({
       format: Number,
       default: isTest ? 0 : 10000,
       env: 'NOTIFY_RETRY_INTERVAL_MS'
+    },
+    statusPageBaseUrl: {
+      doc: 'Base URL for the GOV.UK Notify status dashboard, used to build deep links to a notification',
+      format: String,
+      default: 'https://www.notifications.service.gov.uk',
+      env: 'NOTIFY_STATUS_PAGE_BASE_URL'
+    },
+    statusPoller: {
+      enabled: {
+        doc: 'Run the scheduled job that polls GOV.UK Notify for email delivery statuses',
+        format: Boolean,
+        default: false,
+        env: 'NOTIFY_STATUS_POLLER_ENABLED'
+      },
+      schedule: {
+        doc: 'node-cron schedule expression for the Notify status poller',
+        format: String,
+        default: '*/5 * * * *',
+        env: 'NOTIFY_STATUS_POLLER_SCHEDULE'
+      },
+      batchSize: {
+        doc: 'Maximum number of notifications to poll per run',
+        format: 'positive-integer',
+        default: 50,
+        env: 'NOTIFY_STATUS_POLLER_BATCH_SIZE'
+      },
+      maxAgeDays: {
+        doc: 'Ignore notifications older than this many days when polling',
+        format: 'positive-integer',
+        default: 14,
+        env: 'NOTIFY_STATUS_POLLER_MAX_AGE_DAYS'
+      }
     }
   },
   cdpUploader: {
