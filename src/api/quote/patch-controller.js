@@ -3,7 +3,6 @@ import Boom from '@hapi/boom'
 import { auditEvents } from '../../common/constants/audit-events.js'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
-import { dbCreateEmailNotification } from '../../services/db/quote-email-notifications/create-email-notification.js'
 import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
 import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
@@ -122,6 +121,9 @@ export const patchController = {
       const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
 
       const emailResult = await sendQuoteEmail({
+        db: request.pg,
+        quoteId: id,
+        emailType: 'quote_result',
         nrfQuoteReference: reference,
         nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
@@ -137,26 +139,6 @@ export const patchController = {
           reference,
           data: { emailSendRequestAt: emailResult.sentDateTime }
         })
-      }
-
-      if (emailResult?.notificationId) {
-        // The email has already been accepted by Notify. Recording its id is
-        // best-effort status tracking — a transient DB failure here must not
-        // turn a successful send into a 500 (the row is retried on the next
-        // send, and the email itself is unaffected).
-        try {
-          await dbCreateEmailNotification({
-            db: request.pg,
-            quoteId: id,
-            notificationId: emailResult.notificationId,
-            emailType: 'quote_result'
-          })
-        } catch (error) {
-          request.logger.error(
-            { quoteId: id, notificationId: emailResult.notificationId, error },
-            'Failed to record Notify notification id; email was sent'
-          )
-        }
       }
     }
 

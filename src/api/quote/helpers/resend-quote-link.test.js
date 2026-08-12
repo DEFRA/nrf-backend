@@ -1,15 +1,11 @@
 import { resendQuoteLink } from './resend-quote-link.js'
 import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
 import { dbUpdateQuoteWithEmailSent } from '../../../services/db/quotes/update-quote-with-email-sent.js'
-import { dbCreateEmailNotification } from '../../../services/db/quote-email-notifications/create-email-notification.js'
 import { sendQuoteEmail } from './send-quote-email.js'
 import { config } from '../../../config.js'
 
 vi.mock('../../../services/db/quote-access-tokens/issue-quote-access-token.js')
 vi.mock('../../../services/db/quotes/update-quote-with-email-sent.js')
-vi.mock(
-  '../../../services/db/quote-email-notifications/create-email-notification.js'
-)
 vi.mock('./send-quote-email.js')
 
 describe('resendQuoteLink', () => {
@@ -40,6 +36,9 @@ describe('resendQuoteLink', () => {
     const frontEndBaseUrl = config.get('frontEndBaseUrl')
     expect(sendQuoteEmail).toHaveBeenCalledWith(
       expect.objectContaining({
+        db,
+        quoteId: quote.id,
+        emailType: 'resend',
         recipientEmailAddress: 'adeola@example.com',
         nrfQuoteReference: 'NRF-000001',
         nrfServiceUrl: frontEndBaseUrl,
@@ -52,22 +51,6 @@ describe('resendQuoteLink', () => {
       })
     )
     expect(emailSent).toBe(true)
-  })
-
-  it('records the Notify notification id as a resend', async () => {
-    sendQuoteEmail.mockResolvedValue({
-      notificationId: 'abc',
-      sentDateTime: '2026-06-05T00:00:00.000Z'
-    })
-
-    await resendQuoteLink({ db, quote })
-
-    expect(dbCreateEmailNotification).toHaveBeenCalledWith({
-      db,
-      quoteId: quote.id,
-      notificationId: 'abc',
-      emailType: 'resend'
-    })
   })
 
   it('advances the email send timestamp on a successful resend', async () => {
@@ -85,18 +68,6 @@ describe('resendQuoteLink', () => {
     })
   })
 
-  it('returns true even when recording the notification id fails', async () => {
-    sendQuoteEmail.mockResolvedValue({
-      notificationId: 'abc',
-      sentDateTime: '2026-06-05T00:00:00.000Z'
-    })
-    dbCreateEmailNotification.mockRejectedValue(new Error('db blip'))
-
-    const emailSent = await resendQuoteLink({ db, quote })
-
-    expect(emailSent).toBe(true)
-  })
-
   it('returns true even when recording the send timestamp fails', async () => {
     sendQuoteEmail.mockResolvedValue({
       notificationId: 'abc',
@@ -107,14 +78,6 @@ describe('resendQuoteLink', () => {
     const emailSent = await resendQuoteLink({ db, quote })
 
     expect(emailSent).toBe(true)
-  })
-
-  it('does not record a notification when Notify rejects the email', async () => {
-    sendQuoteEmail.mockResolvedValue(null)
-
-    await resendQuoteLink({ db, quote })
-
-    expect(dbCreateEmailNotification).not.toHaveBeenCalled()
   })
 
   it('returns false when Notify rejects the email', async () => {
