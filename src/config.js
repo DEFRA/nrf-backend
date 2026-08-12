@@ -7,8 +7,9 @@ convict.addFormats(convictFormatWithValidator)
 // Rejects 0/negative/fractional values and coerces env strings to a number.
 // Used for poller sizing where a 0 would silently disable the job (e.g.
 // `LIMIT 0` or `created_at > now()` selecting no rows) rather than failing loud.
+const convictFormatPositiveIntegerName = 'positive-integer'
 convict.addFormat({
-  name: 'positive-integer',
+  name: convictFormatPositiveIntegerName,
   coerce: (val) => Number(val),
   validate: (val) => {
     if (!Number.isInteger(val) || val < 1) {
@@ -205,13 +206,13 @@ const config = convict({
       },
       batchSize: {
         doc: 'Maximum number of notifications to poll per run',
-        format: 'positive-integer',
+        format: convictFormatPositiveIntegerName,
         default: 50,
         env: 'NOTIFY_STATUS_POLLER_BATCH_SIZE'
       },
       maxAgeDays: {
         doc: 'Ignore notifications older than this many days when polling',
-        format: 'positive-integer',
+        format: convictFormatPositiveIntegerName,
         default: 14,
         env: 'NOTIFY_STATUS_POLLER_MAX_AGE_DAYS'
       }
