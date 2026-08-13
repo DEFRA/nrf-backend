@@ -4,7 +4,7 @@ Entity-relationship diagram of the backend **`nrf_backend`** Postgres database
 (schema `public`) — the quote domain.
 
 - **Source:** live `nrf_backend` Postgres instance (`docker compose` service `postgres`), cross-checked against the Liquibase changelog under `backend/changelog/`.
-- **Generated:** 2026-08-11
+- **Generated:** 2026-08-13
 - **Scope:** application domain tables only. Liquibase bookkeeping (`databasechangelog`, `databasechangeloglock`) and the PostGIS reference table (`spatial_ref_sys`) are excluded.
 
 ```mermaid
@@ -30,7 +30,6 @@ erDiagram
         varchar boundary_filename "nullable"
         integer residential_building_count "nullable"
         boolean disable_analytics_audit "default false"
-        timestamptz email_send_request_at "nullable"
         timestamptz created_at
     }
 

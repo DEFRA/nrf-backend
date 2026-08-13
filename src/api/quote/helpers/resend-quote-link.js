@@ -1,12 +1,8 @@
 import { config } from '../../../config.js'
-import { createLogger } from '../../../common/helpers/logging/logger.js'
 import { generateToken } from '../../../common/helpers/token/generate-token.js'
 import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
-import { dbUpdateQuoteWithEmailSent } from '../../../services/db/quotes/update-quote-with-email-sent.js'
 import { sendQuoteEmail } from './send-quote-email.js'
 import { buildQuoteAccessLink } from './build-quote-access-link.js'
-
-const logger = createLogger()
 
 /**
  * Issues a fresh access token for a quote and emails the new access link to
@@ -43,27 +39,6 @@ export const resendQuoteLink = async ({ db, quote }) => {
     planningType: quote.planningType,
     quoteAccessLink
   })
-
-  // The email was accepted by Notify. Advancing the send timestamp is best-effort
-  // admin-UI tracking — a throw here must not escape: on the resend-unknown path
-  // it would leak a 500-vs-200 enumeration oracle, and on the resend-known path
-  // it would surface a server error for an email that was actually sent.
-  if (emailResult?.sentDateTime) {
-    // Advance the send timestamp so the admin "date sent" tracks this resend,
-    // matching the latest notification row the quote mapper surfaces (#7).
-    try {
-      await dbUpdateQuoteWithEmailSent({
-        db,
-        reference: quote.reference,
-        data: { emailSendRequestAt: emailResult.sentDateTime }
-      })
-    } catch (error) {
-      logger.error(
-        { quoteId: quote.id, error },
-        'Failed to record resend timestamp; email was sent'
-      )
-    }
-  }
 
   return Boolean(emailResult?.sentDateTime)
 }

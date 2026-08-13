@@ -5,20 +5,20 @@ import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.
 // it's not a recognised one — since ST_SetSRID (used on insert) never
 // validates the SRID it's given, a single row with a bad/legacy SRID would
 // otherwise fail this query for every quote, not just that row.
-export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.email_send_request_at, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.residential_building_count, q.disable_analytics_audit, q.created_at,
+export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.residential_building_count, q.disable_analytics_audit, q.created_at,
         CASE
           WHEN EXISTS (SELECT 1 FROM spatial_ref_sys WHERE srid = ST_SRID(q.boundary_geodata))
           THEN ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326))
           ELSE NULL
         END AS boundary_geodata,
         u.email AS email_address,
-        en.email_status, en.email_notification_id,
+        en.email_status, en.email_notification_id, en.email_requested_at,
         e.edp_id, e.edp_name, e.edp_type, e.impact, e.levy_gbp_min, e.levy_gbp_max
  FROM quotes q
  LEFT JOIN users u ON u.id = q.user_id
  LEFT JOIN quote_edp_results e ON e.quote_id = q.id
  LEFT JOIN LATERAL (
-   SELECT status AS email_status, notification_id AS email_notification_id
+   SELECT status AS email_status, notification_id AS email_notification_id, created_at AS email_requested_at
      FROM quote_email_notifications
     WHERE quote_id = q.id
     ORDER BY created_at DESC
@@ -62,7 +62,7 @@ export const mapQuoteRows = (rows) => {
     },
     email: {
       address: row.email_address,
-      sendRequestAt: row.email_send_request_at,
+      sendRequestAt: row.email_requested_at ?? null,
       status: row.email_status ?? null,
       notifyStatusUrl: row.email_notification_id
         ? buildNotifyStatusUrl(row.email_notification_id)

@@ -1,11 +1,9 @@
 import { resendQuoteLink } from './resend-quote-link.js'
 import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
-import { dbUpdateQuoteWithEmailSent } from '../../../services/db/quotes/update-quote-with-email-sent.js'
 import { sendQuoteEmail } from './send-quote-email.js'
 import { config } from '../../../config.js'
 
 vi.mock('../../../services/db/quote-access-tokens/issue-quote-access-token.js')
-vi.mock('../../../services/db/quotes/update-quote-with-email-sent.js')
 vi.mock('./send-quote-email.js')
 
 describe('resendQuoteLink', () => {
@@ -50,33 +48,6 @@ describe('resendQuoteLink', () => {
         )
       })
     )
-    expect(emailSent).toBe(true)
-  })
-
-  it('advances the email send timestamp on a successful resend', async () => {
-    sendQuoteEmail.mockResolvedValue({
-      notificationId: 'abc',
-      sentDateTime: '2026-06-05T00:00:00.000Z'
-    })
-
-    await resendQuoteLink({ db, quote })
-
-    expect(dbUpdateQuoteWithEmailSent).toHaveBeenCalledWith({
-      db,
-      reference: quote.reference,
-      data: { emailSendRequestAt: '2026-06-05T00:00:00.000Z' }
-    })
-  })
-
-  it('returns true even when recording the send timestamp fails', async () => {
-    sendQuoteEmail.mockResolvedValue({
-      notificationId: 'abc',
-      sentDateTime: '2026-06-05T00:00:00.000Z'
-    })
-    dbUpdateQuoteWithEmailSent.mockRejectedValue(new Error('db blip'))
-
-    const emailSent = await resendQuoteLink({ db, quote })
-
     expect(emailSent).toBe(true)
   })
 

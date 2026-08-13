@@ -89,7 +89,7 @@ describe('Patch quote endpoint', () => {
     )
   })
 
-  it('should write the email sent date to the database', async () => {
+  it('should expose the email send date from the recorded notification', async () => {
     const postResponse = await createQuote(getServer())
     const { reference } = JSON.parse(postResponse.payload)
 

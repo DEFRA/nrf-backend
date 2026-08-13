@@ -11,7 +11,6 @@ const makeRow = (overrides = {}) => ({
   boundary_entry_type: 'upload',
   boundary_filename: 'site-boundary.shp',
   email_address: 'developer@housebuilder.com',
-  email_send_request_at: null,
   edp_id: null,
   edp_name: null,
   edp_type: null,
