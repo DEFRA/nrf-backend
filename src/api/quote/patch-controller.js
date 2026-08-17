@@ -2,7 +2,6 @@ import { audit } from '@defra/cdp-auditing'
 import Boom from '@hapi/boom'
 import { auditEvents } from '../../common/constants/audit-events.js'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
-import { dbUpdateQuoteWithEmailSent } from '../../services/db/quotes/update-quote-with-email-sent.js'
 import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
 import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
@@ -120,7 +119,10 @@ export const patchController = {
       const frontEndBaseUrl = config.get('frontEndBaseUrl')
       const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
 
-      const emailResult = await sendQuoteEmail({
+      await sendQuoteEmail({
+        db: request.pg,
+        quoteId: id,
+        emailType: 'quote_result',
         nrfQuoteReference: reference,
         nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
@@ -129,14 +131,6 @@ export const patchController = {
         planningType,
         quoteAccessLink
       })
-
-      if (emailResult?.sentDateTime) {
-        await dbUpdateQuoteWithEmailSent({
-          db: request.pg,
-          reference,
-          data: { emailSendRequestAt: emailResult.sentDateTime }
-        })
-      }
     }
 
     const updatedQuote = await dbGetQuote({

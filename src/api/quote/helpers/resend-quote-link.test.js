@@ -34,6 +34,9 @@ describe('resendQuoteLink', () => {
     const frontEndBaseUrl = config.get('frontEndBaseUrl')
     expect(sendQuoteEmail).toHaveBeenCalledWith(
       expect.objectContaining({
+        db,
+        quoteId: quote.id,
+        emailType: 'resend',
         recipientEmailAddress: 'adeola@example.com',
         nrfQuoteReference: 'NRF-000001',
         nrfServiceUrl: frontEndBaseUrl,

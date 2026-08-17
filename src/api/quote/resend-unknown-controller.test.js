@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
@@ -19,7 +21,7 @@ describe('Resend unknown quote link endpoint', () => {
   beforeEach(() => {
     notifySendEmail = vi
       .fn()
-      .mockResolvedValue({ data: { id: 'notify-id-123' } })
+      .mockImplementation(async () => ({ data: { id: randomUUID() } }))
     vi.mocked(createNotifyClient).mockReturnValue({
       sendEmail: notifySendEmail
     })

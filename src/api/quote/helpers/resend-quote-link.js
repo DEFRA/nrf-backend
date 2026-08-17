@@ -28,6 +28,9 @@ export const resendQuoteLink = async ({ db, quote }) => {
   })
 
   const emailResult = await sendQuoteEmail({
+    db,
+    quoteId: quote.id,
+    emailType: 'resend',
     recipientEmailAddress: quote.email.address,
     nrfQuoteReference: quote.reference,
     nrfServiceUrl: config.get('frontEndBaseUrl'),

@@ -1,10 +1,17 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
+import { dbCreateEmailNotification } from '../../../services/db/quote-email-notifications/create-email-notification.js'
 import { config } from '../../../config.js'
+import { createLogger } from '../../../common/helpers/logging/logger.js'
 import { getLevyAmount } from './get-levy-amount.js'
 import { getPlanningTypeDisplay } from './get-planning-type-display.js'
 
+const logger = createLogger()
+
 /**
  * @param {object} params
+ * @param {{ query: Function }} params.db
+ * @param {number} params.quoteId
+ * @param {string} [params.emailType='quote_result'] - 'quote_result' | 'resend'
  * @param {string} params.recipientEmailAddress
  * @param {string} params.nrfQuoteReference
  * @param {string} params.nrfServiceUrl
@@ -12,8 +19,12 @@ import { getPlanningTypeDisplay } from './get-planning-type-display.js'
  * @param {number} params.housingUnits
  * @param {string} params.planningType
  * @param {string} params.quoteAccessLink
+ * @returns {Promise<{ notificationId: string, sentDateTime: string } | null>}
  */
-export const sendQuoteEmail = ({
+export const sendQuoteEmail = async ({
+  db,
+  quoteId,
+  emailType = 'quote_result',
   recipientEmailAddress,
   nrfQuoteReference,
   nrfServiceUrl,
@@ -23,7 +34,7 @@ export const sendQuoteEmail = ({
   quoteAccessLink
 }) => {
   const { templateIds } = config.get('notify')
-  return sendEmail({
+  const emailResult = await sendEmail({
     recipientEmailAddress,
     emailReference: nrfQuoteReference,
     emailBodyVariables: {
@@ -37,4 +48,22 @@ export const sendQuoteEmail = ({
     },
     templateId: templateIds.quote
   })
+
+  if (emailResult?.notificationId) {
+    try {
+      await dbCreateEmailNotification({
+        db,
+        quoteId,
+        notificationId: emailResult.notificationId,
+        emailType
+      })
+    } catch (error) {
+      logger.error(
+        { quoteId, notificationId: emailResult.notificationId, error },
+        'Failed to record Notify notification id; email was sent'
+      )
+    }
+  }
+
+  return emailResult
 }
