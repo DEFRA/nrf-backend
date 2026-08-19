@@ -57,6 +57,29 @@ describe('sendQuoteEmail', () => {
     })
   })
 
+  it('defaults the Notify email reference to the quote reference', async () => {
+    await sendQuoteEmail(baseArgs)
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ emailReference: nrfQuoteReference })
+    )
+  })
+
+  it('uses a supplied emailReference without changing the reference shown in the email body', async () => {
+    await sendQuoteEmail({
+      ...baseArgs,
+      emailType: 'retry',
+      emailReference: `${nrfQuoteReference}-retry-1`
+    })
+
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailReference: `${nrfQuoteReference}-retry-1`,
+        emailBodyVariables: expect.objectContaining({ nrfQuoteReference })
+      })
+    )
+  })
+
   it('returns the result of sendEmail', async () => {
     const sendEmailResult = {
       notificationId: 'test-notification-id',
