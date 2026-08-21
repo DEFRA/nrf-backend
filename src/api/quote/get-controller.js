@@ -6,6 +6,7 @@ import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { quoteAccessStatus } from './quote-access-status.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
+import { config } from '../../config.js'
 
 const bearerPrefix = /^Bearer (.+)$/
 
@@ -13,7 +14,9 @@ const extractBearerToken = (authorization) =>
   authorization?.match(bearerPrefix)?.[1]
 
 const querySchema = joi.object({
-  redeem: joi.boolean().default(true)
+  redeem: joi.boolean().default(true),
+  //TODO - remove after request to use
+  requestToUse: joi.boolean().default(false)
 })
 
 /**
@@ -83,6 +86,14 @@ export const getController = {
     if (!quote) {
       return h
         .response({ accessStatus: quoteAccessStatus.notFound, quote: null })
+        .code(statusCodes.ok)
+    }
+
+    //TODO - remove after request to use
+    const cdpEnvironment = config.get('cdpEnvironment')
+    if (cdpEnvironment === 'ext-test' && request.query.requestToUse === true) {
+      return h
+        .response({ accessStatus: quoteAccessStatus.valid, quote })
         .code(statusCodes.ok)
     }
 
