@@ -4,7 +4,7 @@ describe('dbGetQuote', () => {
   it('should return the mapped quote with edps when found', async () => {
     const mockRow = {
       id: 1,
-      reference: 'NRF-000001',
+      reference: 'NRL-000001',
       user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
       residential_building_count: 10,
@@ -23,15 +23,15 @@ describe('dbGetQuote', () => {
     }
     const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
 
-    const result = await dbGetQuote({ db, reference: 'NRF-000001' })
+    const result = await dbGetQuote({ db, reference: 'NRL-000001' })
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('LEFT JOIN quote_edp_results'),
-      ['NRF-000001']
+      ['NRL-000001']
     )
     expect(result).toMatchObject({
       id: 1,
-      reference: 'NRF-000001',
+      reference: 'NRL-000001',
       userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       createdAt: '2026-03-23T00:00:00.000Z',
       housingUnits: 10,
@@ -61,7 +61,7 @@ describe('dbGetQuote', () => {
   it('should return the quote with empty edps when no edp results exist', async () => {
     const mockRow = {
       id: 1,
-      reference: 'NRF-000001',
+      reference: 'NRL-000001',
       user_id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       created_at: '2026-03-23T00:00:00.000Z',
       residential_building_count: null,
@@ -77,7 +77,7 @@ describe('dbGetQuote', () => {
     }
     const db = { query: vi.fn().mockResolvedValue({ rows: [mockRow] }) }
 
-    const result = await dbGetQuote({ db, reference: 'NRF-000001' })
+    const result = await dbGetQuote({ db, reference: 'NRL-000001' })
 
     expect(result.edps).toEqual([])
   })
@@ -85,7 +85,7 @@ describe('dbGetQuote', () => {
   it('should return null when the quote is not found', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
-    const result = await dbGetQuote({ db, reference: 'NRF-000001' })
+    const result = await dbGetQuote({ db, reference: 'NRL-000001' })
 
     expect(result).toBeNull()
   })

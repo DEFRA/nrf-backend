@@ -6,7 +6,7 @@ vi.mock('../../../services/sns/publish-event.js')
 
 const logger = { info: vi.fn(), error: vi.fn() }
 const quoteData = {
-  reference: 'NRF-123456',
+  reference: 'NRL-123456',
   boundaryGeojson: { type: 'Polygon', coordinates: [] },
   housingUnits: 10
 }

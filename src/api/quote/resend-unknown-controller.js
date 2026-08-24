@@ -40,8 +40,8 @@ const emailMatches = (quote, submittedEmail) =>
  *         required: true
  *         schema:
  *           type: string
- *           pattern: ^NRF-\d{6}$
- *         example: NRF-000001
+ *           pattern: ^NRL-\d{6}$
+ *         example: NRL-000001
  *     requestBody:
  *       required: true
  *       content:

@@ -22,7 +22,7 @@ erDiagram
 
     quotes {
         integer id PK "identity"
-        varchar reference UK "generated: NRF-NNNNNN"
+        varchar reference UK "generated: NRL-NNNNNN"
         uuid user_id FK "nullable"
         varchar planning_type "nullable"
         varchar boundary_entry_type
@@ -82,7 +82,7 @@ erDiagram
 
 ## Notes
 
-- `quotes.reference` is a generated column (`NRF-` + a hashed, zero-padded id) defined via raw SQL in the Liquibase changelog.
+- `quotes.reference` is a generated column (`NRL-` + a hashed, zero-padded id) defined via raw SQL in the Liquibase changelog.
 - `quote_access_tokens`, `quote_edp_results` and `quote_email_notifications` foreign keys to `quotes` are `ON DELETE CASCADE`.
 - `quotes.user_id` is nullable — a quote can exist without an associated user.
 - `quote_email_notifications.notification_id` is unique; a quote accumulates several rows over its lifetime (the initial quote-result send plus any resends, distinguished by `email_type`). `status` is null until the Notify status poller first fetches it.

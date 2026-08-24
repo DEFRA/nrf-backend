@@ -11,7 +11,7 @@ describe('sendQuoteEmail', () => {
   const db = { query: vi.fn() }
   const quoteId = 42
   const recipientEmailAddress = 'test@example.com'
-  const nrfQuoteReference = 'NRF-2024-001'
+  const nrfQuoteReference = 'NRL-2024-001'
   const edps = [
     {
       edpName: 'Norfolk Fens east',
@@ -21,7 +21,7 @@ describe('sendQuoteEmail', () => {
   const housingUnits = 5
   const planningType = 'full-planning-permission'
   const nrfServiceUrl = 'http://localhost:3000'
-  const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
+  const quoteAccessLink = 'http://localhost:3000/quote/NRL-2024-001/abc123token'
 
   const baseArgs = {
     db,

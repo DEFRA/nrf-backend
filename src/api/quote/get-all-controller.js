@@ -21,7 +21,7 @@ import { dbGetAllQuotes } from '../../services/db/quotes/get-all-quotes.js'
  *                     type: number
  *                   reference:
  *                     type: string
- *                     example: NRF-000001
+ *                     example: NRL-000001
  */
 export const getAllController = {
   handler: async (request, h) => {

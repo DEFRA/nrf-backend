@@ -56,12 +56,12 @@ describe('#loggerOptions', () => {
 
     test('returns trace fields when request has tracing header', () => {
       const mockRequest = {
-        url: { pathname: '/quotes/NRF-687396' },
+        url: { pathname: '/quotes/NRL-687396' },
         headers: { 'x-cdp-request-id': 'trace-from-header' }
       }
 
       expect(loggerOptions.getChildBindings(mockRequest)).toEqual({
-        url: { path: '/quotes/NRF-687396' },
+        url: { path: '/quotes/NRL-687396' },
         trace: { id: 'trace-from-header' }
       })
     })
