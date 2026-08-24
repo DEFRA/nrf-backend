@@ -10,7 +10,7 @@ describe('resendQuoteLink', () => {
   const db = { query: vi.fn() }
   const quote = {
     id: 42,
-    reference: 'NRF-000001',
+    reference: 'NRL-000001',
     planningType: 'full-planning-permission',
     housingUnits: 5,
     email: { address: 'adeola@example.com' },
@@ -38,13 +38,13 @@ describe('resendQuoteLink', () => {
         quoteId: quote.id,
         emailType: 'resend',
         recipientEmailAddress: 'adeola@example.com',
-        nrfQuoteReference: 'NRF-000001',
+        nrfQuoteReference: 'NRL-000001',
         nrfServiceUrl: frontEndBaseUrl,
         edps: quote.edps,
         housingUnits: quote.housingUnits,
         planningType: quote.planningType,
         quoteAccessLink: expect.stringMatching(
-          /\/quote\/NRF-000001\/[A-Za-z0-9_-]{43}$/
+          /\/quote\/NRL-000001\/[A-Za-z0-9_-]{43}$/
         )
       })
     )

@@ -166,7 +166,7 @@ describe('Patch quote endpoint', () => {
   it('should return 404 when the quote reference does not exist', async () => {
     const response = await sendPatchRequest({
       server: getServer(),
-      reference: 'NRF-999999',
+      reference: 'NRL-999999',
       payload: validEdpsPayload
     })
 

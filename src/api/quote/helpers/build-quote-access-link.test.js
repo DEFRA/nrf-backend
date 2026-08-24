@@ -6,10 +6,10 @@ describe('buildQuoteAccessLink', () => {
     const frontEndBaseUrl = config.get('frontEndBaseUrl')
 
     const link = buildQuoteAccessLink({
-      reference: 'NRF-000001',
+      reference: 'NRL-000001',
       rawToken: 'abc123token'
     })
 
-    expect(link).toBe(`${frontEndBaseUrl}/quote/NRF-000001/abc123token`)
+    expect(link).toBe(`${frontEndBaseUrl}/quote/NRL-000001/abc123token`)
   })
 })

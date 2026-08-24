@@ -108,7 +108,7 @@ describe('Resend unknown quote link endpoint', () => {
     it('returns an identical generic response and sends no email', async () => {
       const response = await sendResendUnknownRequest({
         server: getServer(),
-        reference: 'NRF-999999',
+        reference: 'NRL-999999',
         email: 'developer@housebuilder.com'
       })
 
@@ -134,7 +134,7 @@ describe('Resend unknown quote link endpoint', () => {
   it('accepts a reserved-TLD email and returns the generic response, matching the frontend validation', async () => {
     const response = await sendResendUnknownRequest({
       server: getServer(),
-      reference: 'NRF-999999',
+      reference: 'NRL-999999',
       email: 'someone@nowhere.example'
     })
 

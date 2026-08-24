@@ -2,7 +2,7 @@ import { dbGetAllQuotes } from './get-all-quotes.js'
 
 const makeRow = (overrides = {}) => ({
   id: 1,
-  reference: 'NRF-000001',
+  reference: 'NRL-000001',
   created_at: '2026-03-23T00:00:00.000Z',
   development_types: ['housing'],
   residential_building_count: 10,
@@ -35,7 +35,7 @@ describe('dbGetAllQuotes', () => {
     const result = await dbGetAllQuotes({ db })
 
     expect(result).toHaveLength(1)
-    expect(result[0].reference).toBe('NRF-000001')
+    expect(result[0].reference).toBe('NRL-000001')
     expect(result[0].edps).toEqual([])
   })
 
@@ -87,10 +87,10 @@ describe('dbGetAllQuotes', () => {
     const db = {
       query: vi.fn().mockResolvedValue({
         rows: [
-          makeRow({ id: 1, reference: 'NRF-000001' }),
+          makeRow({ id: 1, reference: 'NRL-000001' }),
           makeRow({
             id: 2,
-            reference: 'NRF-000002',
+            reference: 'NRL-000002',
             created_at: '2026-03-24T00:00:00.000Z'
           })
         ]
@@ -100,7 +100,7 @@ describe('dbGetAllQuotes', () => {
     const result = await dbGetAllQuotes({ db })
 
     expect(result).toHaveLength(2)
-    expect(result[0].reference).toBe('NRF-000001')
-    expect(result[1].reference).toBe('NRF-000002')
+    expect(result[0].reference).toBe('NRL-000001')
+    expect(result[1].reference).toBe('NRL-000002')
   })
 })

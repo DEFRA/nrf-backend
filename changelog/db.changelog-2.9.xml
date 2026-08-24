@@ -1,0 +1,42 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="25" author="your-name">
+    <comment>
+      Change the reference generated column prefix from NRF- to NRL-. Postgres
+      cannot alter a generated column's expression in place, so the column is
+      dropped and re-added with the new expression. Re-adding recomputes the
+      value for every existing row, so all references (existing and new) are
+      re-issued with the NRL- prefix. The id-to-reference mapping is unchanged
+      apart from the prefix (same multiplier and lpad), so lookups by reference
+      must use the new value.
+    </comment>
+    <sql>
+      ALTER TABLE quotes DROP COLUMN reference;
+    </sql>
+    <sql>
+      ALTER TABLE quotes ADD COLUMN reference VARCHAR(10) GENERATED ALWAYS AS (
+        'NRL-' || LPAD(((id::bigint * 2654435761) % 1000000)::text, 6, '0')
+      ) STORED UNIQUE;
+    </sql>
+    <rollback>
+      <sql>
+        ALTER TABLE quotes DROP COLUMN reference;
+      </sql>
+      <sql>
+        ALTER TABLE quotes ADD COLUMN reference VARCHAR(10) GENERATED ALWAYS AS (
+          'NRF-' || LPAD(((id::bigint * 2654435761) % 1000000)::text, 6, '0')
+        ) STORED UNIQUE;
+      </sql>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

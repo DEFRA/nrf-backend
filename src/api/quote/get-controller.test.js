@@ -244,7 +244,7 @@ describe('Get quote endpoint', () => {
     it('should return status not_found for an unknown reference', async () => {
       const response = await sendGetRequest({
         server: getServer(),
-        reference: 'NRF-999999',
+        reference: 'NRL-999999',
         bearerToken: 'any-token'
       })
 

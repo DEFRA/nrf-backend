@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe('dbCreateQuote', () => {
   const mockUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-  const mockQuoteRow = { id: 1, reference: 'NRF-000001' }
+  const mockQuoteRow = { id: 1, reference: 'NRL-000001' }
 
   const mockBoundaryGeojson = {
     boundaryGeometryOriginal: {
