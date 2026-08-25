@@ -57,6 +57,24 @@ describe('sendQuoteEmail', () => {
     })
   })
 
+  it('lists multiple EDP names', async () => {
+    const args = {
+      ...baseArgs,
+      edps: [
+        { edpName: 'One', levyGbp: { min: 100, max: 200 } },
+        { edpName: 'Two', levyGbp: { min: 100, max: 200 } }
+      ]
+    }
+    await sendQuoteEmail(args)
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailBodyVariables: expect.objectContaining({
+          edpNames: 'One, Two'
+        })
+      })
+    )
+  })
+
   it('returns the result of sendEmail', async () => {
     const sendEmailResult = {
       notificationId: 'test-notification-id',
