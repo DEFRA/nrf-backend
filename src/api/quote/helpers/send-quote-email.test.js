@@ -46,7 +46,7 @@ describe('sendQuoteEmail', () => {
       emailReference: nrfQuoteReference,
       emailBodyVariables: {
         nrfQuoteReference,
-        edpNames: expect.any(Array),
+        edpNames: 'Norfolk Fens east',
         housingUnits,
         planningType: 'full planning permission',
         levyAmount: '£100 - £200',
