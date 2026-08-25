@@ -46,7 +46,7 @@ describe('sendQuoteEmail', () => {
       emailReference: nrfQuoteReference,
       emailBodyVariables: {
         nrfQuoteReference,
-        edpNames: expect.any(Array),
+        edpNames: 'Norfolk Fens east',
         housingUnits,
         planningType: 'full planning permission',
         levyAmount: '£100 - £200',
@@ -55,6 +55,24 @@ describe('sendQuoteEmail', () => {
       },
       templateId: expect.any(String)
     })
+  })
+
+  it('lists multiple EDP names', async () => {
+    const args = {
+      ...baseArgs,
+      edps: [
+        { edpName: 'One', levyGbp: { min: 100, max: 200 } },
+        { edpName: 'Two', levyGbp: { min: 100, max: 200 } }
+      ]
+    }
+    await sendQuoteEmail(args)
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailBodyVariables: expect.objectContaining({
+          edpNames: 'One, Two'
+        })
+      })
+    )
   })
 
   it('returns the result of sendEmail', async () => {
