@@ -24,7 +24,7 @@ erDiagram
     users {
         uuid id PK "default gen_random_uuid()"
         citext email UK "case-insensitive"
-        varchar defra_id UK "nullable, Defra ID subject"
+        varchar defra_id UK "nullable until first sign-in, Defra ID subject"
         varchar first_name "nullable"
         varchar last_name "nullable"
         timestamptz created_at "default now()"
@@ -33,7 +33,7 @@ erDiagram
     }
 
     organisations {
-        varchar defra_id PK "Defra ID organisation id"
+        varchar defra_id PK "Defra ID organisation id, a natural key"
         varchar name
         timestamptz created_at "default now()"
         timestamptz updated_at "nullable"
@@ -42,7 +42,7 @@ erDiagram
     user_organisations {
         uuid user_id PK,FK "ON DELETE CASCADE"
         varchar organisation_defra_id PK,FK "ON DELETE CASCADE"
-        varchar relationship_type "nullable"
+        varchar relationship_type "nullable, CHECK: Employee or Agent"
     }
 
     quotes {
@@ -87,7 +87,7 @@ erDiagram
         integer quote_id FK "ON DELETE CASCADE, indexed"
         uuid notification_id UK "GOV.UK Notify id"
         varchar email_type "default quote_result"
-        varchar status "nullable, from Notify"
+        varchar status "nullable, GOV.UK Notify delivery status"
         timestamptz status_checked_at "nullable"
         timestamptz sent_at "nullable"
         timestamptz completed_at "nullable"
@@ -97,15 +97,15 @@ erDiagram
 
 ## Tables
 
-| Table                       | Purpose                                                                                                     |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `users`                     | One row per signed-in account, keyed on the Defra ID subject.                                               |
-| `organisations`             | Organisations from Defra ID that users can act on behalf of.                                                |
-| `user_organisations`        | Which users act for which organisations. Composite PK; both sides cascade.                                  |
-| `quotes`                    | One row per levy estimate requested through the public journey.                                             |
-| `quote_edp_results`         | One row per Environmental Delivery Plan a quote's boundary intersects, with the levy range assessed for it. |
-| `quote_access_tokens`       | Magic-link tokens granting access to a quote without a login. Only the hash is stored.                      |
-| `quote_email_notifications` | Outbound quote emails and their GOV.UK Notify delivery status.                                              |
+| Table                       | Purpose                                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `users`                     | One row per signed-in account, keyed on the Defra ID subject.                                                            |
+| `organisations`             | Organisations from Defra ID that users can act on behalf of.                                                             |
+| `user_organisations`        | Which users act for which organisations, and in what capacity (`Employee` or `Agent`). Composite PK; both sides cascade. |
+| `quotes`                    | One row per levy estimate requested through the public journey.                                                          |
+| `quote_edp_results`         | One row per Environmental Delivery Plan a quote's boundary intersects, with the levy range assessed for it.              |
+| `quote_access_tokens`       | Magic-link tokens granting access to a quote without a login. Only the hash is stored.                                   |
+| `quote_email_notifications` | Outbound quote emails and their GOV.UK Notify delivery status.                                                           |
 
 ## Constraints and indexes worth knowing
 
@@ -118,6 +118,17 @@ erDiagram
 | `uq_users_defra_id`              | `UNIQUE (defra_id)` — one account per Defra ID subject.                                                                                                                                                                                                           |
 | `idx_qat_quote`                  | `quote_access_tokens (quote_id)`.                                                                                                                                                                                                                                 |
 
+| `ck_uo_relationship_type` | `CHECK (relationship_type IN ('Employee','Agent'))` on `user_organisations`. A NULL passes the check, so the column is genuinely optional. |
+
 Deleting a quote cascades to its EDP results, access tokens and email
 notifications. Deleting a user does **not** cascade to their quotes — `user_id`
 is nullable and the FK takes no action, so a quote outlives the account.
+
+A few behaviours the column list does not convey:
+
+- `users.defra_id` is unique but nullable — an account created before its first
+  sign-in has no Defra ID yet, and Postgres allows multiple NULLs under a unique
+  constraint.
+- `quote_email_notifications.status` is null until the Notify status poller first
+  fetches it. A quote accumulates several rows over its lifetime — the initial
+  quote-result send plus any resends, told apart by `email_type`.
