@@ -1,17 +1,20 @@
+import { relationshipTypes } from '../../../common/constants/relationship-types.js'
+
 /**
  * Updates a signed-in user's Defra ID profile on their existing users row, first merging
  * any existing email-only record (created when a quote was started before sign-in) so the
  * same person never ends up with two rows. Returns null if no row exists for this user yet
  * (neither by defra_id nor by a prior email-only record) — the caller should treat that as
- * not found rather than creating a new row. When an organisation is present, upserts it and
- * the user/organisation link with its relationship type.
+ * not found rather than creating a new row. When an organisation is present and the
+ * relationship type is not Citizen, upserts the organisation and user/organisation link — a
+ * Citizen has no organisation to link, even if the token happened to carry an org id.
  * @param {Object} params
  * @param {import('pg').Pool} params.db - pg pool (request.pg)
  * @param {string} params.defraId - Defra ID sub claim (users.defra_id)
  * @param {string} params.email - email from the token
  * @param {string} params.firstName
  * @param {string} params.lastName
- * @param {string} [params.organisationDefraId] - Defra ID org id; when present the organisation and link are upserted
+ * @param {string} [params.organisationDefraId] - Defra ID org id; when present (and relationshipType isn't Citizen) the organisation and link are upserted
  * @param {string} [params.organisationName] - required when organisationDefraId is present
  * @param {string} [params.relationshipType] - Citizen / Employee / Agent, stored on the link
  * @returns {Promise<{userId: string}|null>} The user id, or null if no matching row exists
@@ -50,7 +53,7 @@ export const dbUpdateUser = async ({
     return null
   }
 
-  if (organisationDefraId) {
+  if (organisationDefraId && relationshipType !== relationshipTypes.citizen) {
     await db.query(
       `INSERT INTO organisations (defra_id, name, updated_at) VALUES ($1, $2, now())
        ON CONFLICT (defra_id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()`,

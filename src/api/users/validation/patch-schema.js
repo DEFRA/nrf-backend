@@ -1,4 +1,5 @@
 import joi from 'joi'
+import { relationshipTypes } from '../../../common/constants/relationship-types.js'
 
 const MAX_NAME_LENGTH = 255
 const MAX_EMAIL_LENGTH = 254
@@ -24,7 +25,7 @@ export const userPatchSchema = joi
     organisationName: joi.string().trim().max(MAX_NAME_LENGTH).optional(),
     relationshipType: joi
       .string()
-      .valid('Citizen', 'Employee', 'Agent')
+      .valid(...Object.values(relationshipTypes))
       .optional()
   })
   // organisations.name is NOT NULL, so the name must come with the id

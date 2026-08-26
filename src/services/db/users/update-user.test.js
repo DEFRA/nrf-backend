@@ -110,4 +110,18 @@ describe('dbUpdateUser', () => {
 
     expect(db.query).toHaveBeenCalledTimes(2)
   })
+
+  it('should not touch the organisation tables when the relationship type is Citizen', async () => {
+    const db = mockDb()
+
+    await dbUpdateUser({
+      db,
+      ...baseArgs,
+      organisationDefraId: '27d48d6c-6e94-f011-b4cc-000d3ac28f39',
+      organisationName: 'CDP Child Org 1',
+      relationshipType: 'Citizen'
+    })
+
+    expect(db.query).toHaveBeenCalledTimes(2)
+  })
 })

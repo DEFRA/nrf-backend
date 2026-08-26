@@ -104,6 +104,33 @@ describe('PATCH /users/{defraId}', () => {
     expect(linkRows).toEqual([{ relationship_type: 'Employee' }])
   })
 
+  it('does not save an organisation or link when the relationship type is Citizen', async () => {
+    const server = getServer()
+    const defraId = randomUUID()
+    const email = uniqueEmail()
+
+    await server.pg.query('INSERT INTO users (email) VALUES ($1)', [email])
+
+    await sendPatchRequest({
+      server,
+      defraId,
+      payload: {
+        ...validPayload(email),
+        organisationDefraId: ORG_DEFRA_ID,
+        organisationName: 'CDP Child Org 1',
+        relationshipType: 'Citizen'
+      }
+    })
+
+    const { rows: linkRows } = await server.pg.query(
+      `SELECT uo.relationship_type FROM user_organisations uo
+       JOIN users u ON u.id = uo.user_id
+       WHERE u.defra_id = $1 AND uo.organisation_defra_id = $2`,
+      [defraId, ORG_DEFRA_ID]
+    )
+    expect(linkRows).toHaveLength(0)
+  })
+
   describe('Request validation', () => {
     it.each([
       ['missing email', (payload) => delete payload.email],
