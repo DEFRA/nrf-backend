@@ -1,13 +1,13 @@
-import { dbSaveUser } from './save-user.js'
+import { dbUpdateUser } from './update-user.js'
 
 const DEFRA_ID = '81d48d6c-6e94-f011-b4cc-000d3ac28f39'
 const EMAIL = 'developer@housebuilder.com'
 
-describe('dbSaveUser', () => {
+describe('dbUpdateUser', () => {
   const mockUserId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
 
-  const mockDb = (created) => ({
-    query: vi.fn().mockResolvedValue({ rows: [{ id: mockUserId, created }] })
+  const mockDb = () => ({
+    query: vi.fn().mockResolvedValue({ rows: [{ id: mockUserId }] })
   })
 
   const baseArgs = {
@@ -17,10 +17,10 @@ describe('dbSaveUser', () => {
     lastName: 'User'
   }
 
-  it('should merge an email-only record and upsert the user by defra id', async () => {
-    const db = mockDb(true)
+  it('should merge an email-only record and update the user by defra id', async () => {
+    const db = mockDb()
 
-    await dbSaveUser({ db, ...baseArgs })
+    await dbUpdateUser({ db, ...baseArgs })
 
     expect(db.query).toHaveBeenNthCalledWith(
       1,
@@ -29,31 +29,44 @@ describe('dbSaveUser', () => {
     )
     expect(db.query).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining('INSERT INTO users'),
+      expect.stringContaining('UPDATE users SET email = $2'),
       [DEFRA_ID, EMAIL, 'Test', 'User']
     )
   })
 
-  it('should return the user id and created flag', async () => {
-    const db = mockDb(true)
+  it('should return the user id', async () => {
+    const db = mockDb()
 
-    const result = await dbSaveUser({ db, ...baseArgs })
+    const result = await dbUpdateUser({ db, ...baseArgs })
 
-    expect(result).toEqual({ userId: mockUserId, userCreated: true })
+    expect(result).toEqual({ userId: mockUserId })
   })
 
-  it('should report an existing row as not created', async () => {
-    const db = mockDb(false)
+  it('should return null when no user row exists for this defra id', async () => {
+    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
-    const result = await dbSaveUser({ db, ...baseArgs })
+    const result = await dbUpdateUser({ db, ...baseArgs })
 
-    expect(result).toEqual({ userId: mockUserId, userCreated: false })
+    expect(result).toBeNull()
+  })
+
+  it('should not touch the organisation tables when no user row exists for this defra id', async () => {
+    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
+
+    await dbUpdateUser({
+      db,
+      ...baseArgs,
+      organisationDefraId: '27d48d6c-6e94-f011-b4cc-000d3ac28f39',
+      organisationName: 'CDP Child Org 1'
+    })
+
+    expect(db.query).toHaveBeenCalledTimes(2)
   })
 
   it('should upsert the organisation and link when an org is present', async () => {
-    const db = mockDb(true)
+    const db = mockDb()
 
-    await dbSaveUser({
+    await dbUpdateUser({
       db,
       ...baseArgs,
       organisationDefraId: '27d48d6c-6e94-f011-b4cc-000d3ac28f39',
@@ -74,9 +87,9 @@ describe('dbSaveUser', () => {
   })
 
   it('should store a null relationship type when none is provided', async () => {
-    const db = mockDb(true)
+    const db = mockDb()
 
-    await dbSaveUser({
+    await dbUpdateUser({
       db,
       ...baseArgs,
       organisationDefraId: '27d48d6c-6e94-f011-b4cc-000d3ac28f39',
@@ -91,9 +104,9 @@ describe('dbSaveUser', () => {
   })
 
   it('should not touch the organisation tables when no org is present', async () => {
-    const db = mockDb(true)
+    const db = mockDb()
 
-    await dbSaveUser({ db, ...baseArgs })
+    await dbUpdateUser({ db, ...baseArgs })
 
     expect(db.query).toHaveBeenCalledTimes(2)
   })

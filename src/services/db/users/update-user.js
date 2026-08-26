@@ -1,8 +1,10 @@
 /**
- * Saves a signed-in user's Defra ID profile. Upserts the user by defra_id, first
- * merging any existing email-only record (created when a quote was started before
- * sign-in) so the same person never ends up with two rows. When an organisation is
- * present, upserts it and the user/organisation link with its relationship type.
+ * Updates a signed-in user's Defra ID profile on their existing users row, first merging
+ * any existing email-only record (created when a quote was started before sign-in) so the
+ * same person never ends up with two rows. Returns null if no row exists for this user yet
+ * (neither by defra_id nor by a prior email-only record) — the caller should treat that as
+ * not found rather than creating a new row. When an organisation is present, upserts it and
+ * the user/organisation link with its relationship type.
  * @param {Object} params
  * @param {import('pg').Pool} params.db - pg pool (request.pg)
  * @param {string} params.defraId - Defra ID sub claim (users.defra_id)
@@ -12,9 +14,9 @@
  * @param {string} [params.organisationDefraId] - Defra ID org id; when present the organisation and link are upserted
  * @param {string} [params.organisationName] - required when organisationDefraId is present
  * @param {string} [params.relationshipType] - Citizen / Employee / Agent, stored on the link
- * @returns {Promise<{userId: string, userCreated: boolean}>} The user id and whether a new row was inserted
+ * @returns {Promise<{userId: string}|null>} The user id, or null if no matching row exists
  */
-export const dbSaveUser = async ({
+export const dbUpdateUser = async ({
   db,
   defraId,
   email,
@@ -37,17 +39,16 @@ export const dbSaveUser = async ({
   const {
     rows: [userRow]
   } = await db.query(
-    `INSERT INTO users (defra_id, email, first_name, last_name, updated_at, first_signed_in_at)
-     VALUES ($1, $2, $3, $4, now(), now())
-     ON CONFLICT (defra_id) DO UPDATE SET
-       email = EXCLUDED.email,
-       first_name = EXCLUDED.first_name,
-       last_name = EXCLUDED.last_name,
-       updated_at = now(),
-       first_signed_in_at = COALESCE(users.first_signed_in_at, EXCLUDED.first_signed_in_at)
-     RETURNING id, (xmax = 0) AS created`,
+    `UPDATE users SET email = $2, first_name = $3, last_name = $4, updated_at = now(),
+     first_signed_in_at = COALESCE(first_signed_in_at, now())
+     WHERE defra_id = $1
+     RETURNING id`,
     [defraId, email, firstName, lastName]
   )
+
+  if (!userRow) {
+    return null
+  }
 
   if (organisationDefraId) {
     await db.query(
@@ -64,5 +65,5 @@ export const dbSaveUser = async ({
     )
   }
 
-  return { userId: userRow.id, userCreated: userRow.created }
+  return { userId: userRow.id }
 }

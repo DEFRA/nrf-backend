@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import { audit } from '@defra/cdp-auditing'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 
@@ -22,7 +21,7 @@ const validPayload = (email) => ({ email, firstName: 'Test', lastName: 'User' })
 describe('PATCH /users/{defraId}', () => {
   const getServer = setupTestServer()
 
-  it('returns 204 and saves a new user with their defra id', async () => {
+  it('returns 404 when no user row exists for this defra id', async () => {
     const server = getServer()
     const defraId = randomUUID()
     const email = uniqueEmail()
@@ -33,43 +32,13 @@ describe('PATCH /users/{defraId}', () => {
       payload: validPayload(email)
     })
 
-    expect(response.statusCode).toBe(statusCodes.noContent)
+    expect(response.statusCode).toBe(statusCodes.notFound)
 
     const { rows } = await server.pg.query(
-      'SELECT email, first_name, last_name FROM users WHERE defra_id = $1',
-      [defraId]
+      'SELECT id FROM users WHERE defra_id = $1 OR email = $2',
+      [defraId, email]
     )
-    expect(rows).toEqual([{ email, first_name: 'Test', last_name: 'User' }])
-  })
-
-  it('audits the create-user event when a new user is created', async () => {
-    const server = getServer()
-
-    await sendPatchRequest({
-      server,
-      defraId: randomUUID(),
-      payload: validPayload(uniqueEmail())
-    })
-
-    expect(vi.mocked(audit)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: { category: 'user', action: 'create-user' },
-        context: {
-          user: expect.objectContaining({ id: expect.any(String) })
-        }
-      })
-    )
-  })
-
-  it('does not audit again when the same user signs in a second time', async () => {
-    const server = getServer()
-    const defraId = randomUUID()
-    const payload = validPayload(uniqueEmail())
-
-    await sendPatchRequest({ server, defraId, payload })
-    await sendPatchRequest({ server, defraId, payload })
-
-    expect(vi.mocked(audit)).toHaveBeenCalledTimes(1)
+    expect(rows).toHaveLength(0)
   })
 
   it('merges an email-only record created before sign-in instead of duplicating the user', async () => {
@@ -105,12 +74,15 @@ describe('PATCH /users/{defraId}', () => {
   it('saves the organisation and user/organisation link when an org is present', async () => {
     const server = getServer()
     const defraId = randomUUID()
+    const email = uniqueEmail()
+
+    await server.pg.query('INSERT INTO users (email) VALUES ($1)', [email])
 
     await sendPatchRequest({
       server,
       defraId,
       payload: {
-        ...validPayload(uniqueEmail()),
+        ...validPayload(email),
         organisationDefraId: ORG_DEFRA_ID,
         organisationName: 'CDP Child Org 1',
         relationshipType: 'Employee'
