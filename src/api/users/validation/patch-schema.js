@@ -1,0 +1,33 @@
+import joi from 'joi'
+
+const MAX_NAME_LENGTH = 255
+const MAX_EMAIL_LENGTH = 254
+const MAX_DEFRA_ID_LENGTH = 255
+
+export const userPatchSchema = joi
+  .object({
+    email: joi
+      .string()
+      .trim()
+      .max(MAX_EMAIL_LENGTH)
+      .pattern(/^\S*$/)
+      .email({ tlds: { allow: false } })
+      .required(),
+    firstName: joi.string().trim().max(MAX_NAME_LENGTH).required(),
+    lastName: joi.string().trim().max(MAX_NAME_LENGTH).required(),
+    organisationDefraId: joi
+      .string()
+      .trim()
+      .max(MAX_DEFRA_ID_LENGTH)
+      .pattern(/^\S+$/)
+      .optional(),
+    organisationName: joi.string().trim().max(MAX_NAME_LENGTH).optional(),
+    relationshipType: joi
+      .string()
+      .valid('Citizen', 'Employee', 'Agent')
+      .optional()
+  })
+  // organisations.name is NOT NULL, so the name must come with the id
+  .with('organisationDefraId', ['organisationName'])
+  // A relationship type only exists on a user/organisation link, so it needs an org id
+  .with('relationshipType', ['organisationDefraId'])
