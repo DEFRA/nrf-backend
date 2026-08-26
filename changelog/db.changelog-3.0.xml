@@ -81,7 +81,7 @@
     </createTable>
     <sql>
       ALTER TABLE user_organisations
-      ADD CONSTRAINT ck_uo_relationship_type CHECK (relationship_type IN ('Citizen', 'Employee', 'Agent'));
+      ADD CONSTRAINT ck_uo_relationship_type CHECK (relationship_type IN ('Employee', 'Agent'));
     </sql>
     <rollback>
       <dropTable tableName="user_organisations"/>

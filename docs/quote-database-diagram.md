@@ -37,7 +37,7 @@ erDiagram
     user_organisations {
         uuid user_id FK "part of composite primary key (with organisation_defra_id)"
         varchar organisation_defra_id FK "part of composite primary key (with user_id)"
-        varchar relationship_type "nullable; CHECK: citizen / employee / agent"
+        varchar relationship_type "nullable; CHECK: employee / agent"
     }
 
     quotes {
