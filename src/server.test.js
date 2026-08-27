@@ -24,6 +24,12 @@ vi.mock('./plugins/notify-status-poller.js', () => ({
   }
 }))
 
+vi.mock('./plugins/notify-email-retry.js', () => ({
+  notifyEmailRetry: {
+    plugin: { name: 'notify-email-retry', register: vi.fn() }
+  }
+}))
+
 vi.mock('./common/helpers/logging/request-logger.js', () => ({
   requestLogger: { plugin: { name: 'requestLogger', register: vi.fn() } }
 }))
