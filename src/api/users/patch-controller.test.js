@@ -74,6 +74,37 @@ describe('PATCH /users', () => {
     expect(duplicateRows).toHaveLength(1)
   })
 
+  it('returns 404 and leaves the row untouched when the email belongs to a user already signed in under a different defra id', async () => {
+    const server = getServer()
+    const existingDefraId = randomUUID()
+    const incomingDefraId = randomUUID()
+    const email = uniqueEmail()
+
+    await server.pg.query(
+      'INSERT INTO users (email, defra_id) VALUES ($1, $2)',
+      [email, existingDefraId]
+    )
+
+    const response = await sendPatchRequest({
+      server,
+      payload: validPayload(incomingDefraId, email)
+    })
+
+    expect(response.statusCode).toBe(statusCodes.notFound)
+
+    const { rows } = await server.pg.query(
+      'SELECT defra_id FROM users WHERE email = $1',
+      [email]
+    )
+    expect(rows).toEqual([{ defra_id: existingDefraId }])
+
+    const { rows: incomingRows } = await server.pg.query(
+      'SELECT id FROM users WHERE defra_id = $1',
+      [incomingDefraId]
+    )
+    expect(incomingRows).toHaveLength(0)
+  })
+
   it('saves the organisation and user/organisation link when an org is present', async () => {
     const server = getServer()
     const defraId = randomUUID()
