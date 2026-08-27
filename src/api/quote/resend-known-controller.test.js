@@ -161,7 +161,7 @@ describe('Resend known quote link endpoint', () => {
     it('returns a generic 200 success and sends no email', async () => {
       const response = await sendResendKnownRequest({
         server: getServer(),
-        reference: 'NRF-999999',
+        reference: 'NRL-999999',
         token: 'any-token'
       })
 

@@ -45,7 +45,7 @@ describe('Submit quote endpoint', () => {
     })
     expect(response.statusCode).toBe(statusCodes.created)
     const { reference } = JSON.parse(response.payload)
-    expect(reference).toMatch(/NRF-\d{6}/)
+    expect(reference).toMatch(/NRL-\d{6}/)
     expect(response.headers.location).toBe(`/quotes/${reference}`)
   })
 
@@ -101,7 +101,7 @@ describe('Submit quote endpoint', () => {
         data: {
           housingUnits: 10,
           boundaryGeojson,
-          reference: expect.stringMatching(/NRF-\d{6}/),
+          reference: expect.stringMatching(/NRL-\d{6}/),
           traceId: 'trace-abc-123'
         }
       }),

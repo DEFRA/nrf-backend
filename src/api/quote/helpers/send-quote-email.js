@@ -41,7 +41,7 @@ export const sendQuoteEmail = async ({
     emailReference,
     emailBodyVariables: {
       nrfQuoteReference,
-      edpNames: edps.map(({ edpName }) => edpName),
+      edpNames: edps.map(({ edpName }) => edpName).join(', '),
       housingUnits,
       planningType: getPlanningTypeDisplay(planningType),
       levyAmount: getLevyAmount(edps),

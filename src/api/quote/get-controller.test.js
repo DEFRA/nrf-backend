@@ -1,5 +1,6 @@
 import { createNotifyClient } from '../../services/send-email/notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
+import { config } from '../../config.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
@@ -199,11 +200,51 @@ describe('Get quote endpoint', () => {
     })
   })
 
+  describe('with requestToUse=true', () => {
+    afterEach(() => {
+      config.set('cdpEnvironment', 'local')
+    })
+
+    it('should return the quote as valid without a bearer token', async () => {
+      config.set('cdpEnvironment', 'ext-test')
+
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        requestToUse: true
+      })
+
+      const body = JSON.parse(response.payload)
+      expect(body.accessStatus).toBe('valid')
+      expect(body.quote).not.toBeNull()
+    })
+
+    it('should not return the quote when cdpEnvironment is prod', async () => {
+      config.set('cdpEnvironment', 'prod')
+
+      const postResponse = await createQuote(getServer())
+      const { reference } = JSON.parse(postResponse.payload)
+
+      const response = await sendGetRequest({
+        server: getServer(),
+        reference,
+        requestToUse: true
+      })
+
+      const body = JSON.parse(response.payload)
+      expect(body.accessStatus).toBe('invalid')
+      expect(body.quote).toBeNull()
+    })
+  })
+
   describe('when the quote reference does not resolve', () => {
     it('should return status not_found for an unknown reference', async () => {
       const response = await sendGetRequest({
         server: getServer(),
-        reference: 'NRF-999999',
+        reference: 'NRL-999999',
         bearerToken: 'any-token'
       })
 

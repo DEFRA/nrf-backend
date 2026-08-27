@@ -46,7 +46,7 @@ describe('Get all quotes endpoint', () => {
     expect(quotes.length).toBeGreaterThan(0)
     expect(quotes[0]).toMatchObject({
       id: expect.any(Number),
-      reference: expect.stringMatching(/^NRF-\d{6}$/),
+      reference: expect.stringMatching(/^NRL-\d{6}$/),
       createdAt: expect.any(String),
       housingUnits: expect.any(Number),
       boundary: expect.any(Object),

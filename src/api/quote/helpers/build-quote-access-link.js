@@ -4,7 +4,7 @@ import { config } from '../../../config.js'
  * Builds the public quote access link a user follows from their email.
  *
  * @param {object} params
- * @param {string} params.reference - the quote reference (e.g. NRF-000001)
+ * @param {string} params.reference - the quote reference (e.g. NRL-000001)
  * @param {string} params.rawToken - the raw (unhashed) access token
  * @returns {string} the full quote access URL
  */

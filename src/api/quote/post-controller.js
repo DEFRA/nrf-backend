@@ -58,7 +58,7 @@ import { getTraceId } from '@defra/hapi-tracing'
  *               properties:
  *                 reference:
  *                   type: string
- *                   example: NRF-000001
+ *                   example: NRL-000001
  *       400:
  *         description: Validation error
  */

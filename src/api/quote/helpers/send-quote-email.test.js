@@ -11,7 +11,7 @@ describe('sendQuoteEmail', () => {
   const db = { query: vi.fn() }
   const quoteId = 42
   const recipientEmailAddress = 'test@example.com'
-  const nrfQuoteReference = 'NRF-2024-001'
+  const nrfQuoteReference = 'NRL-2024-001'
   const edps = [
     {
       edpName: 'Norfolk Fens east',
@@ -21,7 +21,7 @@ describe('sendQuoteEmail', () => {
   const housingUnits = 5
   const planningType = 'full-planning-permission'
   const nrfServiceUrl = 'http://localhost:3000'
-  const quoteAccessLink = 'http://localhost:3000/quote/NRF-2024-001/abc123token'
+  const quoteAccessLink = 'http://localhost:3000/quote/NRL-2024-001/abc123token'
 
   const baseArgs = {
     db,
@@ -46,7 +46,7 @@ describe('sendQuoteEmail', () => {
       emailReference: nrfQuoteReference,
       emailBodyVariables: {
         nrfQuoteReference,
-        edpNames: expect.any(Array),
+        edpNames: 'Norfolk Fens east',
         housingUnits,
         planningType: 'full planning permission',
         levyAmount: '£100 - £200',
@@ -76,6 +76,23 @@ describe('sendQuoteEmail', () => {
       expect.objectContaining({
         emailReference: `${nrfQuoteReference}-retry-1`,
         emailBodyVariables: expect.objectContaining({ nrfQuoteReference })
+      })
+    )
+  })
+  it('lists multiple EDP names', async () => {
+    const args = {
+      ...baseArgs,
+      edps: [
+        { edpName: 'One', levyGbp: { min: 100, max: 200 } },
+        { edpName: 'Two', levyGbp: { min: 100, max: 200 } }
+      ]
+    }
+    await sendQuoteEmail(args)
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        emailBodyVariables: expect.objectContaining({
+          edpNames: 'One, Two'
+        })
       })
     )
   })
