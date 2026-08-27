@@ -7,6 +7,14 @@ const MAX_DEFRA_ID_LENGTH = 255
 
 export const userPatchSchema = joi
   .object({
+    // Defra ID sub claim; kept in the body (not the URL) so it never appears in access logs.
+    // Matches users.defra_id VARCHAR(255)
+    defraId: joi
+      .string()
+      .trim()
+      .max(MAX_DEFRA_ID_LENGTH)
+      .pattern(/^\S+$/)
+      .required(),
     email: joi
       .string()
       .trim()

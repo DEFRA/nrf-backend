@@ -8,17 +8,22 @@ const ORG_DEFRA_ID = '27d48d6c-6e94-f011-b4cc-000d3ac28f39'
 const uniqueEmail = () =>
   `user-${Date.now()}-${Math.random().toString(36).slice(2)}@housebuilder.com`
 
-const sendPatchRequest = ({ server, defraId, payload }) => {
+const sendPatchRequest = ({ server, payload }) => {
   return server.inject({
     method: 'PATCH',
-    url: `/users/${defraId}`,
+    url: '/users',
     payload
   })
 }
 
-const validPayload = (email) => ({ email, firstName: 'Test', lastName: 'User' })
+const validPayload = (defraId, email) => ({
+  defraId,
+  email,
+  firstName: 'Test',
+  lastName: 'User'
+})
 
-describe('PATCH /users/{defraId}', () => {
+describe('PATCH /users', () => {
   const getServer = setupTestServer()
 
   it('returns 404 when no user row exists for this defra id', async () => {
@@ -28,8 +33,7 @@ describe('PATCH /users/{defraId}', () => {
 
     const response = await sendPatchRequest({
       server,
-      defraId,
-      payload: validPayload(email)
+      payload: validPayload(defraId, email)
     })
 
     expect(response.statusCode).toBe(statusCodes.notFound)
@@ -50,8 +54,7 @@ describe('PATCH /users/{defraId}', () => {
 
     const response = await sendPatchRequest({
       server,
-      defraId,
-      payload: validPayload(email)
+      payload: validPayload(defraId, email)
     })
 
     expect(response.statusCode).toBe(statusCodes.noContent)
@@ -80,9 +83,8 @@ describe('PATCH /users/{defraId}', () => {
 
     await sendPatchRequest({
       server,
-      defraId,
       payload: {
-        ...validPayload(email),
+        ...validPayload(defraId, email),
         organisationDefraId: ORG_DEFRA_ID,
         organisationName: 'CDP Child Org 1',
         relationshipType: 'Employee'
@@ -113,9 +115,8 @@ describe('PATCH /users/{defraId}', () => {
 
     await sendPatchRequest({
       server,
-      defraId,
       payload: {
-        ...validPayload(email),
+        ...validPayload(defraId, email),
         organisationDefraId: ORG_DEFRA_ID,
         organisationName: 'CDP Child Org 1',
         relationshipType: 'Citizen'
@@ -133,6 +134,7 @@ describe('PATCH /users/{defraId}', () => {
 
   describe('Request validation', () => {
     it.each([
+      ['missing defra id', (payload) => delete payload.defraId],
       ['missing email', (payload) => delete payload.email],
       [
         'invalid relationship type',
@@ -159,20 +161,20 @@ describe('PATCH /users/{defraId}', () => {
 
       const response = await sendPatchRequest({
         server,
-        defraId: randomUUID(),
-        payload: mutate(structuredClone(validPayload(uniqueEmail())))
+        payload: mutate(
+          structuredClone(validPayload(randomUUID(), uniqueEmail()))
+        )
       })
 
       expect(response.statusCode).toBe(statusCodes.badRequest)
     })
 
-    it('returns 400 when the defra id path param contains whitespace', async () => {
+    it('returns 400 when the defra id contains whitespace', async () => {
       const server = getServer()
 
       const response = await sendPatchRequest({
         server,
-        defraId: 'abc%20def',
-        payload: validPayload(uniqueEmail())
+        payload: validPayload('abc def', uniqueEmail())
       })
 
       expect(response.statusCode).toBe(statusCodes.badRequest)

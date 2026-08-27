@@ -1,12 +1,11 @@
 import Boom from '@hapi/boom'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { dbUpdateUser } from '../../services/db/users/update-user.js'
-import { defraIdParamSchema } from './validation/defra-id-param-schema.js'
 import { userPatchSchema } from './validation/patch-schema.js'
 
 /**
  * @openapi
- * /users/{defraId}:
+ * /users:
  *   patch:
  *     tags:
  *       - User
@@ -16,14 +15,8 @@ import { userPatchSchema } from './validation/patch-schema.js'
  *       email-only record created when a quote was started before sign-in, and, when an
  *       organisation is present, upserts the organisation and user/organisation link. Called
  *       by nrf-frontend once per session when the user first hits an authenticated route. The
- *       defra id is in the path (not PII); the email stays in the body so it never appears in
- *       URLs or access logs. Returns 404 if no matching user row exists yet.
- *     parameters:
- *       - in: path
- *         name: defraId
- *         required: true
- *         schema:
- *           type: string
+ *       defra id and email both stay in the body so they never appear in URLs or access logs.
+ *       Returns 404 if no matching user row exists yet.
  *     requestBody:
  *       required: true
  *       content:
@@ -31,10 +24,13 @@ import { userPatchSchema } from './validation/patch-schema.js'
  *           schema:
  *             type: object
  *             required:
+ *               - defraId
  *               - email
  *               - firstName
  *               - lastName
  *             properties:
+ *               defraId:
+ *                 type: string
  *               email:
  *                 type: string
  *                 format: email
@@ -60,14 +56,12 @@ import { userPatchSchema } from './validation/patch-schema.js'
 export const patchController = {
   options: {
     validate: {
-      params: defraIdParamSchema,
       payload: userPatchSchema
     }
   },
   async handler(request, h) {
     const result = await dbUpdateUser({
       db: request.pg,
-      defraId: request.params.defraId,
       ...request.payload
     })
 

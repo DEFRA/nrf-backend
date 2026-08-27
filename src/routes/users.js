@@ -5,7 +5,7 @@ const routePath = '/users'
 const users = [
   {
     method: 'PATCH',
-    path: `${routePath}/{defraId}`,
+    path: routePath,
     ...patchController
   }
 ]
