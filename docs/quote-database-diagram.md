@@ -80,8 +80,8 @@ erDiagram
     quote_email_notifications {
         integer id PK "identity"
         integer quote_id FK
-        uuid notification_id UK "GOV.UK Notify id"
-        varchar email_type "default quote_result"
+        uuid notification_id UK "GOV.UK Notify id; locally generated for retry_rejected rows"
+        varchar email_type "default quote_result; also resend, retry, retry_rejected"
         varchar status "nullable, GOV.UK Notify delivery status"
         timestamptz status_checked_at "nullable"
         timestamptz sent_at "nullable"
@@ -92,6 +92,7 @@ erDiagram
 
 ## Tables
 
+
 | Table                       | Purpose                                                                                                                    |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `users`                     | Account holders, keyed by UUID and unique (case-insensitive) email; Defra ID profile details captured at sign-in.          |
@@ -100,7 +101,8 @@ erDiagram
 | `quotes`                    | Core quote records: development boundary, type, counts, and the spatial boundary geometry. Optionally linked to a `user`.  |
 | `quote_access_tokens`       | Hashed access tokens granting time-limited, session-capped access to a quote.                                              |
 | `quote_edp_results`         | Per-EDP levy results computed for a quote (unique per `quote_id` + `edp_id`).                                              |
-| `quote_email_notifications` | One row per GOV.UK Notify email sent for a quote, holding the Notify id and its polled delivery status.                    |
+| `quote_email_notifications` | One row per email send attempt for a quote: real GOV.UK Notify sends hold the Notify id and polled delivery status; `retry_rejected` rows record attempts Notify refused. |
+
 
 ## Notes
 
@@ -110,5 +112,5 @@ erDiagram
 - `user_organisations.user_id + organisation_defra_id` form the composite primary key — one row per user/organisation pair. `relationship_type` is nullable and restricted by a CHECK constraint to employee / agent (NULL passes the check) — a Citizen never gets a row here.
 - `users.defra_id` is unique but nullable — users created before signing in have no Defra ID yet (Postgres allows multiple NULLs under a unique constraint).
 - `quotes.user_id` is nullable — a quote can exist without an associated user.
-- `quote_email_notifications.notification_id` is unique; a quote accumulates several rows over its lifetime (the initial quote-result send plus any resends, distinguished by `email_type`). `status` is null until the Notify status poller first fetches it.
+- `quote_email_notifications.notification_id` is unique; a quote accumulates several rows over its lifetime, distinguished by `email_type`: `quote_result` (initial send), `resend` (user-initiated), `retry` (retry worker re-send) and `retry_rejected` (a retry attempt Notify rejected at accept time — no message exists, so the id is locally generated and the status poller skips these rows; they exist so rejected attempts still consume the retry budget). `status` is null until the Notify status poller first fetches it.
 - This is the backend quote database, not the impact-assessor DB (`nrf_impact`, schema `nrf_reference`).
