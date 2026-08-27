@@ -6,6 +6,7 @@ import {
   checkBoundaryGeometryRoute
 } from '../routes/boundary.js'
 import { quote } from '../routes/quote.js'
+import { users } from '../routes/users.js'
 
 const router = {
   plugin: {
@@ -18,7 +19,8 @@ const router = {
           initiateUpload,
           uploadStatus,
           checkBoundaryRoute,
-          checkBoundaryGeometryRoute
+          checkBoundaryGeometryRoute,
+          ...users
         ].concat(quote)
       )
     }
