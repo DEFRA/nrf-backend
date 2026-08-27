@@ -5,6 +5,10 @@ import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.
 // it's not a recognised one — since ST_SetSRID (used on insert) never
 // validates the SRID it's given, a single row with a bad/legacy SRID would
 // otherwise fail this query for every quote, not just that row.
+//
+// The notification LATERAL skips 'retry_rejected' rows — they record retry
+// attempts Notify rejected, so their id is locally generated and unknown to
+// Notify; the latest-status lookup and status URL must stay on a real one.
 export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.residential_building_count, q.disable_analytics_audit, q.created_at,
         CASE
           WHEN EXISTS (SELECT 1 FROM spatial_ref_sys WHERE srid = ST_SRID(q.boundary_geodata))
@@ -21,6 +25,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
    SELECT status AS email_status, notification_id AS email_notification_id, created_at AS email_requested_at
      FROM quote_email_notifications
     WHERE quote_id = q.id
+      AND email_type <> 'retry_rejected'
     ORDER BY created_at DESC
     LIMIT 1
  ) en ON true`
