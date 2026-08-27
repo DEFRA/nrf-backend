@@ -14,7 +14,10 @@ const terminalLiterals = TERMINAL_STATUSES.map((status) => `'${status}'`).join(
 /**
  * Return the notification rows the poller still needs to fetch a status for:
  * status unknown or not yet terminal, and created within the lookback window.
- * Ordered oldest-first and capped at `limit` so each run does bounded work.
+ * `retry_rejected` rows are skipped — they record retry attempts Notify
+ * rejected, so their notification_id is locally generated and not an id Notify
+ * would recognise. Ordered oldest-first and capped at `limit` so each run does
+ * bounded work.
  *
  * @param {object} params
  * @param {{ query: Function }} params.db
@@ -31,6 +34,7 @@ export const dbGetPendingEmailNotifications = async ({
     `SELECT id, notification_id
        FROM quote_email_notifications
       WHERE (status IS NULL OR status NOT IN (${terminalLiterals}))
+        AND email_type <> 'retry_rejected'
         AND created_at > now() - ($2 * interval '1 day')
       ORDER BY created_at ASC
       LIMIT $1`,

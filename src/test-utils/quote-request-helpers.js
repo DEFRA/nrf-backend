@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { routePath } from '../routes/quote.js'
 import { generateToken } from '../common/helpers/token/generate-token.js'
 import { hashToken } from '../common/helpers/token/hash-token.js'
@@ -64,7 +66,7 @@ export const sendResendUnknownRequest = ({ server, reference, email }) =>
     payload: { email }
   })
 
-const getQuoteId = async ({ server, reference }) => {
+export const getQuoteId = async ({ server, reference }) => {
   const { rows } = await server.pg.query(
     'SELECT id FROM quotes WHERE reference = $1',
     [reference]
@@ -94,6 +96,33 @@ export const issueAccessToken = async ({
   )
 
   return raw
+}
+
+/**
+ * Inserts a quote_email_notifications row directly with an explicit status and
+ * created_at, letting tests stage delivery failures and retry attempts that the
+ * API only produces asynchronously (via the Notify poller / retry worker).
+ *
+ * @param {object} params
+ * @param {object} params.server - test server with a real pg pool
+ * @param {number} params.quoteId
+ * @param {string} params.emailType - 'quote_result' | 'resend' | 'retry' | 'retry_rejected'
+ * @param {string|null} [params.status] - Notify delivery status, null while still in flight
+ * @param {Date|null} [params.createdAt] - defaults to now()
+ */
+export const insertEmailNotification = async ({
+  server,
+  quoteId,
+  emailType,
+  status = null,
+  createdAt = null
+}) => {
+  await server.pg.query(
+    `INSERT INTO quote_email_notifications
+       (quote_id, notification_id, email_type, status, created_at)
+     VALUES ($1, $2, $3, $4, COALESCE($5, now()))`,
+    [quoteId, randomUUID(), emailType, status, createdAt]
+  )
 }
 
 export const getAccessTokenRow = async ({ server, rawToken }) => {

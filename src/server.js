@@ -8,6 +8,7 @@ import { auth } from './plugins/auth.js'
 import { router } from './plugins/router.js'
 import { swagger } from './plugins/swagger.js'
 import { notifyStatusPoller } from './plugins/notify-status-poller.js'
+import { notifyEmailRetry } from './plugins/notify-email-retry.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
@@ -58,7 +59,8 @@ async function createServer() {
     auth,
     router,
     { plugin: postgres.plugin, options: config.get('postgres') },
-    notifyStatusPoller
+    notifyStatusPoller,
+    notifyEmailRetry
   ])
 
   // Register Swagger documentation (after router so inert is available)
