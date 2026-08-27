@@ -92,17 +92,15 @@ erDiagram
 
 ## Tables
 
-
-| Table                       | Purpose                                                                                                                    |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `users`                     | Account holders, keyed by UUID and unique (case-insensitive) email; Defra ID profile details captured at sign-in.          |
-| `organisations`             | Organisations as identified by Defra ID, keyed by the (natural) `defra_id`.                                                |
-| `user_organisations`        | Join table linking users to organisations with a relationship type (employee / agent). Citizens have no organisation link. |
-| `quotes`                    | Core quote records: development boundary, type, counts, and the spatial boundary geometry. Optionally linked to a `user`.  |
-| `quote_access_tokens`       | Hashed access tokens granting time-limited, session-capped access to a quote.                                              |
-| `quote_edp_results`         | Per-EDP levy results computed for a quote (unique per `quote_id` + `edp_id`).                                              |
+| Table                       | Purpose                                                                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                     | Account holders, keyed by UUID and unique (case-insensitive) email; Defra ID profile details captured at sign-in.                                                         |
+| `organisations`             | Organisations as identified by Defra ID, keyed by the (natural) `defra_id`.                                                                                               |
+| `user_organisations`        | Join table linking users to organisations with a relationship type (employee / agent). Citizens have no organisation link.                                                |
+| `quotes`                    | Core quote records: development boundary, type, counts, and the spatial boundary geometry. Optionally linked to a `user`.                                                 |
+| `quote_access_tokens`       | Hashed access tokens granting time-limited, session-capped access to a quote.                                                                                             |
+| `quote_edp_results`         | Per-EDP levy results computed for a quote (unique per `quote_id` + `edp_id`).                                                                                             |
 | `quote_email_notifications` | One row per email send attempt for a quote: real GOV.UK Notify sends hold the Notify id and polled delivery status; `retry_rejected` rows record attempts Notify refused. |
-
 
 ## Notes
 
