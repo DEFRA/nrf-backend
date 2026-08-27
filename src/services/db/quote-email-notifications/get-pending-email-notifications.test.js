@@ -21,6 +21,7 @@ describe('dbGetPendingEmailNotifications', () => {
     expect(sql).toContain(
       "status NOT IN ('delivered', 'permanent-failure', 'technical-failure')"
     )
+    expect(sql).toContain("email_type <> 'retry_rejected'")
     expect(params).toEqual([50, 14])
     expect(result).toEqual([{ id: 1, notification_id: 'a'.repeat(36) }])
   })
