@@ -11,9 +11,10 @@ const logger = createLogger()
  * @param {object} params
  * @param {{ query: Function }} params.db
  * @param {number} params.quoteId
- * @param {string} [params.emailType='quote_result'] - 'quote_result' | 'resend'
+ * @param {string} [params.emailType='quote_result'] - 'quote_result' | 'resend' | 'retry'
  * @param {string} params.recipientEmailAddress
  * @param {string} params.nrfQuoteReference
+ * @param {string} [params.emailReference=nrfQuoteReference] - Notify dedup/reference key for the send; retries pass a suffixed value so a re-send can never be deduplicated against an earlier attempt
  * @param {string} params.nrfServiceUrl
  * @param {Array<{edpName: string, levyGbp: {min: number, max: number}}>} params.edps
  * @param {number} params.housingUnits
@@ -27,6 +28,7 @@ export const sendQuoteEmail = async ({
   emailType = 'quote_result',
   recipientEmailAddress,
   nrfQuoteReference,
+  emailReference = nrfQuoteReference,
   nrfServiceUrl,
   edps,
   housingUnits,
@@ -36,7 +38,7 @@ export const sendQuoteEmail = async ({
   const { templateIds } = config.get('notify')
   const emailResult = await sendEmail({
     recipientEmailAddress,
-    emailReference: nrfQuoteReference,
+    emailReference,
     emailBodyVariables: {
       nrfQuoteReference,
       edpNames: edps.map(({ edpName }) => edpName).join(', '),

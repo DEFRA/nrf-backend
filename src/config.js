@@ -216,6 +216,38 @@ const config = convict({
         default: 14,
         env: 'NOTIFY_STATUS_POLLER_MAX_AGE_DAYS'
       }
+    },
+    emailRetry: {
+      enabled: {
+        doc: 'Run the scheduled job that retries quote emails Notify failed to deliver',
+        format: Boolean,
+        default: false,
+        env: 'NOTIFY_EMAIL_RETRY_ENABLED'
+      },
+      schedule: {
+        doc: 'node-cron schedule expression for the failed-email retry worker — the agreed retry policy interval',
+        format: String,
+        default: '*/15 * * * *',
+        env: 'NOTIFY_EMAIL_RETRY_SCHEDULE'
+      },
+      batchSize: {
+        doc: 'Maximum number of failed emails to retry per run',
+        format: convictFormatPositiveIntegerName,
+        default: 10,
+        env: 'NOTIFY_EMAIL_RETRY_BATCH_SIZE'
+      },
+      maxRetryAttempts: {
+        doc: 'Retry attempts allowed per quote email before giving up',
+        format: convictFormatPositiveIntegerName,
+        default: 4,
+        env: 'NOTIFY_EMAIL_RETRY_MAX_ATTEMPTS'
+      },
+      maxAgeDays: {
+        doc: 'Ignore failed emails older than this many days when retrying',
+        format: convictFormatPositiveIntegerName,
+        default: 2,
+        env: 'NOTIFY_EMAIL_RETRY_MAX_AGE_DAYS'
+      }
     }
   },
   cdpUploader: {
