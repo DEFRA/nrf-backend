@@ -6,10 +6,7 @@ Core delivery platform Node.js Backend Template.
   - [Requirements](#requirements)
     - [Node.js](#nodejs)
   - [Local development](#local-development)
-    - [Setup](#setup)
-    - [Development](#development)
     - [Testing](#testing)
-    - [Production](#production)
     - [Npm scripts](#npm-scripts)
     - [Update dependencies](#update-dependencies)
     - [Formatting](#formatting)
@@ -21,7 +18,6 @@ Core delivery platform Node.js Backend Template.
   - [Docker](#docker)
     - [Development image](#development-image)
     - [Production image](#production-image)
-    - [Docker Compose](#docker-compose)
     - [Dependabot](#dependabot)
     - [SonarCloud](#sonarcloud)
   - [Licence](#licence)
@@ -43,21 +39,9 @@ nvm use
 
 ## Local development
 
-### Setup
+The backend runs locally as part of the [nrf-solution](https://github.com/DEFRA/nrf-solution) meta-repo: `tilt up` from the nrf-solution root brings up the full stack — this service, its Docker Compose dependencies (LocalStack, Postgres, Redis, CDP Uploader) — with hot reload.
 
-Install application dependencies:
-
-```bash
-npm ci
-```
-
-### Development
-
-To run the application in `development` mode run:
-
-```bash
-npm run dev
-```
+See the [nrf-solution README](https://github.com/DEFRA/nrf-solution/blob/main/README.md) for setup, ports and troubleshooting.
 
 ### Testing
 
@@ -65,14 +49,6 @@ To test the application run:
 
 ```bash
 npm run test
-```
-
-### Production
-
-To mimic the application running in `production` mode locally run:
-
-```bash
-npm start
 ```
 
 ### Npm scripts
@@ -172,24 +148,6 @@ Run:
 
 ```bash
 docker run -e PORT=3001 -p 3001:3001 nrf-backend
-```
-
-### Docker Compose
-
-A local environment with:
-
-- Localstack for AWS services (S3, SQS)
-- Redis
-- CDP Uploader
-- Caddy (reverse proxy)
-- This service.
-- A commented out frontend example.
-
-Caddy sits in front of the compose services for local development, providing a single entry point on port 4000 that proxies requests to the appropriate service.
-For example this ensures requests to the /scan-and-upload/ URL are routed correctly to the cdp-uploader local service.
-
-```bash
-docker compose up --build -d
 ```
 
 ### Dependabot
