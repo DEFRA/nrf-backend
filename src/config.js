@@ -1,6 +1,5 @@
 import convict from 'convict'
 import convictFormatWithValidator from 'convict-format-with-validator'
-import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
@@ -27,10 +26,6 @@ const localStack = 'http://localhost:4566'
 const bytesPerMb = 1024 * 1024
 const zipSafetyDefaultMaxMb = 20
 const zipSafetyDefaultMaxBytes = zipSafetyDefaultMaxMb * bytesPerMb
-
-if (isDevelopment) {
-  configDotenv()
-}
 
 /**
  * Convict `format` validator that fails closed at startup when a secret

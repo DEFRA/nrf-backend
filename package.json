@@ -11,7 +11,6 @@
   "scripts": {
     "dev": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) NODE_ENV=development USE_SWAGGER=true npm run server:watch",
     "dev:debug": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) NODE_ENV=development USE_SWAGGER=true npm run server:debug",
-    "compose:dev": "cross-env-shell GIT_HASH=$(git rev-parse HEAD) docker compose up --build --watch",
     "docker:dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
@@ -47,7 +46,6 @@
     "aws4": "^1.13.2",
     "convict": "^6.2.5",
     "convict-format-with-validator": "^6.2.0",
-    "dotenv": "^17.4.2",
     "global-agent": "^3.0.0",
     "hapi-pino": "^13.0.0",
     "hapi-pulse": "^4.0.0",
