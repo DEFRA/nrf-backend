@@ -2,26 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
-
-const ORG_DEFRA_ID = '27d48d6c-6e94-f011-b4cc-000d3ac28f39'
-
-const uniqueEmail = () =>
-  `user-${Date.now()}-${Math.random().toString(36).slice(2)}@housebuilder.com`
-
-const sendPatchRequest = ({ server, payload }) => {
-  return server.inject({
-    method: 'PATCH',
-    url: '/users',
-    payload
-  })
-}
-
-const validPayload = (defraId, email) => ({
-  defraId,
-  email,
-  firstName: 'Test',
-  lastName: 'User'
-})
+import {
+  ORG_DEFRA_ID,
+  uniqueEmail,
+  validPayload,
+  sendPatchRequest
+} from '../../test-utils/user-request-helpers.js'
 
 describe('PATCH /users', () => {
   const getServer = setupTestServer()
