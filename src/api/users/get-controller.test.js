@@ -2,31 +2,22 @@ import { randomUUID } from 'node:crypto'
 
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
+import {
+  ORG_DEFRA_ID,
+  uniqueEmail,
+  validPayload,
+  seedUser,
+  sendPatchRequest,
+  sendGetRequest
+} from '../../test-utils/user-request-helpers.js'
 
-const ORG_DEFRA_ID = '27d48d6c-6e94-f011-b4cc-000d3ac28f39'
+const ORG_1_NAME = 'CDP Child Org 1'
+const ORG_2_NAME = 'CDP Child Org 2'
+const ORG_3_NAME = 'CDP Child Org 3'
+const RELATIONSHIP_EMPLOYEE = 'Employee'
+const RELATIONSHIP_AGENT = 'Agent'
 
-const uniqueEmail = () =>
-  `user-${Date.now()}-${Math.random().toString(36).slice(2)}@housebuilder.com`
-
-const validPayload = (email) => ({ email, firstName: 'Test', lastName: 'User' })
-
-// PATCH /users only updates an existing row (the email-only record created
-// before sign-in), so seed that row first.
-const seedUser = async ({ server, email }) => {
-  await server.pg.query('INSERT INTO users (email) VALUES ($1)', [email])
-}
-
-const sendPatchRequest = async ({ server, defraId, payload }) =>
-  server.inject({
-    method: 'PATCH',
-    url: '/users',
-    payload: { defraId, ...payload }
-  })
-
-const sendGetRequest = ({ server, defraId }) =>
-  server.inject({ method: 'GET', url: `/users/${defraId}` })
-
-describe('GET /users/{defraId}', () => {
+describe('GET /users', () => {
   const getServer = setupTestServer()
 
   it('returns the user details and their linked organisations', async () => {
@@ -37,18 +28,19 @@ describe('GET /users/{defraId}', () => {
     await seedUser({ server, email })
     await sendPatchRequest({
       server,
-      defraId,
       payload: {
-        ...validPayload(email),
+        ...validPayload(defraId, email),
         organisationDefraId: ORG_DEFRA_ID,
-        organisationName: 'CDP Child Org 1',
-        relationshipType: 'Employee'
+        organisationName: ORG_1_NAME,
+        relationshipType: RELATIONSHIP_EMPLOYEE
       }
     })
 
     const response = await sendGetRequest({ server, defraId })
 
     expect(response.statusCode).toBe(statusCodes.ok)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.headers.vary).toBe('x-defra-id')
     const body = JSON.parse(response.payload)
     expect(body).toEqual({
       id: expect.any(String),
@@ -62,8 +54,8 @@ describe('GET /users/{defraId}', () => {
       organisations: [
         {
           defraId: ORG_DEFRA_ID,
-          name: 'CDP Child Org 1',
-          relationshipType: 'Employee'
+          name: ORG_1_NAME,
+          relationshipType: RELATIONSHIP_EMPLOYEE
         }
       ]
     })
@@ -77,8 +69,7 @@ describe('GET /users/{defraId}', () => {
     await seedUser({ server, email })
     await sendPatchRequest({
       server,
-      defraId,
-      payload: validPayload(email)
+      payload: validPayload(defraId, email)
     })
 
     const response = await sendGetRequest({ server, defraId })
@@ -100,12 +91,11 @@ describe('GET /users/{defraId}', () => {
     await seedUser({ server, email })
     await sendPatchRequest({
       server,
-      defraId,
       payload: {
-        ...validPayload(email),
+        ...validPayload(defraId, email),
         organisationDefraId: ORG_DEFRA_ID,
-        organisationName: 'CDP Child Org 1',
-        relationshipType: 'Employee'
+        organisationName: ORG_1_NAME,
+        relationshipType: RELATIONSHIP_EMPLOYEE
       }
     })
 
@@ -117,13 +107,20 @@ describe('GET /users/{defraId}', () => {
 
     await server.pg.query(
       'INSERT INTO organisations (defra_id, name) VALUES ($1, $2), ($3, $4)',
-      [secondOrgId, 'CDP Child Org 2', thirdOrgId, 'CDP Child Org 3']
+      [secondOrgId, ORG_2_NAME, thirdOrgId, ORG_3_NAME]
     )
 
     await server.pg.query(
       `INSERT INTO user_organisations (user_id, organisation_defra_id, relationship_type)
-       VALUES ($1, $2, 'Employee'), ($3, $4, 'Agent')`,
-      [userRow.id, secondOrgId, userRow.id, thirdOrgId]
+       VALUES ($1, $2, $5), ($3, $4, $6)`,
+      [
+        userRow.id,
+        secondOrgId,
+        userRow.id,
+        thirdOrgId,
+        RELATIONSHIP_EMPLOYEE,
+        RELATIONSHIP_AGENT
+      ]
     )
 
     const response = await sendGetRequest({ server, defraId })
@@ -134,18 +131,18 @@ describe('GET /users/{defraId}', () => {
     const expectedOrganisations = [
       {
         defraId: secondOrgId,
-        name: 'CDP Child Org 2',
-        relationshipType: 'Employee'
+        name: ORG_2_NAME,
+        relationshipType: RELATIONSHIP_EMPLOYEE
       },
       {
         defraId: ORG_DEFRA_ID,
-        name: 'CDP Child Org 1',
-        relationshipType: 'Employee'
+        name: ORG_1_NAME,
+        relationshipType: RELATIONSHIP_EMPLOYEE
       },
       {
         defraId: thirdOrgId,
-        name: 'CDP Child Org 3',
-        relationshipType: 'Agent'
+        name: ORG_3_NAME,
+        relationshipType: RELATIONSHIP_AGENT
       }
     ].sort((a, b) => a.defraId.localeCompare(b.defraId))
 
@@ -160,8 +157,7 @@ describe('GET /users/{defraId}', () => {
     await seedUser({ server, email })
     await sendPatchRequest({
       server,
-      defraId,
-      payload: validPayload(email)
+      payload: validPayload(defraId, email)
     })
 
     await server.pg.query(
@@ -185,10 +181,10 @@ describe('GET /users/{defraId}', () => {
     expect(response.statusCode).toBe(statusCodes.notFound)
   })
 
-  it('returns 400 when the defra id path param contains whitespace', async () => {
+  it('returns 400 when the defra id header contains whitespace', async () => {
     const server = getServer()
 
-    const response = await sendGetRequest({ server, defraId: 'abc%20def' })
+    const response = await sendGetRequest({ server, defraId: 'abc def' })
 
     expect(response.statusCode).toBe(statusCodes.badRequest)
   })

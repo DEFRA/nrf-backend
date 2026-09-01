@@ -6,7 +6,7 @@ const routePath = '/users'
 const users = [
   {
     method: 'GET',
-    path: `${routePath}/{defraId}`,
+    path: routePath,
     ...getController
   },
   {

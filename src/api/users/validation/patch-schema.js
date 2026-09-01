@@ -1,6 +1,6 @@
 import joi from 'joi'
 import { relationshipTypes } from '../../../common/constants/relationship-types.js'
-import { defraIdSchema } from './defra-id-param-schema.js'
+import { defraIdSchema } from './defra-id-schema.js'
 
 const MAX_NAME_LENGTH = 255
 const MAX_EMAIL_LENGTH = 254
