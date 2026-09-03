@@ -12,6 +12,27 @@ const sortedStringify = (value) =>
       : v
   )
 
+/**
+ * @param {{ edp_name: string, edp_type: string, impact: object, levy_excluding_vat: string, levy_inflation_adjusted: string, levy_base_amount: string, levy_model_version: number }} existing
+ * @param {{ edpName: string, edpType: string, impact: object, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} edp
+ * @returns {boolean} true if any tracked field differs from the stored row
+ */
+const hasEdpChanged = (existing, edp) => {
+  const impactChanged =
+    sortedStringify(existing.impact) !== sortedStringify(edp.impact)
+  return [
+    existing.edp_name !== edp.edpName,
+    existing.edp_type !== edp.edpType,
+    Number.parseFloat(existing.levy_excluding_vat) !==
+      edp.levyGbp.amountExcludingVat,
+    Number.parseFloat(existing.levy_inflation_adjusted) !==
+      edp.levyGbp.amountInflationAdjusted,
+    Number.parseFloat(existing.levy_base_amount) !== edp.levyGbp.baseAmount,
+    existing.levy_model_version !== edp.levyGbp.modelVersion,
+    impactChanged
+  ].some(Boolean)
+}
+
 export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
   const existingEdpResults = await dbGetEdpResults({ db, quoteId })
   if (existingEdpResults.length === 0) {
@@ -30,16 +51,7 @@ export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
       continue
     }
 
-    const impactChanged =
-      sortedStringify(existing.impact) !== sortedStringify(edp.impact)
-
-    if (
-      existing.edp_name !== edp.edpName ||
-      existing.edp_type !== edp.edpType ||
-      Number.parseFloat(existing.levy_gbp_min) !== edp.levyGbp.min ||
-      Number.parseFloat(existing.levy_gbp_max) !== edp.levyGbp.max ||
-      impactChanged
-    ) {
+    if (hasEdpChanged(existing, edp)) {
       await dbUpdateEdpResult({ db, quoteId, edpId: edp.edpId, edp })
       anyUpdated = true
     }
