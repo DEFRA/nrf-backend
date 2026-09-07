@@ -125,6 +125,17 @@ export const insertEmailNotification = async ({
   )
 }
 
+export const getEdpResultRowsForReference = async ({ server, reference }) => {
+  const { rows } = await server.pg.query(
+    `SELECT e.* FROM quote_edp_results e
+       JOIN quotes q ON q.id = e.quote_id
+      WHERE q.reference = $1
+      ORDER BY e.id`,
+    [reference]
+  )
+  return rows
+}
+
 export const getAccessTokenRow = async ({ server, rawToken }) => {
   const { rows } = await server.pg.query(
     'SELECT * FROM quote_access_tokens WHERE token_hash = $1',

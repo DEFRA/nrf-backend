@@ -237,6 +237,44 @@ async function downloadFile(fileInfo, h) {
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                     required:
+ *                       - label
+ *                       - overlapAreaHa
+ *                       - overlapAreaSqm
+ *                       - overlapPercentage
+ *                       - catchments
+ *                     properties:
+ *                       label:
+ *                         type: string
+ *                         nullable: true
+ *                         description: >
+ *                           Null when the assessor's EDP polygon carries no
+ *                           name; the overlap figures are still reported.
+ *                       overlapAreaHa:
+ *                         type: number
+ *                       overlapAreaSqm:
+ *                         type: number
+ *                       overlapPercentage:
+ *                         type: number
+ *                         minimum: 0
+ *                         maximum: 100
+ *                       catchments:
+ *                         type: array
+ *                         description: >
+ *                           Nutrient-neutrality catchments within the EDP that
+ *                           the boundary falls in. An EDP can span several.
+ *                         items:
+ *                           type: object
+ *                           required:
+ *                             - label
+ *                             - catchmentOverlapPercentage
+ *                           properties:
+ *                             label:
+ *                               type: string
+ *                             catchmentOverlapPercentage:
+ *                               type: number
+ *                               minimum: 0
+ *                               maximum: 100
  *                 intersectingExcludedAreas:
  *                   type: array
  *                   description: >
@@ -383,6 +421,44 @@ const geometrySchema = joi
  *                   description: EDPs that intersect the boundary
  *                   items:
  *                     type: object
+ *                     required:
+ *                       - label
+ *                       - overlapAreaHa
+ *                       - overlapAreaSqm
+ *                       - overlapPercentage
+ *                       - catchments
+ *                     properties:
+ *                       label:
+ *                         type: string
+ *                         nullable: true
+ *                         description: >
+ *                           Null when the assessor's EDP polygon carries no
+ *                           name; the overlap figures are still reported.
+ *                       overlapAreaHa:
+ *                         type: number
+ *                       overlapAreaSqm:
+ *                         type: number
+ *                       overlapPercentage:
+ *                         type: number
+ *                         minimum: 0
+ *                         maximum: 100
+ *                       catchments:
+ *                         type: array
+ *                         description: >
+ *                           Nutrient-neutrality catchments within the EDP that
+ *                           the boundary falls in. An EDP can span several.
+ *                         items:
+ *                           type: object
+ *                           required:
+ *                             - label
+ *                             - catchmentOverlapPercentage
+ *                           properties:
+ *                             label:
+ *                               type: string
+ *                             catchmentOverlapPercentage:
+ *                               type: number
+ *                               minimum: 0
+ *                               maximum: 100
  *                 intersectingExcludedAreas:
  *                   type: array
  *                   description: >

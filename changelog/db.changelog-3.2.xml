@@ -1,0 +1,30 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="30" author="engin.gem">
+    <addColumn tableName="quote_edp_results">
+      <column name="catchments" type="JSONB"/>
+    </addColumn>
+    <dropNotNullConstraint tableName="quote_edp_results" columnName="edp_id" columnDataType="INTEGER"/>
+    <dropNotNullConstraint tableName="quote_edp_results" columnName="edp_type" columnDataType="VARCHAR(255)"/>
+    <dropNotNullConstraint tableName="quote_edp_results" columnName="impact" columnDataType="JSONB"/>
+    <sql>
+      CREATE UNIQUE INDEX uq_quote_edp_results_placeholder_name
+        ON quote_edp_results (quote_id, edp_name)
+        WHERE edp_id IS NULL;
+    </sql>
+    <rollback>
+      <sql>DROP INDEX IF EXISTS uq_quote_edp_results_placeholder_name;</sql>
+      <dropColumn tableName="quote_edp_results" columnName="catchments"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

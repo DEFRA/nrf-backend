@@ -22,7 +22,8 @@ import { getTraceId } from '@defra/hapi-tracing'
  *             required:
  *               - planningType
  *               - boundaryEntryType
- *               - developmentTypes
+ *               - boundaryGeojson
+ *               - housingUnits
  *               - email
  *             properties:
  *               planningType:
@@ -35,11 +36,54 @@ import { getTraceId } from '@defra/hapi-tracing'
  *               boundaryEntryType:
  *                 type: string
  *                 enum: [draw, upload]
+ *               boundaryGeojson:
+ *                 type: object
+ *                 description: >
+ *                   The boundary check response for this quote, posted back
+ *                   whole. Additional properties are accepted and ignored.
+ *                 properties:
+ *                   boundaryGeometryOriginal:
+ *                     type: object
+ *                     description: The boundary geometry in its original CRS
+ *                   intersectingEdps:
+ *                     type: array
+ *                     description: >
+ *                       EDPs the boundary intersects. Their catchments are
+ *                       persisted with the quote.
+ *                     items:
+ *                       type: object
+ *                       required: [label]
+ *                       properties:
+ *                         label:
+ *                           type: string
+ *                           maxLength: 255
+ *                           nullable: true
+ *                           description: >
+ *                             Null when the assessor's EDP polygon carries no
+ *                             name. Such an EDP is not persisted with the quote.
+ *                         catchments:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             required: [label, catchmentOverlapPercentage]
+ *                             properties:
+ *                               label:
+ *                                 type: string
+ *                                 maxLength: 255
+ *                               catchmentOverlapPercentage:
+ *                                 type: number
+ *                                 minimum: 0
+ *                                 maximum: 100
+ *               boundaryFilename:
+ *                 type: string
+ *                 description: >
+ *                   Present for upload entries (the inner .shp for zips, or
+ *                   the uploaded filename); absent when the boundary is drawn.
  *               housingUnits:
  *                 type: integer
  *                 minimum: 1
  *                 maximum: 999999
- *                 description: Required when developmentTypes includes housing
+ *                 description: Number of residential units in the development
  *               email:
  *                 type: string
  *                 format: email

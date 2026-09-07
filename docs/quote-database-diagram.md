@@ -4,7 +4,7 @@ Entity-relationship diagram of the backend **`nrf_backend`** Postgres database
 (schema `public`) — the quote domain.
 
 - **Source:** live `nrf_backend` Postgres instance (`docker compose` service `postgres`), cross-checked against the Liquibase changelog under `backend/changelog/`.
-- **Generated:** 2026-09-02
+- **Generated:** 2026-09-04
 - **Scope:** application domain tables only. Liquibase bookkeeping (`databasechangelog`, `databasechangeloglock`) and the PostGIS reference table (`spatial_ref_sys`) are excluded.
 
 ```mermaid
@@ -67,14 +67,15 @@ erDiagram
     quote_edp_results {
         integer id PK "identity"
         integer quote_id FK
-        integer edp_id "unique with quote_id"
-        varchar edp_name
-        varchar edp_type
+        integer edp_id "nullable until the assessor callback lands; unique with quote_id"
+        varchar edp_name "unique with quote_id while edp_id is null"
+        varchar edp_type "nullable until the assessor callback lands"
         numeric levy_excluding_vat "nullable"
         numeric levy_base_amount "nullable"
         numeric levy_inflation_adjusted "nullable"
         integer levy_model_version "nullable"
-        jsonb impact
+        jsonb impact "nullable until the assessor callback lands"
+        jsonb catchments "nullable; per-EDP catchments captured at quote creation"
         timestamptz created_at "default now()"
         timestamptz updated_at "nullable"
     }
@@ -113,5 +114,6 @@ erDiagram
 - `users.defra_id` is unique but nullable — users created before signing in have no Defra ID yet (Postgres allows multiple NULLs under a unique constraint).
 - `quotes.user_id` is nullable — a quote can exist without an associated user.
 - `quote_email_notifications.notification_id` is unique; a quote accumulates several rows over its lifetime, distinguished by `email_type`: `quote_result` (initial send), `resend` (user-initiated), `retry` (retry worker re-send) and `retry_rejected` (a retry attempt Notify rejected at accept time — no message exists, so the id is locally generated and the status poller skips these rows; they exist so rejected attempts still consume the retry budget). `status` is null until the Notify status poller first fetches it.
+- `quote_edp_results` rows start life as _placeholders_: created at quote creation from the boundary check's `intersectingEdps`, they hold `edp_name` and `catchments` only. The impact assessor's callback fills in `edp_id`, `edp_type`, `impact` and the levy columns. A partial unique index (`uq_quote_edp_results_placeholder_name`, on `(quote_id, edp_name) WHERE edp_id IS NULL`) keeps placeholder creation idempotent without constraining resolved rows. `mapQuoteRows` filters unresolved rows out of every consumer path.
 - `quote_edp_results` levy columns (`levy_excluding_vat`, `levy_base_amount`, `levy_inflation_adjusted`) are `NUMERIC(12,2)`; `levy_model_version` is `INTEGER`. All four are nullable — they are populated when the impact assessor reports results.
 - This is the backend quote database, not the impact-assessor DB (`nrf_impact`, schema `public`).

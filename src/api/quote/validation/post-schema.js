@@ -19,6 +19,33 @@ const safeBoundaryFilename = (value, helpers) => {
   return result.filename
 }
 
+const MAX_EDP_LABEL_LENGTH = 255
+const MAX_PERCENTAGE = 100
+
+// .unknown(true) is required, not stylistic: joi rejects unknown keys unless
+// stripUnknown is configured, and the server sets only abortEarly — so a
+// closed schema would 400 every boundary-check field we do not persist.
+const intersectingEdpSchema = joi
+  .object({
+    label: joi.string().max(MAX_EDP_LABEL_LENGTH).allow(null).required(),
+    catchments: joi
+      .array()
+      .items(
+        joi
+          .object({
+            label: joi.string().max(MAX_EDP_LABEL_LENGTH).required(),
+            catchmentOverlapPercentage: joi
+              .number()
+              .min(0)
+              .max(MAX_PERCENTAGE)
+              .required()
+          })
+          .unknown(true)
+      )
+      .default([])
+  })
+  .unknown(true)
+
 export const quoteSchema = joi.object({
   planningType: joi
     .string()
@@ -30,7 +57,12 @@ export const quoteSchema = joi.object({
     )
     .required(),
   boundaryEntryType: joi.string().valid('draw', 'upload').required(),
-  boundaryGeojson: joi.object().required(),
+  boundaryGeojson: joi
+    .object({
+      intersectingEdps: joi.array().items(intersectingEdpSchema).optional()
+    })
+    .unknown(true)
+    .required(),
   // Present for 'upload' entries (the inner .shp for zips, or the uploaded
   // filename for standalone geojson/kml); absent for 'draw' entries. Every
   // character is re-validated against the shared safe-filename allowlist to

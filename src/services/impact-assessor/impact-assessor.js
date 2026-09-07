@@ -183,11 +183,31 @@ async function postBoundaryCheck(
   }
 }
 
+// The assessor serialises this contract camelCase (its wire models alias every
+// field), so no renaming happens here. `label` is nullable: an EDP polygon
+// without an EDP_Name still reports its overlap.
+const intersectingEdpSchema = joi
+  .object({
+    label: joi.string().allow(null).required(),
+    overlapAreaHa: joi.number(),
+    overlapAreaSqm: joi.number(),
+    overlapPercentage: joi.number(),
+    catchments: joi.array().items(
+      joi
+        .object({
+          label: joi.string().required(),
+          catchmentOverlapPercentage: joi.number()
+        })
+        .unknown(true)
+    )
+  })
+  .unknown(true)
+
 const boundaryCheckResponseSchema = joi
   .object({
     boundaryGeometryOriginal: joi.object().required(),
     boundaryGeometryWgs84: joi.object().required(),
-    intersectingEdps: joi.array().required(),
+    intersectingEdps: joi.array().items(intersectingEdpSchema).required(),
     intersectingExcludedAreas: joi.array().required(),
     boundaryMetadata: joi.any()
   })

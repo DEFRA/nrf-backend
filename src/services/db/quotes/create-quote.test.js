@@ -26,7 +26,12 @@ describe('dbCreateQuote', () => {
       ],
       crs: { properties: { name: 'urn:ogc:def:crs:EPSG::27700' } }
     },
-    intersectingEdps: ['EDP-001']
+    intersectingEdps: [
+      {
+        label: 'River Wensum SAC EDP',
+        catchments: [{ label: 'Broads SAC', catchmentOverlapPercentage: 67.4 }]
+      }
+    ]
   }
 
   const mockDb = () => ({
@@ -34,7 +39,16 @@ describe('dbCreateQuote', () => {
       .fn()
       .mockResolvedValueOnce({ rows: [{ id: mockUserId, created: true }] })
       .mockResolvedValueOnce({ rows: [mockQuoteRow] })
+      .mockResolvedValueOnce({ rowCount: 1 })
   })
+
+  const quoteData = {
+    planningType: 'full-planning-permission',
+    email: 'developer@housebuilder.com',
+    boundaryEntryType: 'draw',
+    boundaryGeojson: mockBoundaryGeojson,
+    housingUnits: 10
+  }
 
   it('should create a new user and insert quote with all fields', async () => {
     const db = mockDb()
@@ -136,6 +150,51 @@ describe('dbCreateQuote', () => {
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO quotes'),
       expect.arrayContaining([4326])
+    )
+  })
+
+  it('inserts placeholder EDP results for the intersecting EDPs', async () => {
+    const db = mockDb()
+
+    await dbCreateQuote({ db, quoteData })
+
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO quote_edp_results'),
+      expect.arrayContaining(['River Wensum SAC EDP'])
+    )
+  })
+
+  it('still returns the created quote when the placeholder insert fails', async () => {
+    const db = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [{ id: mockUserId, created: true }] })
+        .mockResolvedValueOnce({ rows: [mockQuoteRow] })
+        .mockRejectedValueOnce(new Error('placeholder insert failed'))
+    }
+
+    const result = await dbCreateQuote({ db, quoteData })
+
+    expect(result.reference).toBe('NRL-000001')
+  })
+
+  it('skips intersecting EDPs with no label, which cannot be matched later', async () => {
+    const db = mockDb()
+
+    await dbCreateQuote({
+      db,
+      quoteData: {
+        ...quoteData,
+        boundaryGeojson: {
+          ...mockBoundaryGeojson,
+          intersectingEdps: [{ label: null, catchments: [] }]
+        }
+      }
+    })
+
+    expect(db.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO quote_edp_results'),
+      expect.anything()
     )
   })
 })

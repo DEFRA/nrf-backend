@@ -1,4 +1,8 @@
 import { getCurrentISODateTime } from '../../../common/helpers/date-time.js'
+import { dbSavePlaceholderEdpResults } from '../quote_edp_results/queries.js'
+import { createLogger } from '../../../common/helpers/logging/logger.js'
+
+const logger = createLogger()
 
 export const dbCreateQuote = async ({ db, quoteData }) => {
   const {
@@ -41,5 +45,33 @@ export const dbCreateQuote = async ({ db, quoteData }) => {
       createdAt
     ]
   )
-  return { ...rows[0], userId, userCreated }
+  const quote = rows[0]
+
+  // A label-less EDP cannot be stored or matched: the callback finds a
+  // placeholder by name, and edp_name is NOT NULL.
+  const reportedEdps = boundaryGeojson.intersectingEdps ?? []
+  const labelledEdps = reportedEdps.filter((edp) => edp.label)
+  if (labelledEdps.length < reportedEdps.length) {
+    logger.info(
+      { quoteId: quote.id, skipped: reportedEdps.length - labelledEdps.length },
+      'Skipping intersecting EDPs with no label'
+    )
+  }
+
+  // The callback still creates a proper row if this fails, so a placeholder
+  // insert must never fail quote creation.
+  try {
+    await dbSavePlaceholderEdpResults({
+      db,
+      quoteId: quote.id,
+      intersectingEdps: labelledEdps
+    })
+  } catch (error) {
+    logger.error(
+      error,
+      `Failed to save placeholder EDP results - quoteId: ${quote.id}`
+    )
+  }
+
+  return { ...quote, userId, userCreated }
 }

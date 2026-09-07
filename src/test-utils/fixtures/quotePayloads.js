@@ -8,6 +8,10 @@ export const validQuotePayload = {
   email: 'developer@housebuilder.com'
 }
 
+// Derived, not copied: a quote created from validQuotePayload has a
+// placeholder under this name, and a literal here would drift silently.
+export const PLACEHOLDER_EDP_NAME = boundaryGeojson.intersectingEdps[0].label
+
 export const validEdpsPayload = {
   edps: [
     {
@@ -33,5 +37,14 @@ export const validEdpsPayload = {
         modelVersion: 1
       }
     }
+  ]
+}
+
+// One EDP the boundary check reported and one it did not: the fill path and
+// the insert path in a single callback.
+export const twoEdpPayload = {
+  edps: [
+    { ...validEdpsPayload.edps[0], edpId: 111, edpName: PLACEHOLDER_EDP_NAME },
+    { ...validEdpsPayload.edps[0], edpId: 222, edpName: 'Broads west' }
   ]
 }

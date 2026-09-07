@@ -1,4 +1,10 @@
+# husky runs this with `sh -e`, and nvm returns non-zero in a POSIX shell even
+# when it selects a usable version, which aborted the hook before any check ran.
+# Only the checks below should be able to fail a commit.
+set +e
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 nvm use
+set -e
+
 npm run git:pre-commit-hook

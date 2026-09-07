@@ -1,4 +1,5 @@
 import { quoteSchema } from './post-schema.js'
+import { validQuotePayload } from '../../../test-utils/fixtures/quotePayloads.js'
 
 const validPayload = {
   planningType: 'full-planning-permission',
@@ -59,6 +60,58 @@ describe('quoteSchema', () => {
     it('accepts a valid object', () => {
       const { error } = validate(validPayload)
       expect(error).toBeUndefined()
+    })
+  })
+
+  describe('boundaryGeojson.intersectingEdps', () => {
+    const withEdps = (intersectingEdps) => ({
+      ...validPayload,
+      boundaryGeojson: { ...validPayload.boundaryGeojson, intersectingEdps }
+    })
+
+    it('accepts a full boundary check response, overlap measures and all', () => {
+      const { error } = validate(validQuotePayload)
+      expect(error).toBeUndefined()
+    })
+
+    it('is optional', () => {
+      const { error } = validate(validPayload)
+      expect(error).toBeUndefined()
+    })
+
+    it('defaults a missing catchments array to empty', () => {
+      const { error, value } = validate(withEdps([{ label: 'River Wensum' }]))
+      expect(error).toBeUndefined()
+      expect(value.boundaryGeojson.intersectingEdps[0].catchments).toEqual([])
+    })
+
+    it('rejects an EDP label longer than the edp_name column', () => {
+      const { error } = validate(withEdps([{ label: 'x'.repeat(256) }]))
+      expect(error).toBeDefined()
+    })
+
+    it('accepts an EDP whose label the assessor could not resolve', () => {
+      const { error } = validate(withEdps([{ label: null }]))
+      expect(error).toBeUndefined()
+    })
+
+    it('rejects an EDP with no label', () => {
+      const { error } = validate(withEdps([{ overlapAreaHa: 1.5 }]))
+      expect(error).toBeDefined()
+    })
+
+    it('rejects a catchment overlap percentage above 100', () => {
+      const { error } = validate(
+        withEdps([
+          {
+            label: 'River Wensum',
+            catchments: [
+              { label: 'Broads SAC', catchmentOverlapPercentage: 101 }
+            ]
+          }
+        ])
+      )
+      expect(error).toBeDefined()
     })
   })
 

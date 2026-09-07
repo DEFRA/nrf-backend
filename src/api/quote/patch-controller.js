@@ -2,15 +2,13 @@ import { audit } from '@defra/cdp-auditing'
 import Boom from '@hapi/boom'
 import { auditEvents } from '../../common/constants/audit-events.js'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
-import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
-import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { config } from '../../config.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { buildQuoteAccessLink } from './helpers/build-quote-access-link.js'
-import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
+import { applyEdpResults } from './helpers/apply-edp-results.js'
 
 /**
  * @openapi
@@ -117,23 +115,16 @@ export const patchController = {
     } = quote
     const { edps } = request.payload
 
-    const anyUpdated = await saveOrUpdateEdpResults({
-      db: request.pg,
+    const { anyUpdated, rawToken } = await applyEdpResults({
+      pool: request.pg,
       quoteId: id,
       edps
     })
 
+    // Outside the transaction: a rollback could not undo a sent email.
     if (anyUpdated) {
-      const { raw, hash } = generateToken()
-
-      await dbIssueQuoteAccessToken({
-        db: request.pg,
-        quoteId: id,
-        tokenHash: hash
-      })
-
       const frontEndBaseUrl = config.get('frontEndBaseUrl')
-      const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
+      const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken })
 
       await sendQuoteEmail({
         db: request.pg,

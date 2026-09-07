@@ -157,6 +157,7 @@ describe('Patch quote endpoint', () => {
             band: { min: 1, max: 4 }
           }
         },
+        catchments: [],
         levyGbp: {
           amountExcludingVat: '1100.00',
           amountInflationAdjusted: '1122.00',

@@ -19,8 +19,14 @@ export const boundaryGeojson = {
   },
   intersectingEdps: [
     {
-      label: 'River Wensum SAC',
-      n2k_site_name: 'River Wensum SAC'
+      label: 'River Wensum SAC Environmental Delivery Plan (2026 to 2036)',
+      overlapAreaHa: 667.9304,
+      overlapAreaSqm: 6679304.0,
+      overlapPercentage: 100.0,
+      catchments: [
+        { label: 'Broads SAC', catchmentOverlapPercentage: 67.4 },
+        { label: 'River Wensum SAC', catchmentOverlapPercentage: 32.6 }
+      ]
     }
   ],
   intersectingExcludedAreas: []

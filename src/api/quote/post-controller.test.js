@@ -5,6 +5,7 @@ import { getTraceId } from '@defra/hapi-tracing'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import { boundaryGeojson } from '../../test-utils/fixtures/boundaryGeojson.js'
+import { getEdpResultRowsForReference } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('@defra/cdp-auditing')
 vi.mock('../../services/send-email/notify-client.js')
@@ -36,6 +37,25 @@ describe('Submit quote endpoint', () => {
   beforeEach(() => {
     vi.mocked(publishEvent).mockResolvedValue(true)
     vi.mocked(getTraceId).mockReturnValue('trace-abc-123')
+  })
+
+  it('persists a placeholder row per intersecting EDP with its catchments', async () => {
+    const response = await sendPostRequest({
+      server: getServer(),
+      payload: validPayload
+    })
+    const { reference } = JSON.parse(response.payload)
+
+    const rows = await getEdpResultRowsForReference({
+      server: getServer(),
+      reference
+    })
+
+    const [edp] = boundaryGeojson.intersectingEdps
+    expect(rows).toHaveLength(1)
+    expect(rows[0].edp_id).toBeNull()
+    expect(rows[0].edp_name).toBe(edp.label)
+    expect(rows[0].catchments).toEqual(edp.catchments)
   })
 
   it('should return 201 with the quote reference and a location header', async () => {

@@ -60,6 +60,7 @@ describe('mapQuoteRows', () => {
           edpName: 'Test EDP',
           edpType: 'flood',
           impact: { score: 1 },
+          catchments: [],
           levyGbp: {
             amountExcludingVat: '1100.00',
             amountInflationAdjusted: '1122.00',
@@ -73,6 +74,41 @@ describe('mapQuoteRows', () => {
         levyAmountInflationAdjusted: 1122
       }
     })
+  })
+
+  it('exposes catchments on resolved EDPs', () => {
+    const catchments = [
+      { label: 'Broads SAC', catchmentOverlapPercentage: 67.4 }
+    ]
+
+    const result = mapQuoteRows([
+      {
+        ...baseRow,
+        edp_id: 'EDP-001',
+        edp_name: 'Test EDP',
+        catchments
+      }
+    ])
+
+    expect(result.edps[0].catchments).toEqual(catchments)
+  })
+
+  it('excludes placeholder rows from edps and from the levy total', () => {
+    const result = mapQuoteRows([
+      {
+        ...baseRow,
+        edp_id: null,
+        edp_name: 'River Wensum SAC EDP',
+        edp_type: null,
+        impact: null,
+        levy_excluding_vat: null,
+        levy_inflation_adjusted: null,
+        catchments: [{ label: 'Broads SAC', catchmentOverlapPercentage: 67.4 }]
+      }
+    ])
+
+    expect(result.edps).toEqual([])
+    expect(result.levyGbp).toBeNull()
   })
 
   it('maps the latest email notification status and builds a Notify status URL', () => {

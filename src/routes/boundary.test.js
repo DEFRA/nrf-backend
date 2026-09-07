@@ -3,6 +3,7 @@ import { fetch as undiciFetch, FormData } from 'undici'
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 import { buildZip } from '../test-utils/build-zip.js'
+import { boundaryGeojson } from '../test-utils/fixtures/boundaryGeojson.js'
 import * as cdpUploaderService from '../services/cdp-uploader/cdp-uploader.js'
 import * as s3Client from '../services/s3/s3-client.js'
 
@@ -68,7 +69,8 @@ describe('Boundary routes', () => {
     it('should return geojson on success', async () => {
       const mockGeojson = {
         type: 'FeatureCollection',
-        features: []
+        features: [],
+        intersectingEdps: boundaryGeojson.intersectingEdps
       }
 
       vi.mocked(checkBoundary).mockResolvedValue({ geojson: mockGeojson })
@@ -99,6 +101,7 @@ describe('Boundary routes', () => {
       const body = JSON.parse(response.payload)
       expect(body.type).toBe('FeatureCollection')
       expect(body.boundaryFilename).toBe('test-boundary.geojson')
+      expect(body.intersectingEdps).toEqual(boundaryGeojson.intersectingEdps)
 
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
@@ -752,7 +755,7 @@ describe('Boundary routes', () => {
       const mockGeojson = {
         boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
         boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-        intersectingEdps: []
+        intersectingEdps: boundaryGeojson.intersectingEdps
       }
 
       vi.mocked(checkBoundaryGeometry).mockResolvedValue({

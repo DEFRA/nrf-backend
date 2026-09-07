@@ -2,13 +2,16 @@ import { saveOrUpdateEdpResults } from './save-or-update-edp-results.js'
 import {
   dbSaveEdpResults,
   dbGetEdpResults,
-  dbUpdateEdpResult
+  dbUpdateEdpResult,
+  dbFillEdpPlaceholder
 } from '../../../services/db/quote_edp_results/queries.js'
 
 vi.mock('../../../services/db/quote_edp_results/queries.js')
+
+const EDP_NAME = 'Norfolk Fens east'
 const edp = {
   edpId: 123,
-  edpName: 'Norfolk Fens east',
+  edpName: EDP_NAME,
   edpType: 'NUTRIENT',
   impact: {
     nitrogenTotal: { amount: 80, unit: 'mg/I TP', band: { min: 1, max: 3 } },
@@ -24,13 +27,25 @@ const edp = {
 
 const existingRow = {
   edp_id: 123,
-  edp_name: 'Norfolk Fens east',
+  edp_name: EDP_NAME,
   edp_type: 'NUTRIENT',
   impact: edp.impact,
   levy_excluding_vat: '1100.00',
   levy_base_amount: '1000.00',
   levy_inflation_adjusted: '1122.00',
   levy_model_version: 1
+}
+
+const placeholderRow = {
+  edp_id: null,
+  edp_name: EDP_NAME,
+  edp_type: null,
+  impact: null,
+  catchments: [{ label: 'Broads SAC', catchmentOverlapPercentage: 67.4 }],
+  levy_excluding_vat: null,
+  levy_base_amount: null,
+  levy_inflation_adjusted: null,
+  levy_model_version: null
 }
 
 const db = {}
@@ -163,7 +178,79 @@ describe('saveOrUpdateEdpResults', () => {
       })
 
       expect(dbUpdateEdpResult).not.toHaveBeenCalled()
+      expect(dbSaveEdpResults).not.toHaveBeenCalled()
       expect(result).toBe(false)
+    })
+  })
+
+  describe('when a placeholder row exists', () => {
+    beforeEach(() => {
+      vi.mocked(dbGetEdpResults).mockResolvedValue([placeholderRow])
+      vi.mocked(dbFillEdpPlaceholder).mockResolvedValue(1)
+    })
+
+    it('fills the placeholder and reports a change', async () => {
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edp]
+      })
+
+      expect(dbFillEdpPlaceholder).toHaveBeenCalledWith({ db, quoteId: 1, edp })
+      expect(dbSaveEdpResults).not.toHaveBeenCalled()
+      expect(result).toBe(true)
+    })
+
+    it('reports no change when another caller filled it first', async () => {
+      vi.mocked(dbFillEdpPlaceholder).mockResolvedValue(0)
+
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edp]
+      })
+
+      expect(result).toBe(false)
+    })
+
+    it('inserts a second EDP sharing the placeholder name rather than dropping it', async () => {
+      vi.mocked(dbFillEdpPlaceholder)
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(0)
+      vi.mocked(dbSaveEdpResults).mockResolvedValue(1)
+      const sameName = { ...edp, edpId: 456 }
+
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edp, sameName]
+      })
+
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
+        db,
+        quoteId: 1,
+        edps: [sameName]
+      })
+      expect(result).toBe(true)
+    })
+
+    it('inserts an EDP that matches no placeholder, since nothing is resolved yet', async () => {
+      vi.mocked(dbSaveEdpResults).mockResolvedValue(1)
+      const other = { ...edp, edpId: 456, edpName: 'Broads west' }
+
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edp, other]
+      })
+
+      expect(dbFillEdpPlaceholder).toHaveBeenCalledTimes(1)
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
+        db,
+        quoteId: 1,
+        edps: [other]
+      })
+      expect(result).toBe(true)
     })
   })
 })

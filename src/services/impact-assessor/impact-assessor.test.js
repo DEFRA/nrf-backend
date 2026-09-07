@@ -16,6 +16,12 @@ vi.mock('@defra/hapi-tracing', async (importOriginal) => {
 const { getImpactAssessorUrl, checkBoundary, checkBoundaryGeometry } =
   await import('./impact-assessor.js')
 
+const assessorEdp = {
+  label: 'edp-1',
+  overlapAreaHa: 1.5,
+  catchments: [{ label: 'Broads SAC', catchmentOverlapPercentage: 67.4 }]
+}
+
 describe('getImpactAssessorUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
 
@@ -68,7 +74,7 @@ describe('checkBoundary', () => {
     const mockResponse = {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-      intersectingEdps: ['edp-1'],
+      intersectingEdps: [assessorEdp],
       intersectingExcludedAreas: ['Exclusion Zone A'],
       boundaryMetadata: { areaHa: 42.5 }
     }
@@ -222,6 +228,50 @@ describe('checkBoundary', () => {
         Promise.resolve({
           boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
           boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should accept an intersecting EDP with a null label', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: [{ ...assessorEdp, label: null }],
+          intersectingExcludedAreas: []
+        })
+    })
+
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
+
+    expect(result.error).toBeUndefined()
+    expect(result.geojson.intersectingEdps[0].label).toBeNull()
+  })
+
+  it('should return error when an intersecting EDP omits the label field', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: [{ overlapAreaHa: 1.5 }],
+          intersectingExcludedAreas: []
         })
     })
 
@@ -431,7 +481,7 @@ describe('checkBoundaryGeometry', () => {
     const mockResponse = {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
       boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-      intersectingEdps: ['edp-1'],
+      intersectingEdps: [assessorEdp],
       intersectingExcludedAreas: [],
       boundaryMetadata: { areaHa: 10.0 }
     }
@@ -530,6 +580,24 @@ describe('checkBoundaryGeometry', () => {
         Promise.resolve({
           boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
           boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+        })
+    })
+
+    const result = await checkBoundaryGeometry(mockGeometry)
+
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
+  })
+
+  it('should return error when an intersecting EDP omits the label field', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+          intersectingEdps: [{ overlapAreaHa: 1.5 }],
+          intersectingExcludedAreas: []
         })
     })
 
