@@ -4,7 +4,7 @@ Entity-relationship diagram of the backend **`nrf_backend`** Postgres database
 (schema `public`) — the quote domain.
 
 - **Source:** live `nrf_backend` Postgres instance (`docker compose` service `postgres`), cross-checked against the Liquibase changelog under `backend/changelog/`.
-- **Generated:** 2026-09-02
+- **Generated:** 2026-09-07
 - **Scope:** application domain tables only. Liquibase bookkeeping (`databasechangelog`, `databasechangeloglock`) and the PostGIS reference table (`spatial_ref_sys`) are excluded.
 
 ```mermaid
@@ -75,6 +75,7 @@ erDiagram
         numeric levy_inflation_adjusted "nullable"
         integer levy_model_version "nullable"
         jsonb impact
+        jsonb catchments "nullable; per-EDP catchments from the impact assessor"
         timestamptz created_at "default now()"
         timestamptz updated_at "nullable"
     }

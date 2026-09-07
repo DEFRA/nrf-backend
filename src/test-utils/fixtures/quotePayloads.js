@@ -26,6 +26,18 @@ export const validEdpsPayload = {
           band: { min: 1, max: 4 }
         }
       },
+      catchments: [
+        {
+          label: 'Broads SAC',
+          catchmentId: '27',
+          catchmentOverlapPercentage: 67.4
+        },
+        {
+          label: 'River Wensum SAC',
+          catchmentId: '29',
+          catchmentOverlapPercentage: 32.6
+        }
+      ],
       levyGbp: {
         amountExcludingVat: 1100,
         amountInflationAdjusted: 1122,

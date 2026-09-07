@@ -14,6 +14,13 @@ const edp = {
     nitrogenTotal: { amount: 80, unit: 'mg/I TP', band: { min: 1, max: 3 } },
     phosphorusTotal: { amount: 60, unit: 'mg/I TP', band: { min: 1, max: 4 } }
   },
+  catchments: [
+    {
+      label: 'Broads SAC',
+      catchmentId: '27',
+      catchmentOverlapPercentage: 67.4
+    }
+  ],
   levyGbp: {
     amountExcludingVat: 1100,
     amountInflationAdjusted: 1122,
@@ -27,6 +34,7 @@ const existingRow = {
   edp_name: 'Norfolk Fens east',
   edp_type: 'NUTRIENT',
   impact: edp.impact,
+  catchments: edp.catchments,
   levy_excluding_vat: '1100.00',
   levy_base_amount: '1000.00',
   levy_inflation_adjusted: '1122.00',
@@ -152,6 +160,44 @@ describe('saveOrUpdateEdpResults', () => {
 
       expect(dbUpdateEdpResult).toHaveBeenCalled()
       expect(result).toBe(true)
+    })
+
+    it('updates the record and returns true when catchments change', async () => {
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [
+          {
+            ...edp,
+            catchments: [
+              {
+                label: 'River Wensum SAC',
+                catchmentId: '29',
+                catchmentOverlapPercentage: 32.6
+              }
+            ]
+          }
+        ]
+      })
+
+      expect(dbUpdateEdpResult).toHaveBeenCalled()
+      expect(result).toBe(true)
+    })
+
+    it('returns false when a row without catchments gets a payload without catchments', async () => {
+      vi.mocked(dbGetEdpResults).mockResolvedValue([
+        { ...existingRow, catchments: null }
+      ])
+      const { catchments: _, ...edpWithoutCatchments } = edp
+
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [edpWithoutCatchments]
+      })
+
+      expect(dbUpdateEdpResult).not.toHaveBeenCalled()
+      expect(result).toBe(false)
     })
 
     it('skips an EDP with no matching existing record', async () => {
