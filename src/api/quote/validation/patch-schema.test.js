@@ -200,6 +200,91 @@ describe('patchSchema', () => {
     })
   })
 
+  describe('catchments', () => {
+    const validCatchment = {
+      label: 'Broads SAC',
+      catchmentId: '27',
+      catchmentOverlapPercentage: 67.4
+    }
+
+    it('accepts a list of catchments', () => {
+      const { error } = validate({
+        edps: [{ ...validEdp, catchments: [validCatchment] }]
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('is optional', () => {
+      const { error } = validate({ edps: [validEdp] })
+      expect(error).toBeUndefined()
+    })
+
+    it('accepts an empty list', () => {
+      const { error } = validate({ edps: [{ ...validEdp, catchments: [] }] })
+      expect(error).toBeUndefined()
+    })
+
+    it('requires label', () => {
+      const { label: _, ...rest } = validCatchment
+      const { error } = validate({
+        edps: [{ ...validEdp, catchments: [rest] }]
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('accepts a null catchmentId', () => {
+      const { error } = validate({
+        edps: [
+          {
+            ...validEdp,
+            catchments: [{ ...validCatchment, catchmentId: null }]
+          }
+        ]
+      })
+      expect(error).toBeUndefined()
+    })
+
+    it('requires catchmentId', () => {
+      const { catchmentId: _, ...rest } = validCatchment
+      const { error } = validate({
+        edps: [{ ...validEdp, catchments: [rest] }]
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('requires catchmentOverlapPercentage', () => {
+      const { catchmentOverlapPercentage: _, ...rest } = validCatchment
+      const { error } = validate({
+        edps: [{ ...validEdp, catchments: [rest] }]
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('rejects an overlap percentage above 100', () => {
+      const { error } = validate({
+        edps: [
+          {
+            ...validEdp,
+            catchments: [{ ...validCatchment, catchmentOverlapPercentage: 101 }]
+          }
+        ]
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('rejects a negative overlap percentage', () => {
+      const { error } = validate({
+        edps: [
+          {
+            ...validEdp,
+            catchments: [{ ...validCatchment, catchmentOverlapPercentage: -1 }]
+          }
+        ]
+      })
+      expect(error).toBeDefined()
+    })
+  })
+
   describe('levyGbp', () => {
     it('is required', () => {
       const { levyGbp: _, ...rest } = validEdp
