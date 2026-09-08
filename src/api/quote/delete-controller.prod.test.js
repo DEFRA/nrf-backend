@@ -13,7 +13,7 @@ import { statusCodes } from '../../common/constants/status-codes.js'
 const { setupTestServer } =
   await import('../../test-utils/setup-test-server.js')
 const { routePath } = await import('../../routes/quote.js')
-const { createQuote, sendDeleteRequest } =
+const { createQuote, sendDeleteRequest, sendGetRequest } =
   await import('../../test-utils/quote-request-helpers.js')
 
 vi.mock('@defra/cdp-auditing')
@@ -49,6 +49,14 @@ describe('Delete quote endpoint in production', () => {
     const response = await sendDeleteRequest({ server, reference })
 
     expect(response.statusCode).toBe(statusCodes.noContent)
+
+    // The quote endpoint reports a missing quote as 200 + accessStatus
+    // rather than a bare 404
+    const getResponse = await sendGetRequest({ server, reference })
+    const { accessStatus, quote } = JSON.parse(getResponse.payload)
+
+    expect(accessStatus).toBe('not_found')
+    expect(quote).toBeNull()
   })
 
   it('refuses to delete a quote created with an unapproved email', async () => {

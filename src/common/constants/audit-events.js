@@ -6,7 +6,6 @@ export const auditEvents = {
   quote: {
     category: 'quote',
     createQuote: 'create-quote',
-    updateQuote: 'update-quote',
-    deleteQuote: 'delete-quote'
+    updateQuote: 'update-quote'
   }
 }

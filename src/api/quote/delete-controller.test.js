@@ -1,6 +1,4 @@
-import { audit } from '@defra/cdp-auditing'
 import { statusCodes } from '../../common/constants/status-codes.js'
-import { auditEvents } from '../../common/constants/audit-events.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
@@ -71,35 +69,6 @@ describe('Delete quote endpoint', () => {
     })
 
     expect(response.statusCode).toBe(statusCodes.badRequest)
-  })
-
-  it('audits the deletion', async () => {
-    const server = getServer()
-    const postResponse = await createQuote(server)
-    const { reference } = JSON.parse(postResponse.payload)
-
-    await sendDeleteRequest({ server, reference })
-
-    expect(audit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        event: {
-          category: auditEvents.quote.category,
-          action: auditEvents.quote.deleteQuote
-        }
-      })
-    )
-  })
-
-  it('does not audit the deletion when analytics is disabled for the quote', async () => {
-    const server = getServer()
-    const postResponse = await createQuote(server, {
-      disableAnalyticsAudit: true
-    })
-    const { reference } = JSON.parse(postResponse.payload)
-
-    await sendDeleteRequest({ server, reference })
-
-    expect(audit).not.toHaveBeenCalled()
   })
 
   it('marks the quote as deletable in the list outside production', async () => {

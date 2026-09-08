@@ -1,9 +1,7 @@
-import { audit } from '@defra/cdp-auditing'
 import Boom from '@hapi/boom'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbDeleteQuote } from '../../services/db/quotes/delete-quote.js'
 import { canDeleteQuote } from './helpers/can-delete-quote.js'
-import { auditEvents } from '../../common/constants/audit-events.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { config } from '../../config.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
@@ -67,16 +65,6 @@ export const deleteController = {
     if (!deleted) {
       // The quote vanished between the fetch and the delete
       throw Boom.notFound(`No quote found with reference ${reference}`)
-    }
-
-    if (!quote.disableAnalyticsAudit) {
-      audit({
-        event: {
-          category: auditEvents.quote.category,
-          action: auditEvents.quote.deleteQuote
-        },
-        context: { quote }
-      })
     }
 
     return h.response().code(statusCodes.noContent)
