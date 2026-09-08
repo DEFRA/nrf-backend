@@ -22,6 +22,18 @@ describe('dbSaveEdpResults', () => {
           band: { min: 1, max: 4 }
         }
       },
+      catchments: [
+        {
+          label: 'Broads SAC',
+          catchmentId: '27',
+          catchmentOverlapPercentage: 67.4
+        },
+        {
+          label: 'River Wensum SAC',
+          catchmentId: '29',
+          catchmentOverlapPercentage: 32.6
+        }
+      ],
       levyGbp: {
         amountExcludingVat: 1100,
         amountInflationAdjusted: 1122,
@@ -55,6 +67,7 @@ describe('dbSaveEdpResults', () => {
     expect(db.query).toHaveBeenCalledTimes(1)
     const [sql, params] = db.query.mock.calls[0]
     expect(sql).toContain('INSERT INTO quote_edp_results')
+    expect(sql).toContain('catchments')
     expect(sql).toContain('ON CONFLICT (quote_id, edp_id) DO NOTHING')
     expect(params).toEqual([
       1,
@@ -62,6 +75,7 @@ describe('dbSaveEdpResults', () => {
       'Norfolk Fens east',
       'NUTRIENT',
       JSON.stringify(edps[0].impact),
+      JSON.stringify(edps[0].catchments),
       1100,
       1000,
       1122,
@@ -83,6 +97,7 @@ describe('dbSaveEdpResults', () => {
       'Norfolk Fens east',
       'NUTRIENT',
       JSON.stringify(edps[0].impact),
+      JSON.stringify(edps[0].catchments),
       1100,
       1000,
       1122,
@@ -92,6 +107,7 @@ describe('dbSaveEdpResults', () => {
       'Broads west',
       'BIODIVERSITY',
       JSON.stringify(broadsWestEdp.impact),
+      null,
       2100,
       2000,
       2122,
@@ -139,6 +155,13 @@ describe('dbUpdateEdpResult', () => {
       edpName: 'Updated Name',
       edpType: 'NUTRIENT',
       impact: { nitrogenTotal: { amount: 90 } },
+      catchments: [
+        {
+          label: 'Broads SAC',
+          catchmentId: '27',
+          catchmentOverlapPercentage: 67.4
+        }
+      ],
       levyGbp: {
         amountExcludingVat: 1200,
         amountInflationAdjusted: 1222,
@@ -155,6 +178,7 @@ describe('dbUpdateEdpResult', () => {
         'Updated Name',
         'NUTRIENT',
         JSON.stringify({ nitrogenTotal: { amount: 90 } }),
+        JSON.stringify(edp.catchments),
         1200,
         1100,
         1222,
@@ -163,5 +187,24 @@ describe('dbUpdateEdpResult', () => {
         123
       ]
     )
+  })
+  it('should store null when the EDP has no catchments', async () => {
+    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
+    const edp = {
+      edpName: 'Updated Name',
+      edpType: 'NUTRIENT',
+      impact: { nitrogenTotal: { amount: 90 } },
+      levyGbp: {
+        amountExcludingVat: 1200,
+        amountInflationAdjusted: 1222,
+        baseAmount: 1100,
+        modelVersion: 2
+      }
+    }
+
+    await dbUpdateEdpResult({ db, quoteId: 1, edpId: 123, edp })
+
+    const [, params] = db.query.mock.calls[0]
+    expect(params[3]).toBeNull()
   })
 })

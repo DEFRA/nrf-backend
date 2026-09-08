@@ -1,0 +1,54 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="30" author="engin.gem">
+    <!-- Per-EDP catchments from the impact assessor. Nullable: the assessor
+         rollout is not atomic, so callbacks without catchments must still land. -->
+    <addColumn tableName="quote_edp_results">
+      <column name="catchments" type="JSONB"/>
+    </addColumn>
+    <rollback>
+      <dropColumn tableName="quote_edp_results">
+        <column name="catchments" type="JSONB"/>
+      </dropColumn>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="31" author="engin.gem">
+    <!-- Shape of the catchments jsonb, so the structure is enforced in the DB and
+         picked up by the generated ERD / data dictionary. Deliberately permissive
+         about extra keys: the impact assessor can add fields without a migration. -->
+    <sql>
+      <![CDATA[
+      ALTER TABLE quote_edp_results
+        ADD CONSTRAINT ck_quote_edp_results_catchments CHECK (
+          catchments IS NULL
+          OR (
+            jsonb_typeof(catchments) = 'array'
+            AND NOT jsonb_path_exists(catchments, 'strict $[*] ? (@.type() <> "object")')
+            AND NOT jsonb_path_exists(catchments, 'lax $[*] ? (
+                 !exists(@.label) || @.label.type() <> "string"
+              || !exists(@.catchmentId)
+                 || (@.catchmentId.type() <> "string" && @.catchmentId.type() <> "null")
+              || !exists(@.catchmentOverlapPercentage)
+                 || @.catchmentOverlapPercentage.type() <> "number"
+                 || @.catchmentOverlapPercentage < 0
+                 || @.catchmentOverlapPercentage > 100)')
+          )
+        );
+      ]]>
+    </sql>
+    <rollback>
+      <sql>ALTER TABLE quote_edp_results DROP CONSTRAINT ck_quote_edp_results_catchments;</sql>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

@@ -14,7 +14,7 @@
 /**
  * @param {object} params
  * @param {number} params.quoteId
- * @param {{ edpId: number, edpName: string, edpType: string, impact: object, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} params.edp
+ * @param {{ edpId: number, edpName: string, edpType: string, impact: object, catchments: Array<{ label: string, catchmentId: string, catchmentOverlapPercentage: number }> | undefined, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} params.edp
  * @returns {Array} the column values for one quote_edp_results row, in insert order
  */
 const edpRowValues = ({ quoteId, edp }) => [
@@ -23,6 +23,7 @@ const edpRowValues = ({ quoteId, edp }) => [
   edp.edpName,
   edp.edpType,
   JSON.stringify(edp.impact),
+  edp.catchments ? JSON.stringify(edp.catchments) : null,
   edp.levyGbp.amountExcludingVat,
   edp.levyGbp.baseAmount,
   edp.levyGbp.amountInflationAdjusted,
@@ -44,7 +45,7 @@ export const dbSaveEdpResults = async ({ db, quoteId, edps }) => {
   })
 
   const { rowCount } = await db.query(
-    `INSERT INTO quote_edp_results (quote_id, edp_id, edp_name, edp_type, impact, levy_excluding_vat, levy_base_amount, levy_inflation_adjusted, levy_model_version, created_at)
+    `INSERT INTO quote_edp_results (quote_id, edp_id, edp_name, edp_type, impact, catchments, levy_excluding_vat, levy_base_amount, levy_inflation_adjusted, levy_model_version, created_at)
      VALUES ${rowPlaceholders.join(', ')}
      ON CONFLICT (quote_id, edp_id) DO NOTHING`,
     params
@@ -62,15 +63,16 @@ export const dbGetEdpResults = async ({ db, quoteId }) => {
 }
 
 export const dbUpdateEdpResult = async ({ db, quoteId, edpId, edp }) => {
-  const { edpName, edpType, impact, levyGbp } = edp
+  const { edpName, edpType, impact, catchments, levyGbp } = edp
   await db.query(
     `UPDATE quote_edp_results
-     SET edp_name = $1, edp_type = $2, impact = $3, levy_excluding_vat = $4, levy_base_amount = $5, levy_inflation_adjusted = $6, levy_model_version = $7, updated_at = NOW()
-     WHERE quote_id = $8 AND edp_id = $9`,
+     SET edp_name = $1, edp_type = $2, impact = $3, catchments = $4, levy_excluding_vat = $5, levy_base_amount = $6, levy_inflation_adjusted = $7, levy_model_version = $8, updated_at = NOW()
+     WHERE quote_id = $9 AND edp_id = $10`,
     [
       edpName,
       edpType,
       JSON.stringify(impact),
+      catchments ? JSON.stringify(catchments) : null,
       levyGbp.amountExcludingVat,
       levyGbp.baseAmount,
       levyGbp.amountInflationAdjusted,
