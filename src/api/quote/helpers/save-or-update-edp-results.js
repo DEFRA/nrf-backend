@@ -13,8 +13,13 @@ const sortedStringify = (value) =>
   )
 
 /**
- * @param {{ edp_name: string, edp_type: string, impact: object, catchments: object[] | null, levy_excluding_vat: string, levy_inflation_adjusted: string, levy_base_amount: string, levy_model_version: number }} existing
- * @param {{ edpName: string, edpType: string, impact: object, catchments: object[] | undefined, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} edp
+ * @typedef {{ label: string, catchmentId: string | null, catchmentOverlapPercentage: number }} Catchment
+ * `catchmentOverlapPercentage` is 0-100, enforced by `patchSchema`.
+ */
+
+/**
+ * @param {{ edp_name: string, edp_type: string, impact: object, catchments: Catchment[] | null, levy_excluding_vat: string, levy_inflation_adjusted: string, levy_base_amount: string, levy_model_version: number }} existing
+ * @param {{ edpName: string, edpType: string, impact: object, catchments: Catchment[] | undefined, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} edp
  * @returns {boolean} true if any tracked field differs from the stored row
  */
 const hasEdpChanged = (existing, edp) => {
