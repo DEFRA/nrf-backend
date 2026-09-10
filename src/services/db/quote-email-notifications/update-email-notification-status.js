@@ -19,7 +19,7 @@ export const dbUpdateEmailNotificationStatus = async ({
 }) => {
   await db.query(
     `UPDATE quote_email_notifications
-        SET status = $2,
+        SET notify_send_status = $2,
             status_checked_at = now(),
             sent_at = COALESCE($3, sent_at),
             completed_at = COALESCE($4, completed_at)

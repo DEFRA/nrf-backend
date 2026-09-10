@@ -13,6 +13,7 @@ vi.mock('../../sns/publish-event.js')
 describe('dbGetRetryableEmailFailures', () => {
   const getServer = setupTestServer()
   const createdQuoteIds = []
+  const QUOTE_RESULTS = 'quote_results'
 
   const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
 
@@ -48,7 +49,7 @@ describe('dbGetRetryableEmailFailures', () => {
     // A crashed earlier run can leave retryable failures behind; sweep them so
     // the exact-result assertions below only see rows this run seeds.
     await getServer().pg.query(
-      'DELETE FROM quote_email_notifications WHERE status = ANY($1)',
+      'DELETE FROM quote_email_notifications WHERE notify_send_status = ANY($1)',
       [RETRYABLE_DELIVERY_STATUSES]
     )
   })
@@ -61,44 +62,43 @@ describe('dbGetRetryableEmailFailures', () => {
     createdQuoteIds.length = 0
   })
 
-  it('returns each quote’s latest retryable failure with its retry count, oldest first', async () => {
+  it("returns each quote's retryable failure with its retry count, oldest first", async () => {
     const oldest = await createQuoteWithId()
     const middle = await createQuoteWithId()
     const newest = await createQuoteWithId()
 
-    // one accepted retry and one Notify-rejected attempt already spent
-    await seedNotification({ quoteId: oldest, emailType: 'retry', minutes: 50 })
     await seedNotification({
       quoteId: oldest,
-      emailType: 'retry_rejected',
-      minutes: 45
-    })
-    await seedNotification({
-      quoteId: oldest,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
+      retryCount: 2,
       minutes: 40
     })
-
     await seedNotification({
       quoteId: middle,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'technical-failure',
       minutes: 30
     })
-
     await seedNotification({
       quoteId: newest,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 20
     })
 
-    expect(await queryFailures()).toEqual([
+    const failures = await queryFailures()
+
+    expect(
+      failures.map(({ quote_id, retry_count }) => ({ quote_id, retry_count }))
+    ).toEqual([
       { quote_id: oldest, retry_count: 2 },
       { quote_id: middle, retry_count: 0 },
       { quote_id: newest, retry_count: 0 }
     ])
+    for (const row of failures) {
+      expect(row.id).toEqual(expect.any(Number))
+    }
   })
 
   it('caps the batch at the limit, keeping the oldest failures', async () => {
@@ -113,63 +113,54 @@ describe('dbGetRetryableEmailFailures', () => {
     ]) {
       await seedNotification({
         quoteId,
-        emailType: 'quote_result',
+        emailType: QUOTE_RESULTS,
         status: 'temporary-failure',
         minutes
       })
     }
 
-    expect(await queryFailures({ limit: 2 })).toEqual([
-      { quote_id: oldest, retry_count: 0 },
-      { quote_id: middle, retry_count: 0 }
-    ])
+    const failures = await queryFailures({ limit: 2 })
+
+    expect(failures.map((r) => r.quote_id)).toEqual([oldest, middle])
   })
 
-  it('ignores failures superseded by a newer send, but not by a newer rejected retry', async () => {
+  it('ignores failures superseded by a newer send (user-initiated resend)', async () => {
     const superseded = await createQuoteWithId()
-    const rejectedRetry = await createQuoteWithId()
+    const stillFailing = await createQuoteWithId()
 
     // a newer user-initiated resend supersedes the stale failure
     await seedNotification({
       quoteId: superseded,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 30
     })
     await seedNotification({
       quoteId: superseded,
-      emailType: 'resend',
+      emailType: 'resend_quote_link',
       minutes: 10
     })
 
-    // a newer retry Notify rejected never suppresses the failure it belongs to
     await seedNotification({
-      quoteId: rejectedRetry,
-      emailType: 'quote_result',
+      quoteId: stillFailing,
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 30
     })
-    await seedNotification({
-      quoteId: rejectedRetry,
-      emailType: 'retry_rejected',
-      minutes: 10
-    })
 
-    expect(await queryFailures()).toEqual([
-      { quote_id: rejectedRetry, retry_count: 1 }
-    ])
+    const failures = await queryFailures()
+
+    expect(failures.map((r) => r.quote_id)).toEqual([stillFailing])
   })
 
-  it('skips quotes that have spent their whole retry budget', async () => {
+  it('skips rows that have spent their whole retry budget', async () => {
     const quoteId = await createQuoteWithId()
 
-    for (const minutes of [60, 55, 50, 45]) {
-      await seedNotification({ quoteId, emailType: 'retry', minutes })
-    }
     await seedNotification({
       quoteId,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
+      retryCount: 4,
       minutes: 30
     })
 
@@ -182,13 +173,13 @@ describe('dbGetRetryableEmailFailures', () => {
 
     await seedNotification({
       quoteId: stale,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 60 * 24 * 3
     })
     await seedNotification({
       quoteId: permanent,
-      emailType: 'quote_result',
+      emailType: QUOTE_RESULTS,
       status: 'permanent-failure',
       minutes: 30
     })

@@ -8,19 +8,19 @@ describe('dbCreateEmailNotification', () => {
       db,
       quoteId: 42,
       notificationId: '47cbb989-9546-418c-8828-232c3dc57537',
-      emailType: 'resend'
+      emailType: 'resend_quote_link'
     })
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO quote_email_notifications'),
-      [42, '47cbb989-9546-418c-8828-232c3dc57537', 'resend']
+      [42, '47cbb989-9546-418c-8828-232c3dc57537', 'resend_quote_link']
     )
     expect(db.query.mock.calls[0][0]).toContain(
       'ON CONFLICT (notification_id) DO NOTHING'
     )
   })
 
-  it('defaults email_type to quote_result', async () => {
+  it('defaults email_type to quote_results', async () => {
     const db = { query: vi.fn().mockResolvedValue({ rows: [] }) }
 
     await dbCreateEmailNotification({
@@ -32,7 +32,7 @@ describe('dbCreateEmailNotification', () => {
     expect(db.query).toHaveBeenCalledWith(expect.any(String), [
       1,
       '47cbb989-9546-418c-8828-232c3dc57537',
-      'quote_result'
+      'quote_results'
     ])
   })
 })

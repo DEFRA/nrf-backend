@@ -1,0 +1,51 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="32" author="jon.wyatt">
+    <!-- Constrain quote_email_notifications.email_type to the domain the app
+         understands. Values live in one place (the schema) so the ERD surfaces
+         them and a typo fails at insert instead of silently breaking the
+         poller / retry filters that pivot on this column. -->
+    <sql>
+      UPDATE quote_email_notifications SET email_type = 'quote_results'    WHERE email_type = 'quote_result';
+      UPDATE quote_email_notifications SET email_type = 'resend_quote_link' WHERE email_type = 'resend';
+      ALTER TABLE quote_email_notifications
+        ADD CONSTRAINT chk_qen_email_type
+        CHECK (email_type IN ('quote_results', 'resend_quote_link', 'retry', 'retry_rejected'));
+    </sql>
+    <rollback>
+      <sql>
+        ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;
+      </sql>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="33" author="jon.wyatt">
+    <!-- Rename `status` to `notify_send_status` so the column name says what
+         it holds: a GOV.UK Notify delivery status. Kept as free-text VARCHAR
+         (no CHECK) — Notify owns the vocabulary, so pinning our schema to a
+         snapshot of it would break us the day Notify introduces a new value.
+         The partial index idx_qen_pending (changelog 2.7) automatically
+         follows the column rename in Postgres.
+         See https://docs.notifications.service.gov.uk/node.html#email-status-descriptions -->
+    <renameColumn tableName="quote_email_notifications"
+                  oldColumnName="status"
+                  newColumnName="notify_send_status"
+                  columnDataType="VARCHAR(50)"/>
+    <rollback>
+      <renameColumn tableName="quote_email_notifications"
+                    oldColumnName="notify_send_status"
+                    newColumnName="status"
+                    columnDataType="VARCHAR(50)"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

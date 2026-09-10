@@ -12,8 +12,10 @@ describe('dbGetQuote', () => {
       boundary_entry_type: 'upload',
       boundary_filename: 'site-boundary.shp',
       email_address: 'developer@housebuilder.com',
-      email_status: 'delivered',
+      notify_send_status: 'delivered',
       email_notification_id: '47cbb989-9546-418c-8828-232c3dc57537',
+      email_type: 'quote_results',
+      retry_count: 0,
       edp_id: 'EDP-001',
       edp_name: 'Test EDP',
       edp_type: 'flood',
@@ -65,7 +67,9 @@ describe('dbGetQuote', () => {
         levyAmountInflationAdjusted: 1122
       }
     })
-    expect(result.email.status).toBe('delivered')
+    expect(result.email.notifySendStatus).toBe('delivered')
+    expect(result.email.emailType).toBe('quote_results')
+    expect(result.email.sendRetryCount).toBe(0)
   })
 
   it('should return the quote with empty edps when no edp results exist', async () => {

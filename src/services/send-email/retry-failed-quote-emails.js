@@ -1,12 +1,10 @@
-import { randomUUID } from 'node:crypto'
-
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { dbIssueQuoteAccessToken } from '../db/quote-access-tokens/issue-quote-access-token.js'
 import { dbGetQuoteById } from '../db/quotes/get-quote-by-id.js'
 import { dbGetRetryableEmailFailures } from '../db/quote-email-notifications/get-retryable-email-failures.js'
-import { dbCreateEmailNotification } from '../db/quote-email-notifications/create-email-notification.js'
+import { dbUpdateEmailNotificationForRetry } from '../db/quote-email-notifications/update-email-notification-for-retry.js'
 import { sendQuoteEmail } from '../../api/quote/helpers/send-quote-email.js'
 import { buildQuoteAccessLink } from '../../api/quote/helpers/build-quote-access-link.js'
 
@@ -15,31 +13,33 @@ const logger = createLogger()
 // Session-level advisory lock keyed on a stable string so only one retry
 // worker (or tick) runs at a time — CDP runs multiple instances and each
 // fires the schedule independently. Deliberately a different key from the
-// status poller's lock so the two jobs never contend: the worker only inserts
-// new rows, the poller only updates rows it fetched.
+// status poller's lock so the two jobs never contend.
 const ADVISORY_LOCK_KEY = "hashtext('nrf-notify-email-retry')"
 
 /**
- * Re-send the quote email for one failed notification. The quote is re-read
- * from the database so the content matches a normal send. The original raw
- * access token is never persisted (only its hash), so every retry issues a
- * fresh token and link — safe because the failed email never reached anyone,
- * and it means the re-sent link can never be stale or session-exhausted.
+ * Re-send the quote email for one failed notification, updating the existing
+ * quote_email_notifications row in place: retry_count is bumped, and on an
+ * accepted send the row's notification_id / notify_send_status / timestamps
+ * are reset so the poller repopulates them for the fresh id. A Notify
+ * rejection only bumps retry_count, so it still consumes budget without a
+ * new notification_id. Vanished quotes are logged and skipped.
  *
- * A Notify rejection is recorded as a `retry_rejected` notification row with
- * a locally generated id, so the attempt still consumes the retry budget —
- * without it the quote would be retried every tick until it ages out of the
- * lookback window. The poller skips `retry_rejected` rows: Notify never
- * accepted the send, so their id is not one it would recognise. A later tick
- * tries again only while budget remains. Vanished quotes are logged and
- * skipped.
+ * A fresh access token is issued for every retry: the raw token is never
+ * persisted (only its hash), so we cannot reuse the original link, and the
+ * failed email never reached anyone so no stale-link risk exists.
  *
  * @param {object} params
  * @param {{ query: Function }} params.db - the locked pooled client
+ * @param {number} params.notificationRowId - quote_email_notifications.id of the row to update
  * @param {number} params.quoteId
  * @param {number} params.attemptNo - retry attempt number, keeps the Notify reference unique
  */
-const retryQuoteEmail = async ({ db, quoteId, attemptNo }) => {
+const retryQuoteEmail = async ({
+  db,
+  notificationRowId,
+  quoteId,
+  attemptNo
+}) => {
   const quote = await dbGetQuoteById({ db, id: quoteId })
   if (!quote) {
     logger.warn({ quoteId }, 'Quote no longer exists; skipping email retry')
@@ -47,13 +47,9 @@ const retryQuoteEmail = async ({ db, quoteId, attemptNo }) => {
   }
 
   const { raw, hash } = generateToken()
-
   await dbIssueQuoteAccessToken({ db, quoteId: quote.id, tokenHash: hash })
 
   const emailResult = await sendQuoteEmail({
-    db,
-    quoteId: quote.id,
-    emailType: 'retry',
     recipientEmailAddress: quote.email.address,
     nrfQuoteReference: quote.reference,
     emailReference: `${quote.reference}-retry-${attemptNo}`,
@@ -67,18 +63,13 @@ const retryQuoteEmail = async ({ db, quoteId, attemptNo }) => {
     })
   })
 
-  if (!emailResult?.sentDateTime) {
-    // Notify rejected the send, so no message exists and there is no real
-    // notification id. Record the attempt with a locally generated id so it
-    // still consumes the retry budget — see get-retryable-email-failures.js
-    // for the email types the budget counts.
-    await dbCreateEmailNotification({
-      db,
-      quoteId,
-      notificationId: randomUUID(),
-      emailType: 'retry_rejected'
-    })
+  await dbUpdateEmailNotificationForRetry({
+    db,
+    id: notificationRowId,
+    notificationId: emailResult?.notificationId ?? null
+  })
 
+  if (!emailResult?.sentDateTime) {
     logger.warn(
       { quoteId, attemptNo },
       'Notify rejected the retry send; will retry on a later tick while budget remains'
@@ -88,16 +79,14 @@ const retryQuoteEmail = async ({ db, quoteId, attemptNo }) => {
 
 /**
  * One retry run (NRF2-849): claim an advisory lock, fetch a bounded batch of
- * quotes whose latest email ended in a retryable status, and re-send the quote
- * email with a fresh access link. Each accepted send is recorded like any
- * other notification (`email_type = 'retry'`), so the status poller tracks its
- * delivery and the retry budget counts down; a Notify-rejected send is
- * recorded as a `retry_rejected` row so it consumes budget too. A DB failure
- * is presumed to be a
- * dead connection, so the batch stops rather than burning more Notify sends
- * whose notification rows could never be recorded. Once the budget is spent no
- * further attempts are made and nothing alerts — the developer must then
- * submit a new quote request with a valid address.
+ * quotes whose latest email ended in a retryable status, re-send the quote
+ * email with a fresh access link, and update the existing notification row in
+ * place. Each attempt (accepted or Notify-rejected) bumps retry_count so the
+ * budget runs down uniformly. A DB failure is presumed to be a dead
+ * connection, so the batch stops rather than burning more Notify sends whose
+ * updates could never be recorded. Once the budget is spent no further
+ * attempts are made and nothing alerts — the developer must then submit a
+ * new quote request with a valid address.
  *
  * Uses a single pooled client for the whole run so the session-level advisory
  * lock spans every query. The lock is session-scoped (tied to this connection)
@@ -106,8 +95,9 @@ const retryQuoteEmail = async ({ db, quoteId, attemptNo }) => {
  * @param {{ connect: Function }} pool - the `pg` pool (server.pg)
  */
 export const retryFailedQuoteEmails = async ({ pool }) => {
-  const { batchSize, maxRetryAttempts, maxAgeDays } =
-    config.get('notify.emailRetry')
+  const { batchSize, maxRetryAttempts, maxAgeDays } = config.get(
+    'notify.retrySendingEmails'
+  )
 
   const client = await pool.connect()
   try {
@@ -130,20 +120,25 @@ export const retryFailedQuoteEmails = async ({ pool }) => {
 
     logger.info({ count: failed.length }, 'Retrying failed quote emails')
 
-    for (const { quote_id: quoteId, retry_count: retryCount } of failed) {
+    for (const {
+      id: notificationRowId,
+      quote_id: quoteId,
+      retry_count: retryCount
+    } of failed) {
       try {
         await retryQuoteEmail({
           db: client,
+          notificationRowId,
           quoteId,
           attemptNo: retryCount + 1
         })
       } catch (error) {
         // DB-side failure: the pooled connection is likely dead (e.g. RDS
         // restart). Stop the batch rather than issuing more Notify sends whose
-        // notification rows could never be recorded on this connection.
+        // notification rows could never be updated on this connection.
         logger.error(
-          { quoteId, error: error.message },
-          'Failed to retry quote email; aborting batch'
+          error,
+          `Failed to retry quote email; aborting batch (quoteId: ${quoteId})`
         )
         break
       }
@@ -158,10 +153,7 @@ export const retryFailedQuoteEmails = async ({ pool }) => {
       await client.query(`SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`)
     } catch (error) {
       unlockError = error
-      logger.error(
-        { error: error.message },
-        'Failed to release email retry advisory lock'
-      )
+      logger.error(error, 'Failed to release email retry advisory lock')
     }
     client.release(unlockError)
   }

@@ -26,7 +26,7 @@ describe('Delete quote endpoint', () => {
     await insertEmailNotification({
       server,
       quoteId,
-      emailType: 'quote_result'
+      emailType: 'quote_results'
     })
 
     const response = await sendDeleteRequest({ server, reference })

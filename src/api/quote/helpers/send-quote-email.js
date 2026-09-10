@@ -1,18 +1,18 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
-import { dbCreateEmailNotification } from '../../../services/db/quote-email-notifications/create-email-notification.js'
 import { config } from '../../../config.js'
-import { createLogger } from '../../../common/helpers/logging/logger.js'
 import { getLevyAmount } from './get-levy-amount.js'
 import { getPlanningTypeDisplay } from './get-planning-type-display.js'
 import { formatCurrency } from '../../../common/helpers/format-currency.js'
 
-const logger = createLogger()
-
 /**
+ * Send a quote result email via GOV.UK Notify. Recording the notification id
+ * against the quote is the caller's responsibility: initial sends and
+ * user-initiated resends insert a new quote_email_notifications row; the retry
+ * worker updates the existing row for that quote's email lifecycle. Keeping
+ * persistence out of here means one helper is not tied to one persistence
+ * shape.
+ *
  * @param {object} params
- * @param {{ query: Function }} params.db
- * @param {number} params.quoteId
- * @param {string} [params.emailType='quote_result'] - 'quote_result' | 'resend' | 'retry'
  * @param {string} params.recipientEmailAddress
  * @param {string} params.nrfQuoteReference
  * @param {string} [params.emailReference=nrfQuoteReference] - Notify dedup/reference key for the send; retries pass a suffixed value so a re-send can never be deduplicated against an earlier attempt
@@ -21,12 +21,9 @@ const logger = createLogger()
  * @param {number} params.housingUnits
  * @param {string} params.planningType
  * @param {string} params.quoteAccessLink
- * @returns {Promise<{ notificationId: string, sentDateTime: string } | null>}
+ * @returns {Promise<{ notificationId: string, sentDateTime: string } | null>} - null if Notify rejected the send
  */
 export const sendQuoteEmail = async ({
-  db,
-  quoteId,
-  emailType = 'quote_result',
   recipientEmailAddress,
   nrfQuoteReference,
   emailReference = nrfQuoteReference,
@@ -39,7 +36,7 @@ export const sendQuoteEmail = async ({
   const { templateIds } = config.get('notify')
   const { levyAmountExcludingVat, levyAmountInflationAdjusted } =
     getLevyAmount(edps)
-  const emailResult = await sendEmail({
+  return sendEmail({
     recipientEmailAddress,
     emailReference,
     emailBodyVariables: {
@@ -54,22 +51,4 @@ export const sendQuoteEmail = async ({
     },
     templateId: templateIds.quote
   })
-
-  if (emailResult?.notificationId) {
-    try {
-      await dbCreateEmailNotification({
-        db,
-        quoteId,
-        notificationId: emailResult.notificationId,
-        emailType
-      })
-    } catch (error) {
-      logger.error(
-        { quoteId, notificationId: emailResult.notificationId, error },
-        'Failed to record Notify notification id; email was sent'
-      )
-    }
-  }
-
-  return emailResult
 }

@@ -50,7 +50,7 @@ export const sendEmail = async ({
 }) => {
   const logger = createLogger()
   const notifyClient = createNotifyClient()
-  const { retryAttempts, retryIntervalMs } = config.get('notify')
+  const { attempts, retryIntervalMs } = config.get('notify.send')
   try {
     const { notificationId, sentDateTime } = await retryAsyncOperation({
       operation: () =>
@@ -61,7 +61,7 @@ export const sendEmail = async ({
           emailBodyVariables,
           templateId
         }),
-      retries: retryAttempts,
+      retries: attempts,
       intervalMs: retryIntervalMs,
       logger
     })

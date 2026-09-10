@@ -11,6 +11,7 @@ import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { buildQuoteAccessLink } from './helpers/build-quote-access-link.js'
 import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
+import { recordEmailNotification } from './helpers/record-email-notification.js'
 
 /**
  * @openapi
@@ -135,10 +136,7 @@ export const patchController = {
       const frontEndBaseUrl = config.get('frontEndBaseUrl')
       const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
 
-      await sendQuoteEmail({
-        db: request.pg,
-        quoteId: id,
-        emailType: 'quote_result',
+      const emailResult = await sendQuoteEmail({
         nrfQuoteReference: reference,
         nrfServiceUrl: frontEndBaseUrl,
         recipientEmailAddress: address,
@@ -146,6 +144,13 @@ export const patchController = {
         housingUnits,
         planningType,
         quoteAccessLink
+      })
+
+      await recordEmailNotification({
+        db: request.pg,
+        quoteId: id,
+        emailResult,
+        emailType: 'quote_results'
       })
     }
 

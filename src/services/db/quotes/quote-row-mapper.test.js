@@ -50,9 +50,12 @@ describe('mapQuoteRows', () => {
       email: {
         address: 'developer@housebuilder.com',
         sendRequestAt: null,
-        status: null,
+        notifySendStatus: null,
+        emailType: null,
+        sendRetryCount: null,
         notifyStatusUrl: null
       },
+      emailNotifications: [],
       disableAnalyticsAudit: false,
       edps: [
         {
@@ -82,9 +85,11 @@ describe('mapQuoteRows', () => {
     const rows = [
       {
         ...baseRow,
-        email_status: 'delivered',
+        notify_send_status: 'delivered',
         email_notification_id: notificationId,
         email_requested_at: requestedAt,
+        email_type: 'quote_results',
+        retry_count: 2,
         edp_id: null,
         edp_name: null,
         edp_type: null,
@@ -102,9 +107,59 @@ describe('mapQuoteRows', () => {
     expect(result.email).toEqual({
       address: 'developer@housebuilder.com',
       sendRequestAt: requestedAt,
-      status: 'delivered',
+      notifySendStatus: 'delivered',
+      emailType: 'quote_results',
+      sendRetryCount: 2,
       notifyStatusUrl: 'https://status/abc'
     })
+  })
+
+  it('maps all email notifications into emailNotifications array ordered by sent date', () => {
+    vi.mocked(buildNotifyStatusUrl).mockReturnValue('https://status/abc')
+    const notificationId = '47cbb989-9546-418c-8828-232c3dc57537'
+    const rows = [
+      {
+        ...baseRow,
+        edp_id: null,
+        email_notifications: [
+          {
+            emailType: 'quote_results',
+            notifySendStatus: 'delivered',
+            sendRetryCount: 0,
+            sendRequestAt: '2026-08-01T09:00:00.000Z',
+            notificationId
+          },
+          {
+            emailType: 'resend_quote_link',
+            notifySendStatus: null,
+            sendRetryCount: 1,
+            sendRequestAt: '2026-08-02T10:00:00.000Z',
+            notificationId: null
+          }
+        ]
+      }
+    ]
+
+    const result = mapQuoteRows(rows)
+
+    expect(result.emailNotifications).toEqual([
+      {
+        emailType: 'quote_results',
+        notifySendStatus: 'delivered',
+        sendRetryCount: 0,
+        sendRequestAt: '2026-08-01T09:00:00.000Z',
+        notificationId,
+        notifyStatusUrl: 'https://status/abc'
+      },
+      {
+        emailType: 'resend_quote_link',
+        notifySendStatus: null,
+        sendRetryCount: 1,
+        sendRequestAt: '2026-08-02T10:00:00.000Z',
+        notificationId: null,
+        notifyStatusUrl: null
+      }
+    ])
   })
 
   it('returns mapped quote with empty edps when edp_id is null', () => {

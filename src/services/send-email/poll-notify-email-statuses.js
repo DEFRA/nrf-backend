@@ -27,7 +27,7 @@ const ADVISORY_LOCK_KEY = "hashtext('nrf-notify-status-poll')"
  * @param {{ connect: Function, query?: Function }} pool - the `pg` pool (server.pg)
  */
 export const pollNotifyEmailStatuses = async ({ pool }) => {
-  const { batchSize, maxAgeDays } = config.get('notify.statusPoller')
+  const { batchSize, maxAgeDays } = config.get('notify.retrySendingEmails')
 
   const client = await pool.connect()
   try {

@@ -1,5 +1,6 @@
 import cron from 'node-cron'
-import { notifyEmailRetry } from './notify-email-retry.js'
+import { notifyWorker } from './notify-worker.js'
+import { pollNotifyEmailStatuses } from '../services/send-email/poll-notify-email-statuses.js'
 import { retryFailedQuoteEmails } from '../services/send-email/retry-failed-quote-emails.js'
 
 vi.mock('node-cron')
@@ -15,6 +16,7 @@ const mockLogger = vi.hoisted(() => ({
 vi.mock('../common/helpers/logging/logger.js', () => ({
   createLogger: vi.fn(() => mockLogger)
 }))
+vi.mock('../services/send-email/poll-notify-email-statuses.js')
 vi.mock('../services/send-email/retry-failed-quote-emails.js')
 
 import { config } from '../config.js'
@@ -30,67 +32,80 @@ const makeServer = () => {
   }
 }
 
-describe('notifyEmailRetry plugin', () => {
+describe('notifyWorker plugin', () => {
   beforeEach(() => {
+    vi.mocked(pollNotifyEmailStatuses).mockResolvedValue(undefined)
     vi.mocked(retryFailedQuoteEmails).mockResolvedValue(undefined)
   })
 
   it('does not schedule when disabled', () => {
-    config.get.mockReturnValue({ enabled: false, schedule: '*/15 * * * *' })
+    config.get.mockReturnValue({ enabled: false, schedule: '*/5 * * * *' })
     const server = makeServer()
 
-    notifyEmailRetry.plugin.register(server)
+    notifyWorker.plugin.register(server)
 
     expect(cron.schedule).not.toHaveBeenCalled()
     expect(server.ext).not.toHaveBeenCalled()
   })
 
-  it('schedules on the configured cron expression and stops the task on shutdown', () => {
+  it('schedules on the configured cron expression and stops on shutdown', () => {
     const stop = vi.fn()
     vi.mocked(cron.schedule).mockReturnValue({ stop })
-    config.get.mockReturnValue({ enabled: true, schedule: '*/15 * * * *' })
+    config.get.mockReturnValue({ enabled: true, schedule: '*/5 * * * *' })
     const server = makeServer()
 
-    notifyEmailRetry.plugin.register(server)
+    notifyWorker.plugin.register(server)
 
     expect(cron.schedule).toHaveBeenCalledWith(
-      '*/15 * * * *',
+      '*/5 * * * *',
       expect.any(Function)
     )
     server.extHandlers.onPreStop()
     expect(stop).toHaveBeenCalled()
   })
 
-  it('invokes the retry worker with server.pg on each tick', async () => {
+  it('runs the first tick immediately on startup', async () => {
     vi.mocked(cron.schedule).mockReturnValue({ stop: vi.fn() })
-    config.get.mockReturnValue({ enabled: true, schedule: '*/15 * * * *' })
+    config.get.mockReturnValue({ enabled: true, schedule: '*/5 * * * *' })
     const server = makeServer()
 
-    notifyEmailRetry.plugin.register(server)
-    const tick = vi.mocked(cron.schedule).mock.calls[0][1]
+    notifyWorker.plugin.register(server)
+    await new Promise((resolve) => setImmediate(resolve))
 
-    await tick()
-
+    expect(pollNotifyEmailStatuses).toHaveBeenCalledWith({ pool: server.pg })
     expect(retryFailedQuoteEmails).toHaveBeenCalledWith({ pool: server.pg })
   })
 
-  it('swallows a rejected run so a tick never throws', async () => {
+  it('polls then retries on each scheduled tick', async () => {
     vi.mocked(cron.schedule).mockReturnValue({ stop: vi.fn() })
-    vi.mocked(retryFailedQuoteEmails).mockRejectedValue(new Error('boom'))
-    config.get.mockReturnValue({ enabled: true, schedule: '*/15 * * * *' })
+    config.get.mockReturnValue({ enabled: true, schedule: '*/5 * * * *' })
     const server = makeServer()
 
-    notifyEmailRetry.plugin.register(server)
+    notifyWorker.plugin.register(server)
     const tick = vi.mocked(cron.schedule).mock.calls[0][1]
 
-    // The tick is fire-and-forget: it must not throw, and the rejection is
-    // handled by the internal .catch (which runs on a later microtask).
+    await tick()
+    await new Promise((resolve) => setImmediate(resolve))
+
+    expect(pollNotifyEmailStatuses).toHaveBeenCalledWith({ pool: server.pg })
+    expect(retryFailedQuoteEmails).toHaveBeenCalledWith({ pool: server.pg })
+  })
+
+  it('swallows a rejected tick so it never throws', async () => {
+    vi.mocked(cron.schedule).mockReturnValue({ stop: vi.fn() })
+    vi.mocked(pollNotifyEmailStatuses).mockRejectedValue(new Error('boom'))
+    config.get.mockReturnValue({ enabled: true, schedule: '*/5 * * * *' })
+    const server = makeServer()
+
+    notifyWorker.plugin.register(server)
+    const tick = vi.mocked(cron.schedule).mock.calls[0][1]
+
     expect(() => tick()).not.toThrow()
     await new Promise((resolve) => setImmediate(resolve))
 
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.any(Error),
-      'Notify email retry tick failed'
+      'Notify worker tick failed'
     )
   })
 })
