@@ -8,11 +8,17 @@ import {
   validEdpsPayload
 } from './fixtures/quotePayloads.js'
 
-export const createQuote = (server) =>
+/**
+ * @param {object} params
+ * @param {object} params.server - test server
+ * @param {object} [params.overrides] - payload fields to override, e.g. an
+ *   approved internal email or `disableAnalyticsAudit: true`
+ */
+export const createQuote = (server, overrides = {}) =>
   server.inject({
     method: 'POST',
     url: routePath,
-    payload: validQuotePayload
+    payload: { ...validQuotePayload, ...overrides }
   })
 
 export const createQuoteWithEdps = async (server) => {
@@ -50,6 +56,12 @@ export const sendPatchRequest = ({ server, reference, payload }) =>
     method: 'PATCH',
     url: `${routePath}/${reference}`,
     payload
+  })
+
+export const sendDeleteRequest = ({ server, reference }) =>
+  server.inject({
+    method: 'DELETE',
+    url: `${routePath}/${reference}`
   })
 
 export const sendResendKnownRequest = ({ server, reference, token }) =>

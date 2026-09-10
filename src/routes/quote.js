@@ -2,6 +2,7 @@ import { postController } from '../api/quote/post-controller.js'
 import { getController } from '../api/quote/get-controller.js'
 import { getAllController } from '../api/quote/get-all-controller.js'
 import { patchController } from '../api/quote/patch-controller.js'
+import { deleteController } from '../api/quote/delete-controller.js'
 import { resendKnownController } from '../api/quote/resend-known-controller.js'
 import { resendUnknownController } from '../api/quote/resend-unknown-controller.js'
 
@@ -27,6 +28,11 @@ const quote = [
     method: 'PATCH',
     path: `${routePath}/{reference}`,
     ...patchController
+  },
+  {
+    method: 'DELETE',
+    path: `${routePath}/{reference}`,
+    ...deleteController
   },
   {
     method: 'POST',
