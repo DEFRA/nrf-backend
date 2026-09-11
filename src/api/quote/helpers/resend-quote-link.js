@@ -3,6 +3,7 @@ import { generateToken } from '../../../common/helpers/token/generate-token.js'
 import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
 import { sendQuoteEmail } from './send-quote-email.js'
 import { buildQuoteAccessLink } from './build-quote-access-link.js'
+import { recordEmailNotification } from './record-email-notification.js'
 
 /**
  * Issues a fresh access token for a quote and emails the new access link to
@@ -28,9 +29,6 @@ export const resendQuoteLink = async ({ db, quote }) => {
   })
 
   const emailResult = await sendQuoteEmail({
-    db,
-    quoteId: quote.id,
-    emailType: 'resend',
     recipientEmailAddress: quote.email.address,
     nrfQuoteReference: quote.reference,
     nrfServiceUrl: config.get('frontEndBaseUrl'),
@@ -40,5 +38,12 @@ export const resendQuoteLink = async ({ db, quote }) => {
     quoteAccessLink
   })
 
-  return Boolean(emailResult?.sentDateTime)
+  await recordEmailNotification({
+    db,
+    quoteId: quote.id,
+    emailResult,
+    emailType: 'resend_quote_link'
+  })
+
+  return Boolean(emailResult)
 }

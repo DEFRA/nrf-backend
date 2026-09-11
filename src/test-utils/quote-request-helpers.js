@@ -111,15 +111,17 @@ export const issueAccessToken = async ({
 }
 
 /**
- * Inserts a quote_email_notifications row directly with an explicit status and
- * created_at, letting tests stage delivery failures and retry attempts that the
- * API only produces asynchronously (via the Notify poller / retry worker).
+ * Inserts a quote_email_notifications row directly with an explicit status,
+ * retry_count and created_at, letting tests stage delivery failures and prior
+ * retry attempts that the API only produces asynchronously (via the Notify
+ * poller / retry worker).
  *
  * @param {object} params
  * @param {object} params.server - test server with a real pg pool
  * @param {number} params.quoteId
- * @param {string} params.emailType - 'quote_result' | 'resend' | 'retry' | 'retry_rejected'
+ * @param {string} params.emailType - 'quote_results' | 'resend_quote_link'
  * @param {string|null} [params.status] - Notify delivery status, null while still in flight
+ * @param {number} [params.retryCount=0] - number of retry attempts already made against this row
  * @param {Date|null} [params.createdAt] - defaults to now()
  */
 export const insertEmailNotification = async ({
@@ -127,13 +129,14 @@ export const insertEmailNotification = async ({
   quoteId,
   emailType,
   status = null,
+  retryCount = 0,
   createdAt = null
 }) => {
   await server.pg.query(
     `INSERT INTO quote_email_notifications
-       (quote_id, notification_id, email_type, status, created_at)
-     VALUES ($1, $2, $3, $4, COALESCE($5, now()))`,
-    [quoteId, randomUUID(), emailType, status, createdAt]
+       (quote_id, notification_id, email_type, notify_send_status, retry_count, created_at)
+     VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))`,
+    [quoteId, randomUUID(), emailType, status, retryCount, createdAt]
   )
 }
 

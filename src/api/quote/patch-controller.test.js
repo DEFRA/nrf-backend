@@ -121,11 +121,11 @@ describe('Patch quote endpoint', () => {
     })
 
     expect(rows).toHaveLength(1)
-    expect(rows[0].email_type).toBe('quote_result')
+    expect(rows[0].email_type).toBe('quote_results')
     expect(rows[0].notification_id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     )
-    expect(rows[0].status).toBeNull()
+    expect(rows[0].notify_send_status).toBeNull()
   })
 
   it('should return the saved EDPs when the quote is retrieved after patching', async () => {

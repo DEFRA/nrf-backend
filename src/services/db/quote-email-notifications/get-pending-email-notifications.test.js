@@ -19,9 +19,9 @@ describe('dbGetPendingEmailNotifications', () => {
     expect(sql).toContain('ORDER BY created_at ASC')
     expect(sql).toContain('LIMIT $1')
     expect(sql).toContain(
-      "status NOT IN ('delivered', 'permanent-failure', 'technical-failure')"
+      "notify_send_status NOT IN ('delivered', 'permanent-failure', 'technical-failure')"
     )
-    expect(sql).toContain("email_type <> 'retry_rejected'")
+    expect(sql).toContain('notification_id IS NOT NULL')
     expect(params).toEqual([50, 14])
     expect(result).toEqual([{ id: 1, notification_id: 'a'.repeat(36) }])
   })
@@ -31,6 +31,6 @@ describe('dbGetPendingEmailNotifications', () => {
 
     await dbGetPendingEmailNotifications({ db, limit: 10, maxAgeDays: 7 })
 
-    expect(db.query.mock.calls[0][0]).toContain('status IS NULL')
+    expect(db.query.mock.calls[0][0]).toContain('notify_send_status IS NULL')
   })
 })

@@ -18,15 +18,9 @@ vi.mock('./plugins/swagger.js', () => ({
   swagger: { plugin: { name: 'swagger', register: vi.fn() } }
 }))
 
-vi.mock('./plugins/notify-status-poller.js', () => ({
-  notifyStatusPoller: {
-    plugin: { name: 'notify-status-poller', register: vi.fn() }
-  }
-}))
-
-vi.mock('./plugins/notify-email-retry.js', () => ({
-  notifyEmailRetry: {
-    plugin: { name: 'notify-email-retry', register: vi.fn() }
+vi.mock('./plugins/notify-worker.js', () => ({
+  notifyWorker: {
+    plugin: { name: 'notify-worker', register: vi.fn() }
   }
 }))
 

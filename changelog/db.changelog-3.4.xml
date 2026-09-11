@@ -1,0 +1,70 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="34" author="jon.wyatt">
+    <!-- Collapse retries into the parent email_notifications row.
+
+         Design change: instead of one row per send attempt (quote_result +
+         retry rows + retry_rejected rows), we keep one row per email lifecycle
+         (quote_result or resend) and track how many retries have been made in
+         a new retry_count column. On each retry the row's notification_id is
+         overwritten with the fresh id Notify returns, notify_send_status /
+         sent_at / completed_at are nulled so the poller repopulates them for
+         the new id, and retry_count is incremented. Notify-rejected retries
+         bump retry_count without touching notification_id.
+
+         This removes the LATERAL COUNT + NOT EXISTS gymnastics in the retry
+         query, the retry_rejected filter in the poller / row-mapper, and the
+         randomUUID() minted for rejected-retry rows. Per-attempt history moves
+         from Postgres to app logs — an accepted trade-off.
+
+         Cleanup: any existing 'retry' or 'retry_rejected' rows are deleted
+         because they can't be represented in the new one-row-per-lifecycle
+         model. Safe because the retry worker is disabled by default
+         (NOTIFY_SEND_RETRY_ENABLED=false) and has never run in production. -->
+    <sql>
+      DELETE FROM quote_email_notifications WHERE email_type IN ('retry', 'retry_rejected');
+    </sql>
+
+    <addColumn tableName="quote_email_notifications">
+      <column name="retry_count" type="INTEGER" defaultValueNumeric="0">
+        <constraints nullable="false"/>
+      </column>
+    </addColumn>
+
+    <dropNotNullConstraint tableName="quote_email_notifications"
+                           columnName="notification_id"
+                           columnDataType="UUID"/>
+
+    <sql>
+      ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;
+      ALTER TABLE quote_email_notifications
+        ADD CONSTRAINT chk_qen_email_type
+        CHECK (email_type IN ('quote_results', 'resend_quote_link'));
+      ALTER TABLE quote_email_notifications ALTER COLUMN email_type SET DEFAULT 'quote_results';
+    </sql>
+
+    <rollback>
+      <sql>
+        ALTER TABLE quote_email_notifications ALTER COLUMN email_type DROP DEFAULT;
+        ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;
+        ALTER TABLE quote_email_notifications
+          ADD CONSTRAINT chk_qen_email_type
+          CHECK (email_type IN ('quote_results', 'resend_quote_link', 'retry', 'retry_rejected'));
+      </sql>
+      <addNotNullConstraint tableName="quote_email_notifications"
+                            columnName="notification_id"
+                            columnDataType="UUID"/>
+      <dropColumn tableName="quote_email_notifications" columnName="retry_count"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

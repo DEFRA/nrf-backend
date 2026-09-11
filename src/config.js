@@ -176,17 +176,19 @@ const config = convict({
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
       }
     },
-    retryAttempts: {
-      doc: 'Number of attempts to send an email before giving up',
-      format: Number,
-      default: 3,
-      env: 'NOTIFY_RETRY_ATTEMPTS'
-    },
-    retryIntervalMs: {
-      doc: 'Delay between email send retries in milliseconds',
-      format: Number,
-      default: isTest ? 0 : 10000,
-      env: 'NOTIFY_RETRY_INTERVAL_MS'
+    send: {
+      attempts: {
+        doc: 'Number of attempts for a single Notify API call before giving up',
+        format: Number,
+        default: 3,
+        env: 'NOTIFY_SEND_ATTEMPTS'
+      },
+      retryIntervalMs: {
+        doc: 'Delay between Notify API call retries in milliseconds',
+        format: Number,
+        default: isTest ? 0 : 10000,
+        env: 'NOTIFY_SEND_RETRY_INTERVAL_MS'
+      }
     },
     statusPageBaseUrl: {
       doc: 'Base URL for the GOV.UK Notify status dashboard, used to build deep links to a notification',
@@ -194,62 +196,36 @@ const config = convict({
       default: 'https://www.notifications.service.gov.uk',
       env: 'NOTIFY_STATUS_PAGE_BASE_URL'
     },
-    statusPoller: {
+    retrySendingEmails: {
       enabled: {
-        doc: 'Run the scheduled job that polls GOV.UK Notify for email delivery statuses',
+        doc: 'Enable the combined Notify status-poll and failed-email retry job',
         format: Boolean,
         default: false,
-        env: 'NOTIFY_STATUS_POLLER_ENABLED'
+        env: 'NOTIFY_SEND_RETRY_ENABLED'
       },
       schedule: {
-        doc: 'node-cron schedule expression for the Notify status poller',
+        doc: 'node-cron schedule expression for the combined Notify status-poll and email-retry job',
         format: String,
         default: '*/5 * * * *',
-        env: 'NOTIFY_STATUS_POLLER_SCHEDULE'
+        env: 'NOTIFY_EMAIL_DELIVERY_SCHEDULE'
       },
       batchSize: {
-        doc: 'Maximum number of notifications to poll per run',
+        doc: 'Maximum number of notifications to process per run',
         format: convictFormatPositiveIntegerName,
         default: 50,
-        env: 'NOTIFY_STATUS_POLLER_BATCH_SIZE'
+        env: 'NOTIFY_EMAIL_DELIVERY_BATCH_SIZE'
       },
       maxAgeDays: {
-        doc: 'Ignore notifications older than this many days when polling',
+        doc: 'Ignore notifications older than this many days',
         format: convictFormatPositiveIntegerName,
         default: 14,
-        env: 'NOTIFY_STATUS_POLLER_MAX_AGE_DAYS'
-      }
-    },
-    emailRetry: {
-      enabled: {
-        doc: 'Run the scheduled job that retries quote emails Notify failed to deliver',
-        format: Boolean,
-        default: false,
-        env: 'NOTIFY_EMAIL_RETRY_ENABLED'
-      },
-      schedule: {
-        doc: 'node-cron schedule expression for the failed-email retry worker — the agreed retry policy interval',
-        format: String,
-        default: '*/15 * * * *',
-        env: 'NOTIFY_EMAIL_RETRY_SCHEDULE'
-      },
-      batchSize: {
-        doc: 'Maximum number of failed emails to retry per run',
-        format: convictFormatPositiveIntegerName,
-        default: 10,
-        env: 'NOTIFY_EMAIL_RETRY_BATCH_SIZE'
+        env: 'NOTIFY_EMAIL_DELIVERY_MAX_AGE_DAYS'
       },
       maxRetryAttempts: {
         doc: 'Retry attempts allowed per quote email before giving up',
         format: convictFormatPositiveIntegerName,
         default: 4,
-        env: 'NOTIFY_EMAIL_RETRY_MAX_ATTEMPTS'
-      },
-      maxAgeDays: {
-        doc: 'Ignore failed emails older than this many days when retrying',
-        format: convictFormatPositiveIntegerName,
-        default: 2,
-        env: 'NOTIFY_EMAIL_RETRY_MAX_AGE_DAYS'
+        env: 'NOTIFY_EMAIL_DELIVERY_MAX_RETRY_ATTEMPTS'
       }
     }
   },

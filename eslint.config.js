@@ -10,7 +10,8 @@ export default [
   }),
   {
     rules: {
-      curly: ['error', 'all']
+      curly: ['error', 'all'],
+      camelcase: ['error', { ignoreDestructuring: true, properties: 'never' }]
     }
   },
   {
