@@ -26,6 +26,7 @@ describe('mapQuoteRows', () => {
         edp_name: 'Test EDP',
         edp_type: 'flood',
         impact: { score: 1 },
+        catchments: null,
         levy_excluding_vat: '1100.00',
         levy_base_amount: '1000.00',
         levy_inflation_adjusted: '1122.00',
@@ -63,6 +64,7 @@ describe('mapQuoteRows', () => {
           edpName: 'Test EDP',
           edpType: 'flood',
           impact: { score: 1 },
+          catchments: null,
           levyGbp: {
             amountExcludingVat: '1100.00',
             amountInflationAdjusted: '1122.00',
@@ -76,6 +78,39 @@ describe('mapQuoteRows', () => {
         levyAmountInflationAdjusted: 1122
       }
     })
+  })
+
+  it('includes catchments array on EDP when present', () => {
+    const catchments = [
+      {
+        label: 'Upper River',
+        catchmentId: 'C-001',
+        catchmentOverlapPercentage: 75.5
+      },
+      {
+        label: 'Lower River',
+        catchmentId: null,
+        catchmentOverlapPercentage: 24.5
+      }
+    ]
+    const rows = [
+      {
+        ...baseRow,
+        edp_id: 'EDP-001',
+        edp_name: 'Test EDP',
+        edp_type: 'flood',
+        impact: { score: 1 },
+        catchments,
+        levy_excluding_vat: '1100.00',
+        levy_base_amount: '1000.00',
+        levy_inflation_adjusted: '1122.00',
+        levy_model_version: 1
+      }
+    ]
+
+    const result = mapQuoteRows(rows)
+
+    expect(result.edps[0].catchments).toEqual(catchments)
   })
 
   it('maps the latest email notification status and builds a Notify status URL', () => {

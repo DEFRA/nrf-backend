@@ -28,7 +28,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
         )
         FROM quote_email_notifications qen
         WHERE qen.quote_id = q.id) AS email_notifications,
-        e.edp_id, e.edp_name, e.edp_type, e.impact, e.levy_excluding_vat, e.levy_base_amount, e.levy_inflation_adjusted, e.levy_model_version
+        e.edp_id, e.edp_name, e.edp_type, e.impact, e.catchments, e.levy_excluding_vat, e.levy_base_amount, e.levy_inflation_adjusted, e.levy_model_version
  FROM quotes q
  LEFT JOIN users u ON u.id = q.user_id
  LEFT JOIN quote_edp_results e ON e.quote_id = q.id
@@ -42,7 +42,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
 
 /**
  * @param {object[]} rows - Raw database rows for a single quote (all sharing the same quote id)
- * @returns {{ id: string, reference: string, userId: string, createdAt: Date, housingUnits: number, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }>, levyGbp: { levyAmountExcludingVat: number, levyAmountInflationAdjusted: number } | null } | null}
+ * @returns {{ id: string, reference: string, userId: string, createdAt: Date, housingUnits: number, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, catchments: Array<{ label: string, catchmentId: string | null, catchmentOverlapPercentage: number }> | null, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }>, levyGbp: { levyAmountExcludingVat: number, levyAmountInflationAdjusted: number } | null } | null}
  */
 export const mapQuoteRows = (rows) => {
   if (!rows.length) {
@@ -57,6 +57,7 @@ export const mapQuoteRows = (rows) => {
       edpName: r.edp_name,
       edpType: r.edp_type,
       impact: r.impact,
+      catchments: r.catchments ?? null,
       levyGbp: {
         amountExcludingVat: r.levy_excluding_vat,
         amountInflationAdjusted: r.levy_inflation_adjusted,

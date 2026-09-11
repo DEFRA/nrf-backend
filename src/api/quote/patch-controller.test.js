@@ -157,6 +157,18 @@ describe('Patch quote endpoint', () => {
             band: { min: 1, max: 4 }
           }
         },
+        catchments: [
+          {
+            label: 'Broads SAC',
+            catchmentId: '27',
+            catchmentOverlapPercentage: 67.4
+          },
+          {
+            label: 'River Wensum SAC',
+            catchmentId: '29',
+            catchmentOverlapPercentage: 32.6
+          }
+        ],
         levyGbp: {
           amountExcludingVat: '1100.00',
           amountInflationAdjusted: '1122.00',
@@ -202,7 +214,10 @@ describe('Patch quote endpoint', () => {
           quote: expect.objectContaining({
             reference,
             edps: expect.arrayContaining([
-              expect.objectContaining({ edpId: validEdpsPayload.edps[0].edpId })
+              expect.objectContaining({
+                edpId: validEdpsPayload.edps[0].edpId,
+                catchments: validEdpsPayload.edps[0].catchments
+              })
             ])
           })
         }
