@@ -1,6 +1,8 @@
-import joi from 'joi'
 import { withTraceId } from '@defra/hapi-tracing'
-import { BOUNDARY_ERRORS } from '@defra/nrf-library'
+import {
+  BOUNDARY_ERRORS,
+  boundaryCheckResponseSchema
+} from '@defra/nrf-library'
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -182,16 +184,6 @@ async function postBoundaryCheck(
     return { error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_UNREACHABLE }
   }
 }
-
-const boundaryCheckResponseSchema = joi
-  .object({
-    boundaryGeometryOriginal: joi.object().required(),
-    boundaryGeometryWgs84: joi.object().required(),
-    intersectingEdps: joi.array().required(),
-    intersectingExcludedAreas: joi.array().required(),
-    boundaryMetadata: joi.any()
-  })
-  .unknown(true)
 
 function isBoundaryCheckResponse(value) {
   return !boundaryCheckResponseSchema.validate(value).error

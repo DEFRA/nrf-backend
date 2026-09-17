@@ -1,9 +1,11 @@
 import joi from 'joi'
 
+import { referencePattern } from '@defra/nrf-library'
+
 export const referenceParamSchema = joi.object({
   reference: joi
     .string()
-    .pattern(/^NRL-\d{6}$/)
+    .pattern(new RegExp(`^${referencePattern.source}$`))
     .required()
     .messages({
       'string.pattern.base': 'REFERENCE_INVALID',
