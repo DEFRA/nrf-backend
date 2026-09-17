@@ -1,5 +1,3 @@
-import { fetch as undiciFetch, FormData } from 'undici'
-
 import { statusCodes } from '../common/constants/status-codes.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 import { buildZip } from '../test-utils/build-zip.js'
@@ -31,12 +29,12 @@ async function uploadFileAndWaitUntilReady(server, fileBuffer, filename) {
   expect(initiateRes.statusCode).toBe(statusCodes.ok)
   const { uploadId, uploadUrl } = JSON.parse(initiateRes.payload)
 
-  // Upload file directly to CDP Uploader (using undici to bypass global fetch mock)
+  // Upload the file directly to the CDP Uploader test container
   const form = new FormData()
   const blob = new globalThis.Blob([fileBuffer], { type: 'application/json' })
   form.append('file', blob, filename)
 
-  await undiciFetch(`${CDP_UPLOADER_URL}${uploadUrl}`, {
+  await fetch(`${CDP_UPLOADER_URL}${uploadUrl}`, {
     method: 'POST',
     body: form,
     redirect: 'manual'

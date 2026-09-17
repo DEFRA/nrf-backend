@@ -1,9 +1,9 @@
 import { http, HttpResponse } from 'msw'
-import { setupServer } from 'msw/node'
 import { withTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
+import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 
 vi.mock('@defra/hapi-tracing', async (importOriginal) => {
   const actual = await importOriginal()
@@ -13,8 +13,15 @@ vi.mock('@defra/hapi-tracing', async (importOriginal) => {
   }
 })
 
+const mswServer = setupMswServer()
+
 const { getImpactAssessorUrl, checkBoundary, checkBoundaryGeometry } =
   await import('./impact-assessor.js')
+
+const CHECK_BOUNDARY_URL = 'http://localhost:8085/check-boundary'
+
+const mockCheckBoundary = (handler) =>
+  mswServer.use(http.post(CHECK_BOUNDARY_URL, handler))
 
 describe('getImpactAssessorUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -51,17 +58,11 @@ describe('getImpactAssessorUrl', () => {
 })
 
 describe('checkBoundary', () => {
-  const originalFetch = globalThis.fetch
-
   beforeEach(() => {
     vi.spyOn(config, 'get').mockImplementation((key) =>
       key === 'tracing.header' ? 'x-cdp-request-id' : null
     )
     delete process.env.ENVIRONMENT
-  })
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch
   })
 
   it('should return geojson on success', async () => {
@@ -78,9 +79,10 @@ describe('checkBoundary', () => {
       'x-cdp-request-id': 'trace-456'
     }))
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse)
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json(mockResponse)
     })
 
     const result = await checkBoundary(
@@ -98,21 +100,18 @@ describe('checkBoundary', () => {
         boundaryMetadata: mockResponse.boundaryMetadata
       }
     })
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'http://localhost:8085/check-boundary',
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'x-cdp-request-id': 'trace-456' }
-      })
-    )
+    expect(capturedRequest.url).toBe(CHECK_BOUNDARY_URL)
+    expect(capturedRequest.method).toBe('POST')
+    expect(capturedRequest.headers.get('x-cdp-request-id')).toBe('trace-456')
   })
 
   it('should return error on non-ok response with detail', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: statusCodes.badRequest,
-      json: () => Promise.resolve({ detail: 'Unsupported file format: .txt' })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json(
+        { detail: 'Unsupported file format: .txt' },
+        { status: statusCodes.badRequest }
+      )
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -136,17 +135,17 @@ describe('checkBoundary', () => {
       features: [{ type: 'Feature', geometry: { type: 'Polygon' } }]
     }
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: statusCodes.badRequest,
-      json: () =>
-        Promise.resolve({
+    mockCheckBoundary(() =>
+      HttpResponse.json(
+        {
           error: 'Invalid geometry',
           boundaryGeometryOriginal: mockOriginalGeometry,
           boundaryGeometryWgs84: mockWgs84Geometry,
           boundaryMetadata: { bounds: {}, centre: [1, 52] }
-        })
-    })
+        },
+        { status: statusCodes.badRequest }
+      )
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -164,7 +163,7 @@ describe('checkBoundary', () => {
   })
 
   it('should return error on network failure', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+    mockCheckBoundary(() => HttpResponse.error())
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -178,11 +177,9 @@ describe('checkBoundary', () => {
   })
 
   it('should fall back to a generic code when error body has neither error nor detail', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: statusCodes.internalServerError,
-      json: () => Promise.resolve({})
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({}, { status: statusCodes.internalServerError })
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -197,11 +194,12 @@ describe('checkBoundary', () => {
   })
 
   it('should fall back to a generic code when error response body is not JSON', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: statusCodes.badGateway,
-      json: () => Promise.reject(new Error('not json'))
-    })
+    mockCheckBoundary(
+      () =>
+        new HttpResponse('<html>Bad Gateway</html>', {
+          status: statusCodes.badGateway
+        })
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -216,14 +214,12 @@ describe('checkBoundary', () => {
   })
 
   it('should return error when intersectingEdps is missing from the response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+      })
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -236,15 +232,13 @@ describe('checkBoundary', () => {
   })
 
   it('should return error when intersectingEdps is not an array', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: 'not-an-array'
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: 'not-an-array'
+      })
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -257,15 +251,13 @@ describe('checkBoundary', () => {
   })
 
   it('should return error when intersectingExcludedAreas is missing from the response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: []
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: []
+      })
+    )
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -278,42 +270,27 @@ describe('checkBoundary', () => {
   })
 
   it('should return error when intersectingExcludedAreas is not an array', async () => {
-    // The rest of this suite still stubs `globalThis.fetch` directly, so a
-    // file-level MSW server can't be shared. This test uses a self-contained
-    // server so the real request is intercepted — if `checkBoundary` posted to
-    // the wrong URL or method MSW would reject it as an unhandled request
-    // rather than silently returning a canned body.
-    const server = setupServer(
-      http.post('*/check-boundary', () =>
-        HttpResponse.json({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: [],
-          intersectingExcludedAreas: 'not-an-array'
-        })
-      )
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: [],
+        intersectingExcludedAreas: 'not-an-array'
+      })
     )
-    server.listen({ onUnhandledRequest: 'error' })
 
-    try {
-      const result = await checkBoundary(
-        Buffer.from('test'),
-        'test.geojson',
-        'application/geo+json'
-      )
+    const result = await checkBoundary(
+      Buffer.from('test'),
+      'test.geojson',
+      'application/geo+json'
+    )
 
-      expect(result.error).toBeDefined()
-      expect(result.geojson).toBeUndefined()
-    } finally {
-      server.close()
-    }
+    expect(result.error).toBeDefined()
+    expect(result.geojson).toBeUndefined()
   })
 
   it('should return impact_assessor_bad_response when a 200 body is unexpected JSON (no geometry fields)', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ unexpected: 'shape' })
-    })
+    mockCheckBoundary(() => HttpResponse.json({ unexpected: 'shape' }))
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -326,13 +303,7 @@ describe('checkBoundary', () => {
   })
 
   it('should return error when intersectingEdps is present but geometry fields are missing', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          intersectingEdps: []
-        })
-    })
+    mockCheckBoundary(() => HttpResponse.json({ intersectingEdps: [] }))
 
     const result = await checkBoundary(
       Buffer.from('test'),
@@ -347,15 +318,15 @@ describe('checkBoundary', () => {
   it('should omit the tracing header when no trace id is set', async () => {
     vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: {},
-          boundaryGeometryWgs84: {},
-          intersectingEdps: [],
-          intersectingExcludedAreas: []
-        })
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json({
+        boundaryGeometryOriginal: {},
+        boundaryGeometryWgs84: {},
+        intersectingEdps: [],
+        intersectingExcludedAreas: []
+      })
     })
 
     await checkBoundary(
@@ -364,8 +335,7 @@ describe('checkBoundary', () => {
       'application/geo+json'
     )
 
-    const [, calledOpts] = globalThis.fetch.mock.calls[0]
-    expect(calledOpts.headers).toEqual({})
+    expect(capturedRequest.headers.get('x-cdp-request-id')).toBeNull()
   })
 
   it('should send the x-api-key header when impactAssessorApiKey is configured', async () => {
@@ -380,15 +350,15 @@ describe('checkBoundary', () => {
     })
     vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: {},
-          boundaryGeometryWgs84: {},
-          intersectingEdps: [],
-          intersectingExcludedAreas: []
-        })
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json({
+        boundaryGeometryOriginal: {},
+        boundaryGeometryWgs84: {},
+        intersectingEdps: [],
+        intersectingExcludedAreas: []
+      })
     })
 
     await checkBoundary(
@@ -397,13 +367,11 @@ describe('checkBoundary', () => {
       'application/geo+json'
     )
 
-    const [, calledOpts] = globalThis.fetch.mock.calls[0]
-    expect(calledOpts.headers['x-api-key']).toBe('ia-secret-key')
+    expect(capturedRequest.headers.get('x-api-key')).toBe('ia-secret-key')
   })
 })
 
 describe('checkBoundaryGeometry', () => {
-  const originalFetch = globalThis.fetch
   const mockGeometry = {
     type: 'Polygon',
     coordinates: [
@@ -423,10 +391,6 @@ describe('checkBoundaryGeometry', () => {
     delete process.env.ENVIRONMENT
   })
 
-  afterEach(() => {
-    globalThis.fetch = originalFetch
-  })
-
   it('should wrap the geometry as a synthetic geojson upload and return geojson on success', async () => {
     const mockResponse = {
       boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
@@ -441,9 +405,10 @@ describe('checkBoundaryGeometry', () => {
       'x-cdp-request-id': 'trace-789'
     }))
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockResponse)
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json(mockResponse)
     })
 
     const result = await checkBoundaryGeometry(mockGeometry)
@@ -458,14 +423,12 @@ describe('checkBoundaryGeometry', () => {
       }
     })
 
-    const [calledUrl, calledOpts] = globalThis.fetch.mock.calls[0]
-    expect(calledUrl).toBe('http://localhost:8085/check-boundary')
-    expect(calledOpts.method).toBe('POST')
-    expect(calledOpts.headers).toEqual({ 'x-cdp-request-id': 'trace-789' })
-    expect(calledOpts.body).toBeInstanceOf(FormData)
+    expect(capturedRequest.url).toBe(CHECK_BOUNDARY_URL)
+    expect(capturedRequest.method).toBe('POST')
+    expect(capturedRequest.headers.get('x-cdp-request-id')).toBe('trace-789')
 
-    const uploaded = calledOpts.body.get('geometry_file')
-    expect(uploaded).toBeInstanceOf(Blob)
+    const uploaded = (await capturedRequest.formData()).get('geometry_file')
+    expect(uploaded).toBeInstanceOf(File)
     expect(uploaded.name).toBe('input.geojson')
     expect(uploaded.type).toBe('application/geo+json')
     // The geometry must be wrapped in a FeatureCollection so the IA's
@@ -492,16 +455,16 @@ describe('checkBoundaryGeometry', () => {
       features: []
     }
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: statusCodes.badRequest,
-      json: () =>
-        Promise.resolve({
+    mockCheckBoundary(() =>
+      HttpResponse.json(
+        {
           error: 'Invalid geometry',
           boundaryGeometryOriginal: mockReturnedOriginalGeometry,
           boundaryGeometryWgs84: mockReturnedWgs84Geometry
-        })
-    })
+        },
+        { status: statusCodes.badRequest }
+      )
+    )
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -514,7 +477,7 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error on network failure', async () => {
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'))
+    mockCheckBoundary(() => HttpResponse.error())
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -524,14 +487,12 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when intersectingEdps is missing from the response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] }
+      })
+    )
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -540,15 +501,13 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when intersectingEdps is not an array', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: null
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: null
+      })
+    )
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -557,15 +516,13 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when intersectingExcludedAreas is missing from the response', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: []
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: []
+      })
+    )
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -574,16 +531,14 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when intersectingExcludedAreas is not an array', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
-          boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
-          intersectingEdps: [],
-          intersectingExcludedAreas: 'not-an-array'
-        })
-    })
+    mockCheckBoundary(() =>
+      HttpResponse.json({
+        boundaryGeometryOriginal: { type: 'Polygon', coordinates: [] },
+        boundaryGeometryWgs84: { type: 'Polygon', coordinates: [] },
+        intersectingEdps: [],
+        intersectingExcludedAreas: 'not-an-array'
+      })
+    )
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -592,10 +547,7 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when the response body is unexpected JSON', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ status: 'ok' })
-    })
+    mockCheckBoundary(() => HttpResponse.json({ status: 'ok' }))
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -604,13 +556,7 @@ describe('checkBoundaryGeometry', () => {
   })
 
   it('should return error when intersectingEdps is present but geometry fields are missing', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          intersectingEdps: []
-        })
-    })
+    mockCheckBoundary(() => HttpResponse.json({ intersectingEdps: [] }))
 
     const result = await checkBoundaryGeometry(mockGeometry)
 
@@ -630,21 +576,20 @@ describe('checkBoundaryGeometry', () => {
       ]
     }
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: {},
-          boundaryGeometryWgs84: {},
-          intersectingEdps: [],
-          intersectingExcludedAreas: []
-        })
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json({
+        boundaryGeometryOriginal: {},
+        boundaryGeometryWgs84: {},
+        intersectingEdps: [],
+        intersectingExcludedAreas: []
+      })
     })
 
     await checkBoundaryGeometry(featureCollection)
 
-    const [, calledOpts] = globalThis.fetch.mock.calls[0]
-    const uploaded = calledOpts.body.get('geometry_file')
+    const uploaded = (await capturedRequest.formData()).get('geometry_file')
     expect(JSON.parse(await uploaded.text())).toEqual(featureCollection)
   })
 
@@ -655,21 +600,20 @@ describe('checkBoundaryGeometry', () => {
       properties: { name: 'site-b' }
     }
 
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          boundaryGeometryOriginal: {},
-          boundaryGeometryWgs84: {},
-          intersectingEdps: [],
-          intersectingExcludedAreas: []
-        })
+    let capturedRequest
+    mockCheckBoundary(({ request }) => {
+      capturedRequest = request
+      return HttpResponse.json({
+        boundaryGeometryOriginal: {},
+        boundaryGeometryWgs84: {},
+        intersectingEdps: [],
+        intersectingExcludedAreas: []
+      })
     })
 
     await checkBoundaryGeometry(feature)
 
-    const [, calledOpts] = globalThis.fetch.mock.calls[0]
-    const uploaded = calledOpts.body.get('geometry_file')
+    const uploaded = (await capturedRequest.formData()).get('geometry_file')
     expect(JSON.parse(await uploaded.text())).toEqual({
       type: 'FeatureCollection',
       features: [feature]
