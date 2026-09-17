@@ -1,7 +1,16 @@
 import hapi from '@hapi/hapi'
+import { http, HttpResponse } from 'msw'
+
 import { statusCodes } from '../constants/status-codes.js'
+import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 
 describe('#startServer', () => {
+  const mswServer = setupMswServer(
+    http.get('http://localhost:7338/health', () =>
+      HttpResponse.json({ status: 'ok' })
+    )
+  )
+
   let createServerSpy
   let hapiServerSpy
   let startServerImport
@@ -35,9 +44,15 @@ describe('#startServer', () => {
     })
 
     test('Should handle CDP Uploader health check failure', async () => {
-      global.fetchMock.mockResponseOnce('', {
-        status: statusCodes.serviceUnavailable
-      })
+      mswServer.use(
+        http.get(
+          'http://localhost:7338/health',
+          () =>
+            new HttpResponse(null, {
+              status: statusCodes.serviceUnavailable
+            })
+        )
+      )
 
       server = await startServerImport.startServer()
 
@@ -45,7 +60,9 @@ describe('#startServer', () => {
     })
 
     test('Should handle CDP Uploader health check network error', async () => {
-      global.fetchMock.mockRejectOnce(new Error('ECONNREFUSED'))
+      mswServer.use(
+        http.get('http://localhost:7338/health', () => HttpResponse.error())
+      )
 
       server = await startServerImport.startServer()
 

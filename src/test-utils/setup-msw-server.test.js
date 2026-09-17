@@ -31,9 +31,9 @@ describe('setupMswServer', () => {
     })
 
     it('rejects requests with no matching handler so a wrong URL fails loudly', async () => {
+      // With onUnhandledRequest: 'error' the request itself is rejected, so it
+      // can never silently fall through to the real fetch.
       await expect(fetch('https://test.example/quotes/999')).rejects.toThrow()
-      // The request must error out, not silently fall through to the real fetch.
-      expect(global.fetchMock).not.toHaveBeenCalled()
     })
   })
 
@@ -67,6 +67,14 @@ describe('setupMswServer', () => {
   })
 
   describe('closes the server when the describe scope ends', () => {
+    // Captured before the inner scope's server starts listening, so the test
+    // below can prove close() put it back.
+    let fetchBeforeListen
+
+    beforeAll(() => {
+      fetchBeforeListen = globalThis.fetch
+    })
+
     describe('while the server is running', () => {
       setupMswServer(
         http.get('https://test.example/health', () =>
@@ -80,15 +88,11 @@ describe('setupMswServer', () => {
       })
     })
 
-    it('stops intercepting requests once the scope has ended', async () => {
-      // The inner describe's afterAll has closed its server, so MSW restored the
-      // previous global.fetch (vitest-fetch-mock). A URL that was intercepted
-      // above now reaches the fetch mock instead of the handler — proving the
-      // server was closed rather than left listening.
-      global.fetchMock.mockResponse(JSON.stringify({ closed: true }))
-
-      const res = await fetch('https://test.example/health')
-      expect(await res.json()).toEqual({ closed: true })
+    it('stops intercepting requests once the scope has ended', () => {
+      // The inner describe's afterAll has closed its server, so MSW restored
+      // the global.fetch that was in place before listen(). If the server were
+      // still listening, global.fetch would be MSW's interceptor instead.
+      expect(globalThis.fetch).toBe(fetchBeforeListen)
     })
   })
 })
