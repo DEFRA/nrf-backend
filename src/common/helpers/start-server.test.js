@@ -5,10 +5,10 @@ import { statusCodes } from '../constants/status-codes.js'
 import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 
 describe('#startServer', () => {
+  const CDP_UPLOADER_HEALTH_URL = 'http://localhost:7338/health'
+
   const mswServer = setupMswServer(
-    http.get('http://localhost:7338/health', () =>
-      HttpResponse.json({ status: 'ok' })
-    )
+    http.get(CDP_UPLOADER_HEALTH_URL, () => HttpResponse.json({ status: 'ok' }))
   )
 
   let createServerSpy
@@ -46,7 +46,7 @@ describe('#startServer', () => {
     test('Should handle CDP Uploader health check failure', async () => {
       mswServer.use(
         http.get(
-          'http://localhost:7338/health',
+          CDP_UPLOADER_HEALTH_URL,
           () =>
             new HttpResponse(null, {
               status: statusCodes.serviceUnavailable
@@ -61,7 +61,7 @@ describe('#startServer', () => {
 
     test('Should handle CDP Uploader health check network error', async () => {
       mswServer.use(
-        http.get('http://localhost:7338/health', () => HttpResponse.error())
+        http.get(CDP_UPLOADER_HEALTH_URL, () => HttpResponse.error())
       )
 
       server = await startServerImport.startServer()
