@@ -2,7 +2,7 @@ import { getCurrentISODateTime } from '../../../common/helpers/date-time.js'
 
 /**
  * @param {{ db: import('pg').Pool, quoteData: object }} params
- * @returns {Promise<{ id: number, reference: string, userId: number, userCreated: boolean }>}
+ * @returns {Promise<{ id: number, reference: string, userId: string, userCreated: boolean }>}
  *   id – quote row PK; reference – human-readable quote ref;
  *   userId – user row PK; userCreated – true if this call inserted a new user row
  */
