@@ -41,8 +41,42 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  ) en ON true`
 
 /**
- * @param {object[]} rows - Raw database rows for a single quote (all sharing the same quote id)
- * @returns {{ id: string, reference: string, userId: string, createdAt: Date, housingUnits: number, boundary: { geoJsonWgs84: string, userInputType: string, filename: string }, email: { address: string, sendRequestAt: Date }, edps: Array<{ edpId: string, edpName: string, edpType: string, impact: object, catchments: Array<{ label: string, catchmentId: string | null, catchmentOverlapPercentage: number }> | null, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }>, levyGbp: { levyAmountExcludingVat: number, levyAmountInflationAdjusted: number } | null } | null}
+ * @typedef {object} MappedEdpLevyGbp
+ * @property {string} amountExcludingVat - NUMERIC(12,2); node-postgres returns NUMERIC as string (no custom type parser)
+ * @property {string} amountInflationAdjusted - NUMERIC(12,2); same
+ * @property {string} baseAmount - NUMERIC(12,2); same
+ * @property {number} modelVersion
+ */
+
+/**
+ * @typedef {object} MappedEdp
+ * @property {number} edpId
+ * @property {string} edpName
+ * @property {string} edpType
+ * @property {object} impact - raw JSONB from quote_edp_results.impact
+ * @property {Array<{label: string, catchmentId: string|null, catchmentOverlapPercentage: number}>|null} catchments
+ * @property {MappedEdpLevyGbp} levyGbp
+ */
+
+/**
+ * @typedef {object} MappedQuote
+ * @property {number} id
+ * @property {string} reference
+ * @property {string|null} userId
+ * @property {Date} createdAt
+ * @property {string|null} planningType
+ * @property {number|null} housingUnits - maps quotes.residential_building_count
+ * @property {{ geoJsonWgs84: string|null, userInputType: string, filename: string|null }} boundary
+ * @property {{ address: string, sendRequestAt: Date|null, notifySendStatus: string|null, emailType: string|null, sendRetryCount: number|null, notifyStatusUrl: string|null }} email
+ * @property {object[]} emailNotifications
+ * @property {boolean} disableAnalyticsAudit
+ * @property {MappedEdp[]} edps
+ * @property {{ levyAmountExcludingVat: number, levyAmountInflationAdjusted: number }|null} levyGbp - summed across all EDPs; null when edps is empty
+ */
+
+/**
+ * @param {object[]} rows - raw DB rows for a single quote (multiple rows due to EDP join)
+ * @returns {MappedQuote|null}
  */
 export const mapQuoteRows = (rows) => {
   if (!rows.length) {
