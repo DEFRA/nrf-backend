@@ -14,10 +14,6 @@ vi.mock('./plugins/router.js', () => ({
   router: { plugin: { name: 'router', register: vi.fn() } }
 }))
 
-vi.mock('./plugins/swagger.js', () => ({
-  swagger: { plugin: { name: 'swagger', register: vi.fn() } }
-}))
-
 vi.mock('./plugins/notify-worker.js', () => ({
   notifyWorker: {
     plugin: { name: 'notify-worker', register: vi.fn() }
@@ -52,38 +48,31 @@ vi.mock('./common/helpers/postgres.js', () => ({
   postgres: { plugin: { name: 'postgres', register: vi.fn() } }
 }))
 
-vi.mock('@hapi/inert', () => ({
-  default: { plugin: { name: 'inert', register: vi.fn() } }
-}))
-
 const { createServer } = await import('./server.js')
 
 describe('#createServer', () => {
   beforeEach(() => {
     mockConfig.set('host', '0.0.0.0')
     mockConfig.set('port', 3001)
-    mockConfig.set('useSwagger', false)
     mockConfig.set('postgres', {})
   })
 
-  test('Should not register swagger when useSwagger is false', async () => {
+  it('Should register the core plugins', async () => {
     const server = await createServer()
 
     const registeredPlugins = Object.keys(server.registrations)
-    expect(registeredPlugins).not.toContain('swagger')
-    expect(registeredPlugins).not.toContain('inert')
-
-    await server.stop()
-  })
-
-  test('Should register swagger when useSwagger is true', async () => {
-    mockConfig.set('useSwagger', true)
-
-    const server = await createServer()
-
-    const registeredPlugins = Object.keys(server.registrations)
-    expect(registeredPlugins).toContain('swagger')
-    expect(registeredPlugins).toContain('inert')
+    expect(registeredPlugins).toEqual(
+      expect.arrayContaining([
+        'requestLogger',
+        'requestTracing',
+        'secureContext',
+        'pulse',
+        'auth',
+        'router',
+        'postgres',
+        'notify-worker'
+      ])
+    )
 
     await server.stop()
   })

@@ -11,8 +11,6 @@ Core delivery platform Node.js Backend Template.
     - [Update dependencies](#update-dependencies)
     - [Formatting](#formatting)
       - [Windows prettier issue](#windows-prettier-issue)
-    - [API documentation](#api-documentation)
-    - [Keeping Swagger docs in sync](#keeping-swagger-docs-in-sync)
   - [Development helpers](#development-helpers)
     - [Proxy](#proxy)
   - [Docker](#docker)
@@ -79,21 +77,6 @@ If you are having issues with formatting of line breaks on Windows update your g
 
 ```bash
 git config --global core.autocrlf false
-```
-
-### API documentation
-
-Swagger UI is available at `/docs` when the server is running.
-The OpenAPI spec is generated from `@openapi` JSDoc annotations in the route and controller files.
-
-### Keeping Swagger docs in sync
-
-An AI (Claude Code) skill is provided to audit and fix the `@openapi` annotations so they match the actual endpoint implementations.
-
-Run it from nrf-solution with:
-
-```shell
-/sync-swagger
 ```
 
 ## Development helpers

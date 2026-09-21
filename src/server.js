@@ -1,12 +1,10 @@
 import Hapi from '@hapi/hapi'
-import Inert from '@hapi/inert'
 
 import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { auth } from './plugins/auth.js'
 import { router } from './plugins/router.js'
-import { swagger } from './plugins/swagger.js'
 import { notifyWorker } from './plugins/notify-worker.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
@@ -60,11 +58,6 @@ async function createServer() {
     { plugin: postgres.plugin, options: config.get('postgres') },
     notifyWorker
   ])
-
-  // Register Swagger documentation (after router so inert is available)
-  if (config.get('useSwagger')) {
-    await server.register([Inert, swagger])
-  }
 
   return server
 }
