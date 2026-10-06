@@ -2,7 +2,7 @@ import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
 import { getLevyAmount } from './get-levy-amount.js'
 import { getPlanningTypeDisplay } from './get-planning-type-display.js'
-import { formatCurrency } from '../../../common/helpers/format-currency.js'
+import { formatCurrency } from '@defra/nrf-library'
 
 /**
  * Send a quote result email via GOV.UK Notify. Recording the notification id
