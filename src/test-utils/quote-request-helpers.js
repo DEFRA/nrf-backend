@@ -39,10 +39,6 @@ export const sendGetRequest = ({
   if (redeem !== undefined) {
     params.set('redeem', redeem)
   }
-  //TODO - remove request to use
-  if (requestToUse !== undefined) {
-    params.set('requestToUse', requestToUse)
-  }
   const query = params.toString() ? `?${params.toString()}` : ''
   return server.inject({
     method: 'GET',
