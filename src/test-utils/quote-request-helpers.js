@@ -28,20 +28,10 @@ export const createQuoteWithEdps = async (server) => {
   return reference
 }
 
-export const sendGetRequest = ({
-  server,
-  reference,
-  bearerToken,
-  redeem,
-  requestToUse
-}) => {
+export const sendGetRequest = ({ server, reference, bearerToken, redeem }) => {
   const params = new URLSearchParams()
   if (redeem !== undefined) {
     params.set('redeem', redeem)
-  }
-  //TODO - remove request to use
-  if (requestToUse !== undefined) {
-    params.set('requestToUse', requestToUse)
   }
   const query = params.toString() ? `?${params.toString()}` : ''
   return server.inject({
