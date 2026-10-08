@@ -4,7 +4,7 @@ import { dbRedeemQuoteAccessToken } from '../../services/db/quote-access-tokens/
 import { dbReadQuoteAccessToken } from '../../services/db/quote-access-tokens/read-quote-access-token.js'
 import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
-import { quoteAccessStatus } from './quote-access-status.js'
+import { QUOTE_ACCESS_STATUS } from '@defra/nrf-library'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 
 const bearerPrefix = /^Bearer (.+)$/
@@ -82,7 +82,7 @@ export const getController = {
 
     if (!quote) {
       return h
-        .response({ accessStatus: quoteAccessStatus.notFound, quote: null })
+        .response({ accessStatus: QUOTE_ACCESS_STATUS.notFound, quote: null })
         .code(statusCodes.ok)
     }
 
@@ -90,7 +90,7 @@ export const getController = {
 
     if (!token) {
       return h
-        .response({ accessStatus: quoteAccessStatus.invalid, quote: null })
+        .response({ accessStatus: QUOTE_ACCESS_STATUS.invalid, quote: null })
         .code(statusCodes.ok)
     }
 
@@ -109,15 +109,15 @@ export const getController = {
 
     if (ok) {
       return h
-        .response({ accessStatus: quoteAccessStatus.valid, quote })
+        .response({ accessStatus: QUOTE_ACCESS_STATUS.valid, quote })
         .code(statusCodes.ok)
     }
 
     return h
       .response({
         accessStatus: expired
-          ? quoteAccessStatus.expired
-          : quoteAccessStatus.invalid,
+          ? QUOTE_ACCESS_STATUS.expired
+          : QUOTE_ACCESS_STATUS.invalid,
         quote: null
       })
       .code(statusCodes.ok)
