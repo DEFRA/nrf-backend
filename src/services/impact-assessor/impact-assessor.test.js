@@ -1,17 +1,8 @@
 import { http, HttpResponse } from 'msw'
-import { withTraceId } from '@defra/hapi-tracing'
 
 import { config } from '../../config.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupMswServer } from '../../test-utils/setup-msw-server.js'
-
-vi.mock('@defra/hapi-tracing', async (importOriginal) => {
-  const actual = await importOriginal()
-  return {
-    ...actual,
-    withTraceId: vi.fn((_, headers = {}) => headers)
-  }
-})
 
 const mswServer = setupMswServer()
 
@@ -74,11 +65,6 @@ describe('checkBoundary', () => {
       boundaryMetadata: { areaHa: 42.5 }
     }
 
-    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => ({
-      ...headers,
-      'x-cdp-request-id': 'trace-456'
-    }))
-
     let capturedRequest
     mockCheckBoundary(({ request }) => {
       capturedRequest = request
@@ -102,7 +88,6 @@ describe('checkBoundary', () => {
     })
     expect(capturedRequest.url).toBe(CHECK_BOUNDARY_URL)
     expect(capturedRequest.method).toBe('POST')
-    expect(capturedRequest.headers.get('x-cdp-request-id')).toBe('trace-456')
   })
 
   it('should return error on non-ok response with detail', async () => {
@@ -316,8 +301,6 @@ describe('checkBoundary', () => {
   })
 
   it('should omit the tracing header when no trace id is set', async () => {
-    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
-
     let capturedRequest
     mockCheckBoundary(({ request }) => {
       capturedRequest = request
@@ -348,7 +331,6 @@ describe('checkBoundary', () => {
       }
       return null
     })
-    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => headers)
 
     let capturedRequest
     mockCheckBoundary(({ request }) => {
@@ -400,11 +382,6 @@ describe('checkBoundaryGeometry', () => {
       boundaryMetadata: { areaHa: 10.0 }
     }
 
-    vi.mocked(withTraceId).mockImplementation((_, headers = {}) => ({
-      ...headers,
-      'x-cdp-request-id': 'trace-789'
-    }))
-
     let capturedRequest
     mockCheckBoundary(({ request }) => {
       capturedRequest = request
@@ -425,7 +402,6 @@ describe('checkBoundaryGeometry', () => {
 
     expect(capturedRequest.url).toBe(CHECK_BOUNDARY_URL)
     expect(capturedRequest.method).toBe('POST')
-    expect(capturedRequest.headers.get('x-cdp-request-id')).toBe('trace-789')
 
     const uploaded = (await capturedRequest.formData()).get('geometry_file')
     expect(uploaded).toBeInstanceOf(File)

@@ -1,7 +1,11 @@
 import Wreck from '@hapi/wreck'
 
 import { withTraceId } from '@defra/hapi-tracing'
-import { BOUNDARY_ERRORS } from '@defra/nrf-library'
+import {
+  BOUNDARY_ERRORS,
+  serviceBaseUrl,
+  wreckErrorContext
+} from '@defra/nrf-library'
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
@@ -14,18 +18,11 @@ const traceHeaderName = config.get('tracing.header')
  * @returns {string}
  */
 export function getCdpUploaderUrl() {
-  const explicitUrl = config.get('cdpUploader.url')
-  if (explicitUrl) {
-    return explicitUrl
-  }
-
-  const environment = process.env.ENVIRONMENT
-  if (environment) {
-    return `https://cdp-uploader.${environment}.cdp-int.defra.cloud`
-  }
-
-  // Local development fallback
-  return 'http://localhost:7337'
+  return serviceBaseUrl({
+    configuredUrl: config.get('cdpUploader.url'),
+    serviceName: 'cdp-uploader',
+    localhostPort: 7337
+  })
 }
 
 /**
@@ -79,8 +76,7 @@ export async function initiateUpload({
       uploadUrl
     }
   } catch (error) {
-    const statusCode = error?.output?.statusCode
-    const responsePayload = error?.data?.payload
+    const { statusCode, responsePayload } = wreckErrorContext(error)
     logger.error(
       error,
       `Error initiating upload - url: ${url}, baseUrl: ${baseUrl}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
@@ -112,8 +108,7 @@ export async function getUploadStatus(uploadId) {
       uploadStatus: payload.uploadStatus ?? 'unknown'
     }
   } catch (error) {
-    const statusCode = error?.output?.statusCode
-    const responsePayload = error?.data?.payload
+    const { statusCode, responsePayload } = wreckErrorContext(error)
     logger.error(
       error,
       `Error fetching upload status - url: ${url}, baseUrl: ${baseUrl}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
@@ -144,8 +139,7 @@ export async function getUploadDetails(uploadId) {
 
     return payload
   } catch (error) {
-    const statusCode = error?.output?.statusCode
-    const responsePayload = error?.data?.payload
+    const { statusCode, responsePayload } = wreckErrorContext(error)
     logger.error(
       error,
       `Error fetching upload details - url: ${url}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}`
