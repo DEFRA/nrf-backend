@@ -1,7 +1,8 @@
-import { withTraceId } from '@defra/hapi-tracing'
 import {
   BOUNDARY_ERRORS,
-  boundaryCheckResponseSchema
+  boundaryCheckResponseSchema,
+  buildServiceHeaders,
+  serviceBaseUrl
 } from '@defra/nrf-library'
 
 import { config } from '../../config.js'
@@ -16,12 +17,11 @@ const logger = createLogger()
  * @returns {object}
  */
 function impactAssessorHeaders(extraHeaders) {
-  const headers = withTraceId(config.get('tracing.header'), extraHeaders)
-  const apiKey = config.get('impactAssessorApiKey')
-  if (apiKey) {
-    headers['x-api-key'] = apiKey
-  }
-  return headers
+  return buildServiceHeaders({
+    traceHeaderName: config.get('tracing.header'),
+    serviceKey: config.get('impactAssessorApiKey'),
+    extraHeaders
+  })
 }
 
 /**
@@ -29,18 +29,11 @@ function impactAssessorHeaders(extraHeaders) {
  * @returns {string}
  */
 export function getImpactAssessorUrl() {
-  const explicitUrl = config.get('impactAssessor.url')
-  if (explicitUrl) {
-    return explicitUrl
-  }
-
-  const environment = process.env.ENVIRONMENT
-  if (environment) {
-    return `https://nrf-impact-assessor.${environment}.cdp-int.defra.cloud`
-  }
-
-  // Local development fallback
-  return 'http://localhost:8085'
+  return serviceBaseUrl({
+    configuredUrl: config.get('impactAssessor.url'),
+    serviceName: 'nrf-impact-assessor',
+    localhostPort: 8085
+  })
 }
 
 /**
