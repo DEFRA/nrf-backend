@@ -58,11 +58,7 @@ erDiagram
         text token_hash PK
         integer quote_id FK
         timestamptz created_at "default now()"
-        timestamptz expires_at "default now() + 7 days"
-        integer max_sessions "default 5"
-        integer session_count "default 0"
-        timestamptz first_viewed_at "nullable"
-        timestamptz last_viewed_at "nullable"
+        timestamptz expires_at "default now() + 24 hours; set to now() when redeemed"
     }
 
     quote_edp_results {
@@ -103,7 +99,7 @@ erDiagram
 | `organisations`             | Organisations as identified by Defra ID, keyed by the (natural) `defra_id`.                                                                                                                                                                                                                                                     |
 | `user_organisations`        | Join table linking users to organisations with a relationship type (employee / agent). Citizens have no organisation link.                                                                                                                                                                                                      |
 | `quotes`                    | Core quote records: development boundary, type, counts, and the spatial boundary geometry. Optionally linked to a `user`.                                                                                                                                                                                                       |
-| `quote_access_tokens`       | Hashed access tokens granting time-limited, session-capped access to a quote.                                                                                                                                                                                                                                                   |
+| `quote_access_tokens`       | Hashed single-use access tokens granting time-limited access to a quote.                                                                                                                                                                                                                                                        |
 | `quote_edp_results`         | Per-EDP levy results computed for a quote (unique per `quote_id` + `edp_id`).                                                                                                                                                                                                                                                   |
 | `quote_email_notifications` | One row per quote email lifecycle, keyed by `email_type`: `quote_results` (impact assessor delivers levy results) or `resend_quote_link` (applicant requests a new access link). Holds the current Notify id and polled delivery status; retries update the row in place and bump `retry_count` rather than inserting new rows. |
 

@@ -6,6 +6,7 @@ import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
   issueAccessToken,
+  sendGetRequest,
   sendResendKnownRequest,
   getAccessTokenRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
@@ -105,14 +106,14 @@ describe('Resend known quote link endpoint', () => {
     })
   })
 
-  describe('with a session-exhausted token that has not yet expired', () => {
-    it('returns a generic 200 success, issues no new token and sends no email', async () => {
+  describe('with a token that has already been used', () => {
+    it('sends a new link', async () => {
       const reference = await createQuoteReference()
-      const token = await issueAccessToken({
+      const token = await issueAccessToken({ server: getServer(), reference })
+      await sendGetRequest({
         server: getServer(),
         reference,
-        sessionCount: 5,
-        maxSessions: 5
+        bearerToken: token
       })
 
       const response = await sendResendKnownRequest({
@@ -122,14 +123,8 @@ describe('Resend known quote link endpoint', () => {
       })
 
       expect(response.statusCode).toBe(statusCodes.ok)
-      expect(JSON.parse(response.payload)).toEqual({ ok: true })
-      expect(notifySendEmail).not.toHaveBeenCalled()
-
-      const rows = await getAccessTokenRowsForReference({
-        server: getServer(),
-        reference
-      })
-      expect(rows).toHaveLength(1)
+      expect(JSON.parse(response.payload).ok).toBe(true)
+      expect(notifySendEmail).toHaveBeenCalledTimes(1)
     })
   })
 

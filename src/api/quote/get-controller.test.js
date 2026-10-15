@@ -5,8 +5,7 @@ import {
   createQuote,
   createQuoteWithEdps,
   sendGetRequest,
-  issueAccessToken,
-  getAccessTokenRow
+  issueAccessToken
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -48,22 +47,17 @@ describe('Get quote endpoint', () => {
       })
     })
 
-    it('should consume a session on redemption', async () => {
+    it('should only allow the token to be used once', async () => {
       const { reference, token } = await createQuoteWithToken(getServer())
+      const request = { server: getServer(), reference, bearerToken: token }
 
-      await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token
-      })
+      const first = await sendGetRequest(request)
+      const second = await sendGetRequest(request)
 
-      const row = await getAccessTokenRow({
-        server: getServer(),
-        rawToken: token
-      })
-      expect(row.session_count).toBe(1)
-      expect(row.first_viewed_at).not.toBeNull()
-      expect(row.last_viewed_at).not.toBeNull()
+      expect(JSON.parse(first.payload).accessStatus).toBe('valid')
+      const secondBody = JSON.parse(second.payload)
+      expect(secondBody.accessStatus).toBe('expired')
+      expect(secondBody.quote).toBeNull()
     })
   })
 
@@ -105,7 +99,7 @@ describe('Get quote endpoint', () => {
     })
   })
 
-  describe('with an expired or exhausted token', () => {
+  describe('with an expired token', () => {
     it('should return status expired when the token has expired', async () => {
       const postResponse = await createQuote(getServer())
       const { reference } = JSON.parse(postResponse.payload)
@@ -125,80 +119,6 @@ describe('Get quote endpoint', () => {
       const body = JSON.parse(response.payload)
       expect(body.accessStatus).toBe('expired')
       expect(body.quote).toBeNull()
-    })
-
-    it('should return status invalid when the session budget is exhausted but the token has not yet expired', async () => {
-      const postResponse = await createQuote(getServer())
-      const { reference } = JSON.parse(postResponse.payload)
-      const token = await issueAccessToken({
-        server: getServer(),
-        reference,
-        sessionCount: 5,
-        maxSessions: 5
-      })
-
-      const response = await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token
-      })
-
-      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
-    })
-  })
-
-  describe('with redeem=false (read without consuming a session)', () => {
-    it('should return the quote without incrementing the session count', async () => {
-      const { reference, token } = await createQuoteWithToken(getServer())
-
-      const response = await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token,
-        redeem: false
-      })
-
-      expect(JSON.parse(response.payload).accessStatus).toBe('valid')
-
-      const row = await getAccessTokenRow({
-        server: getServer(),
-        rawToken: token
-      })
-      expect(row.session_count).toBe(0)
-      expect(row.first_viewed_at).toBeNull()
-    })
-
-    it('should return expired when the token is exhausted', async () => {
-      const postResponse = await createQuote(getServer())
-      const { reference } = JSON.parse(postResponse.payload)
-      const token = await issueAccessToken({
-        server: getServer(),
-        reference,
-        sessionCount: 5,
-        maxSessions: 5
-      })
-
-      const response = await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token,
-        redeem: false
-      })
-
-      expect(JSON.parse(response.payload).accessStatus).toBe('expired')
-    })
-
-    it('should return invalid when the token does not match the quote', async () => {
-      const { reference } = await createQuoteWithToken(getServer())
-
-      const response = await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: 'a-token-that-was-never-issued',
-        redeem: false
-      })
-
-      expect(JSON.parse(response.payload).accessStatus).toBe('invalid')
     })
   })
 

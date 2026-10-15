@@ -1,7 +1,7 @@
 import Boom from '@hapi/boom'
 import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
-import { dbReadQuoteAccessToken } from '../../services/db/quote-access-tokens/read-quote-access-token.js'
+import { dbQuoteAccessTokenExists } from '../../services/db/quote-access-tokens/quote-access-token-exists.js'
 import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
@@ -76,17 +76,15 @@ export const resendKnownController = {
 
     if (quote) {
       const tokenHash = hashToken(request.payload.token)
-      // Accept a live token, or one that has passed its expiry time — a
-      // time-expired link is the expected case for this flow. A token that is
-      // merely session-exhausted (still within its time window) is rejected, so
-      // requesting a new link can't be used to reset the session budget.
-      const { valid, timeExpired } = await dbReadQuoteAccessToken({
+      // Any token issued for the quote is accepted, expired or used: an
+      // expired link is the expected case for this flow.
+      const tokenExists = await dbQuoteAccessTokenExists({
         db: request.pg,
         tokenHash,
         quoteId: quote.id
       })
 
-      if (valid || timeExpired) {
+      if (tokenExists) {
         const emailSent = await resendQuoteLink({ db: request.pg, quote })
         if (!emailSent) {
           // The token was accepted, so this isn't an enumeration concern — the
@@ -103,8 +101,8 @@ export const resendKnownController = {
       }
     }
 
-    // Generic response on any miss (no quote, or token absent/mismatched/
-    // session-exhausted) so we don't reveal whether the quote or token exists.
+    // Generic response on any miss (no quote, or token absent/mismatched) so we
+    // don't reveal whether the quote or token exists.
     return h.response({ ok: true }).code(statusCodes.ok)
   }
 }

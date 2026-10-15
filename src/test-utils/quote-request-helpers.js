@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 
 import { routePath } from '../routes/quote.js'
 import { generateToken } from '../common/helpers/token/generate-token.js'
-import { hashToken } from '../common/helpers/token/hash-token.js'
 import {
   validQuotePayload,
   validEdpsPayload
@@ -28,15 +27,10 @@ export const createQuoteWithEdps = async (server) => {
   return reference
 }
 
-export const sendGetRequest = ({ server, reference, bearerToken, redeem }) => {
-  const params = new URLSearchParams()
-  if (redeem !== undefined) {
-    params.set('redeem', redeem)
-  }
-  const query = params.toString() ? `?${params.toString()}` : ''
+export const sendGetRequest = ({ server, reference, bearerToken }) => {
   return server.inject({
     method: 'GET',
-    url: `${routePath}/${reference}${query}`,
+    url: `${routePath}/${reference}`,
     headers: bearerToken ? { authorization: `Bearer ${bearerToken}` } : {}
   })
 }
@@ -78,23 +72,16 @@ export const getQuoteId = async ({ server, reference }) => {
 
 /**
  * Inserts an access token row directly for a quote and returns the raw token.
- * Overrides let tests create expired or session-exhausted tokens.
+ * Pass expiresAt to create an expired token.
  */
-export const issueAccessToken = async ({
-  server,
-  reference,
-  expiresAt,
-  sessionCount = 0,
-  maxSessions = 5
-}) => {
+export const issueAccessToken = async ({ server, reference, expiresAt }) => {
   const quoteId = await getQuoteId({ server, reference })
   const { raw, hash } = generateToken()
 
   await server.pg.query(
-    `INSERT INTO quote_access_tokens
-       (token_hash, quote_id, expires_at, session_count, max_sessions)
-     VALUES ($1, $2, COALESCE($3, now() + interval '7 days'), $4, $5)`,
-    [hash, quoteId, expiresAt ?? null, sessionCount, maxSessions]
+    `INSERT INTO quote_access_tokens (token_hash, quote_id, expires_at)
+     VALUES ($1, $2, COALESCE($3, now() + interval '24 hours'))`,
+    [hash, quoteId, expiresAt ?? null]
   )
 
   return raw
@@ -128,14 +115,6 @@ export const insertEmailNotification = async ({
      VALUES ($1, $2, $3, $4, $5, COALESCE($6, now()))`,
     [quoteId, randomUUID(), emailType, status, retryCount, createdAt]
   )
-}
-
-export const getAccessTokenRow = async ({ server, rawToken }) => {
-  const { rows } = await server.pg.query(
-    'SELECT * FROM quote_access_tokens WHERE token_hash = $1',
-    [hashToken(rawToken)]
-  )
-  return rows[0]
 }
 
 export const getAccessTokenRowsForReference = async ({ server, reference }) => {

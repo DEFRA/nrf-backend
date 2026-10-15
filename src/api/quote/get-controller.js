@@ -1,7 +1,5 @@
-import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbRedeemQuoteAccessToken } from '../../services/db/quote-access-tokens/redeem-quote-access-token.js'
-import { dbReadQuoteAccessToken } from '../../services/db/quote-access-tokens/read-quote-access-token.js'
 import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { QUOTE_ACCESS_STATUS } from '@defra/nrf-library'
@@ -12,10 +10,6 @@ const bearerPrefix = /^Bearer (.+)$/
 const extractBearerToken = (authorization) =>
   authorization?.match(bearerPrefix)?.[1]
 
-const querySchema = joi.object({
-  redeem: joi.boolean().default(true)
-})
-
 /**
  * @openapi
  * /quotes/{reference}:
@@ -25,10 +19,8 @@ const querySchema = joi.object({
  *     summary: Validate an access token and return the quote
  *     description: >
  *       Validates the bearer access token against the quote identified by the
- *       reference. By default redeems a session on success; pass redeem=false
- *       to read the quote without consuming a session (e.g. when the caller
- *       already holds a session cookie). Always responds 200; the outcome is
- *       carried in the status field.
+ *       reference. A token is single-use: redeeming it on success expires it.
+ *       Always responds 200; the outcome is carried in the status field.
  *     parameters:
  *       - in: path
  *         name: reference
@@ -37,13 +29,6 @@ const querySchema = joi.object({
  *           type: string
  *           pattern: ^NRL-\d{6}$
  *         example: NRL-000001
- *       - in: query
- *         name: redeem
- *         required: false
- *         schema:
- *           type: boolean
- *           default: true
- *         description: When false, validate without consuming a session
  *       - in: header
  *         name: Authorization
  *         required: false
@@ -70,8 +55,7 @@ const querySchema = joi.object({
 export const getController = {
   options: {
     validate: {
-      params: referenceParamSchema,
-      query: querySchema
+      params: referenceParamSchema
     }
   },
   handler: async (request, h) => {
@@ -95,19 +79,14 @@ export const getController = {
     }
 
     const tokenHash = hashToken(token)
-    const args = { db: request.pg, tokenHash, quoteId: quote.id }
 
-    const { ok, expired } = request.query.redeem
-      ? await dbRedeemQuoteAccessToken(args).then((r) => ({
-          ok: r.redeemed,
-          expired: r.expired
-        }))
-      : await dbReadQuoteAccessToken(args).then((r) => ({
-          ok: r.valid,
-          expired: r.expired
-        }))
+    const { redeemed, expired } = await dbRedeemQuoteAccessToken({
+      db: request.pg,
+      tokenHash,
+      quoteId: quote.id
+    })
 
-    if (ok) {
+    if (redeemed) {
       return h
         .response({ accessStatus: QUOTE_ACCESS_STATUS.valid, quote })
         .code(statusCodes.ok)
