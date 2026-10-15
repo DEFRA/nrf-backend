@@ -27,13 +27,18 @@ export const createQuoteWithEdps = async (server) => {
   return reference
 }
 
-export const sendGetRequest = ({ server, reference, bearerToken }) => {
-  return server.inject({
+export const sendGetRequest = ({ server, reference }) =>
+  server.inject({
     method: 'GET',
-    url: `${routePath}/${reference}`,
-    headers: bearerToken ? { authorization: `Bearer ${bearerToken}` } : {}
+    url: `${routePath}/${reference}`
   })
-}
+
+export const sendRedeemTokenRequest = ({ server, reference, token }) =>
+  server.inject({
+    method: 'POST',
+    url: `${routePath}/${reference}/redeem-token`,
+    payload: { token }
+  })
 
 export const sendPatchRequest = ({ server, reference, payload }) =>
   server.inject({

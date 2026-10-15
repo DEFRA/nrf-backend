@@ -9,7 +9,6 @@ import {
   createQuote,
   sendGetRequest,
   sendPatchRequest,
-  issueAccessToken,
   getAccessTokenRowsForReference,
   getEmailNotificationRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
@@ -35,16 +34,8 @@ describe('Patch quote endpoint', () => {
   })
 
   const getQuote = async (reference) => {
-    const bearerToken = await issueAccessToken({
-      server: getServer(),
-      reference
-    })
-    const response = await sendGetRequest({
-      server: getServer(),
-      reference,
-      bearerToken
-    })
-    return JSON.parse(response.payload).quote
+    const response = await sendGetRequest({ server: getServer(), reference })
+    return JSON.parse(response.payload)
   }
 
   it('should return 200 when EDP results are saved successfully', async () => {

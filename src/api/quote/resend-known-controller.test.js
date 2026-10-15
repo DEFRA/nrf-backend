@@ -6,7 +6,7 @@ import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
   issueAccessToken,
-  sendGetRequest,
+  sendRedeemTokenRequest,
   sendResendKnownRequest,
   getAccessTokenRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
@@ -110,11 +110,7 @@ describe('Resend known quote link endpoint', () => {
     it('sends a new link', async () => {
       const reference = await createQuoteReference()
       const token = await issueAccessToken({ server: getServer(), reference })
-      await sendGetRequest({
-        server: getServer(),
-        reference,
-        bearerToken: token
-      })
+      await sendRedeemTokenRequest({ server: getServer(), reference, token })
 
       const response = await sendResendKnownRequest({
         server: getServer(),
