@@ -50,13 +50,9 @@ describe('Delete quote endpoint in production', () => {
 
     expect(response.statusCode).toBe(statusCodes.noContent)
 
-    // The quote endpoint reports a missing quote as 200 + accessStatus
-    // rather than a bare 404
     const getResponse = await sendGetRequest({ server, reference })
-    const { accessStatus, quote } = JSON.parse(getResponse.payload)
 
-    expect(accessStatus).toBe('not_found')
-    expect(quote).toBeNull()
+    expect(getResponse.statusCode).toBe(statusCodes.notFound)
   })
 
   it('refuses to delete a quote created with an unapproved email', async () => {

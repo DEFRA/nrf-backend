@@ -1,0 +1,68 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="35" author="jon.wyatt">
+    <!-- Access tokens become single-use with a 24 hour life: redeeming a token
+         stamps redeemed_at, so the session budget columns are no longer needed.
+         Tokens already viewed are marked redeemed and expired first so a spent
+         link does not become usable again.
+         The previous app version still reads the dropped columns, so an app
+         rollback needs the matching DB rollback. The DB rollback is best-effort:
+         session history and viewed-at timestamps are not restored, and tokens
+         expired by this changeset stay expired. -->
+    <addColumn tableName="quote_access_tokens">
+      <column name="redeemed_at" type="TIMESTAMP WITH TIME ZONE"/>
+    </addColumn>
+
+    <sql>
+      UPDATE quote_access_tokens
+      SET redeemed_at = COALESCE(first_viewed_at, now()),
+          expires_at = LEAST(expires_at, now())
+      WHERE session_count > 0;
+    </sql>
+
+    <dropColumn tableName="quote_access_tokens" columnName="max_sessions"/>
+    <dropColumn tableName="quote_access_tokens" columnName="session_count"/>
+    <dropColumn tableName="quote_access_tokens" columnName="first_viewed_at"/>
+    <dropColumn tableName="quote_access_tokens" columnName="last_viewed_at"/>
+
+    <addDefaultValue tableName="quote_access_tokens"
+                     columnName="expires_at"
+                     columnDataType="TIMESTAMP WITH TIME ZONE"
+                     defaultValueComputed="now() + interval '24 hours'"/>
+
+    <rollback>
+      <addDefaultValue tableName="quote_access_tokens"
+                       columnName="expires_at"
+                       columnDataType="TIMESTAMP WITH TIME ZONE"
+                       defaultValueComputed="now() + interval '7 days'"/>
+      <addColumn tableName="quote_access_tokens">
+        <column name="max_sessions" type="INT" defaultValueNumeric="5">
+          <constraints nullable="false"/>
+        </column>
+        <column name="session_count" type="INT" defaultValueNumeric="0">
+          <constraints nullable="false"/>
+        </column>
+        <column name="first_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
+        <column name="last_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
+      </addColumn>
+      <sql>
+        UPDATE quote_access_tokens
+        SET session_count = max_sessions,
+            first_viewed_at = redeemed_at,
+            last_viewed_at = redeemed_at
+        WHERE redeemed_at IS NOT NULL;
+      </sql>
+      <dropColumn tableName="quote_access_tokens" columnName="redeemed_at"/>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
