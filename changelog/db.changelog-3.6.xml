@@ -1,0 +1,32 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+                      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-3.9.xsd
+                      http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.9.xsd">
+
+  <changeSet id="36" author="jon.wyatt">
+    <!-- Allow the retrieve your quote email (magic link to retrieve a saved quote) -->
+    <sql>
+      ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;
+      ALTER TABLE quote_email_notifications
+        ADD CONSTRAINT chk_qen_email_type
+        CHECK (email_type IN ('quote_results', 'resend_quote_link', 'retrieve_quote_link'));
+    </sql>
+
+    <rollback>
+      <sql>
+        DELETE FROM quote_email_notifications WHERE email_type = 'retrieve_quote_link';
+        ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;
+        ALTER TABLE quote_email_notifications
+          ADD CONSTRAINT chk_qen_email_type
+          CHECK (email_type IN ('quote_results', 'resend_quote_link'));
+      </sql>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>

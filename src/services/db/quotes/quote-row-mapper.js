@@ -36,6 +36,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
    SELECT notify_send_status, notification_id AS email_notification_id, created_at AS email_requested_at, email_type, retry_count
      FROM quote_email_notifications
     WHERE quote_id = q.id
+      AND email_type <> 'retrieve_quote_link'
     ORDER BY created_at DESC
     LIMIT 1
  ) en ON true`

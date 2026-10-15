@@ -32,12 +32,14 @@ export const dbGetRetryableEmailFailures = async ({
     `SELECT n.id, n.quote_id, n.retry_count
        FROM quote_email_notifications n
       WHERE n.notify_send_status IN (${retryableLiterals})
+        AND n.email_type <> 'retrieve_quote_link'
         AND n.retry_count < $2
         AND n.created_at > now() - ($3 * interval '1 day')
         AND NOT EXISTS (
           SELECT 1
             FROM quote_email_notifications newer
            WHERE newer.quote_id = n.quote_id
+             AND newer.email_type <> 'retrieve_quote_link'
              AND newer.created_at > n.created_at
         )
       ORDER BY n.created_at ASC

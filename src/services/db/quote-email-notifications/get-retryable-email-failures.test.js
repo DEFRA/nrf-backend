@@ -153,6 +153,39 @@ describe('dbGetRetryableEmailFailures', () => {
     expect(failures.map((r) => r.quote_id)).toEqual([stillFailing])
   })
 
+  it('leaves failed retrieve quote emails alone', async () => {
+    const quoteId = await createQuoteWithId()
+
+    await seedNotification({
+      quoteId,
+      emailType: 'retrieve_quote_link',
+      status: 'temporary-failure',
+      minutes: 30
+    })
+
+    expect(await queryFailures()).toEqual([])
+  })
+
+  it('still retries a failed quote email after a newer retrieve quote email', async () => {
+    const quoteId = await createQuoteWithId()
+
+    await seedNotification({
+      quoteId,
+      emailType: QUOTE_RESULTS,
+      status: 'temporary-failure',
+      minutes: 30
+    })
+    await seedNotification({
+      quoteId,
+      emailType: 'retrieve_quote_link',
+      minutes: 10
+    })
+
+    const failures = await queryFailures()
+
+    expect(failures.map((r) => r.quote_id)).toEqual([quoteId])
+  })
+
   it('skips rows that have spent their whole retry budget', async () => {
     const quoteId = await createQuoteWithId()
 

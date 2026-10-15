@@ -8,7 +8,7 @@ const logger = createLogger()
  * @param {{ query: Function }} params.db
  * @param {number} params.quoteId
  * @param {{ notificationId: string } | null} params.emailResult
- * @param {'quote_results' | 'resend_quote_link'} params.emailType
+ * @param {'quote_results' | 'resend_quote_link' | 'retrieve_quote_link'} params.emailType
  */
 export const recordEmailNotification = async ({
   db,

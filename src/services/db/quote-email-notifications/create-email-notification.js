@@ -11,7 +11,7 @@ import { createLogger } from '../../../common/helpers/logging/logger.js'
  * @param {{ query: Function }} params.db
  * @param {number} params.quoteId
  * @param {string} params.notificationId - GOV.UK Notify notification UUID
- * @param {string} [params.emailType='quote_results'] - 'quote_results' | 'resend_quote_link'
+ * @param {string} [params.emailType='quote_results'] - 'quote_results' | 'resend_quote_link' | 'retrieve_quote_link'
  */
 export const dbCreateEmailNotification = async ({
   db,
