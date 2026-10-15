@@ -1,16 +1,12 @@
 import Boom from '@hapi/boom'
-import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbQuoteAccessTokenExists } from '../../services/db/quote-access-tokens/quote-access-token-exists.js'
 import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
+import { tokenPayloadSchema } from './validation/token-payload-schema.js'
 import { resendQuoteLink } from './helpers/resend-quote-link.js'
 import { maskEmail } from './helpers/mask-email.js'
-
-const resendKnownPayloadSchema = joi.object({
-  token: joi.string().max(256).required()
-})
 
 /**
  * @openapi
@@ -65,7 +61,7 @@ export const resendKnownController = {
   options: {
     validate: {
       params: referenceParamSchema,
-      payload: resendKnownPayloadSchema
+      payload: tokenPayloadSchema
     }
   },
   async handler(request, h) {

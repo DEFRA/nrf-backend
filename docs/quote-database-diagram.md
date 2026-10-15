@@ -58,7 +58,8 @@ erDiagram
         text token_hash PK
         integer quote_id FK
         timestamptz created_at "default now()"
-        timestamptz expires_at "default now() + 24 hours; set to now() when redeemed"
+        timestamptz expires_at "default now() + 24 hours"
+        timestamptz redeemed_at "nullable; set when redeemed"
     }
 
     quote_edp_results {

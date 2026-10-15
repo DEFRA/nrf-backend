@@ -4,7 +4,7 @@ describe('dbRedeemQuoteAccessToken', () => {
   const tokenHash = 'abc123hash'
   const quoteId = 42
 
-  it('atomically expires a live token scoped to token and quote', async () => {
+  it('atomically marks a live, unredeemed token as redeemed scoped to token and quote', async () => {
     const db = {
       query: vi.fn().mockResolvedValue({ rows: [{ quote_id: quoteId }] })
     }
@@ -14,7 +14,8 @@ describe('dbRedeemQuoteAccessToken', () => {
     const [sql, params] = db.query.mock.calls[0]
     const normalised = sql.replace(/\s+/g, ' ')
     expect(normalised).toContain('UPDATE quote_access_tokens')
-    expect(normalised).toContain('SET expires_at = now()')
+    expect(normalised).toContain('SET redeemed_at = now()')
+    expect(normalised).toContain('AND redeemed_at IS NULL')
     expect(normalised).toContain('AND expires_at > now()')
     expect(params).toEqual([tokenHash, quoteId])
   })
@@ -35,7 +36,7 @@ describe('dbRedeemQuoteAccessToken', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] })
+        .mockResolvedValueOnce({ rows: [{}] })
     }
 
     const result = await dbRedeemQuoteAccessToken({ db, tokenHash, quoteId })

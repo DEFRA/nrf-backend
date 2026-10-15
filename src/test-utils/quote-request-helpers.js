@@ -122,6 +122,18 @@ export const insertEmailNotification = async ({
   )
 }
 
+export const createQuoteWithToken = async ({ server, ...overrides }) => {
+  const postResponse = await createQuote(server)
+  const { reference } = JSON.parse(postResponse.payload)
+  const token = await issueAccessToken({ server, reference, ...overrides })
+  return { reference, token }
+}
+
+export const redeemToken = async (params) => {
+  const response = await sendRedeemTokenRequest(params)
+  return JSON.parse(response.payload)
+}
+
 export const getAccessTokenRowsForReference = async ({ server, reference }) => {
   const { rows } = await server.pg.query(
     `SELECT t.* FROM quote_access_tokens t

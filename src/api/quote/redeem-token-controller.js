@@ -1,20 +1,17 @@
-import joi from 'joi'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { dbRedeemQuoteAccessToken } from '../../services/db/quote-access-tokens/redeem-quote-access-token.js'
 import { hashToken } from '../../common/helpers/token/hash-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { QUOTE_ACCESS_STATUS } from '@defra/nrf-library'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
-
-const redeemTokenPayloadSchema = joi.object({
-  token: joi.string().max(256).required()
-})
+import { tokenPayloadSchema } from './validation/token-payload-schema.js'
 
 /**
- * @param {string} accessStatus - one of QUOTE_ACCESS_STATUS
- * @param {import('@hapi/hapi').ResponseToolkit} h
+ * @param {object} params
+ * @param {import('@hapi/hapi').ResponseToolkit} params.h
+ * @param {string} params.accessStatus - one of QUOTE_ACCESS_STATUS
  */
-const respondWithStatus = (accessStatus, h) =>
+const respondWithStatus = ({ h, accessStatus }) =>
   h.response({ accessStatus }).code(statusCodes.ok)
 
 /**
@@ -27,7 +24,7 @@ const respondWithStatus = (accessStatus, h) =>
  *     description: >
  *       Validates the access token against the quote identified by the
  *       reference. A token is single-use with a 24 hour life: redeeming it
- *       expires it, so a second attempt reports expired. The token is sent in
+ *       marks it used, so a second attempt reports expired. The token is sent in
  *       the body, not the URL, so it is not recorded in access logs. Always
  *       responds 200; the outcome is carried in the accessStatus field. Use
  *       GET /quotes/{reference} to read the quote.
@@ -68,7 +65,7 @@ export const redeemTokenController = {
   options: {
     validate: {
       params: referenceParamSchema,
-      payload: redeemTokenPayloadSchema
+      payload: tokenPayloadSchema
     }
   },
   async handler(request, h) {
@@ -78,7 +75,10 @@ export const redeemTokenController = {
     })
 
     if (!quote) {
-      return respondWithStatus(QUOTE_ACCESS_STATUS.notFound, h)
+      return respondWithStatus({
+        h,
+        accessStatus: QUOTE_ACCESS_STATUS.notFound
+      })
     }
 
     const { redeemed, expired } = await dbRedeemQuoteAccessToken({
@@ -88,12 +88,14 @@ export const redeemTokenController = {
     })
 
     if (redeemed) {
-      return respondWithStatus(QUOTE_ACCESS_STATUS.valid, h)
+      return respondWithStatus({ h, accessStatus: QUOTE_ACCESS_STATUS.valid })
     }
 
-    return respondWithStatus(
-      expired ? QUOTE_ACCESS_STATUS.expired : QUOTE_ACCESS_STATUS.invalid,
-      h
-    )
+    return respondWithStatus({
+      h,
+      accessStatus: expired
+        ? QUOTE_ACCESS_STATUS.expired
+        : QUOTE_ACCESS_STATUS.invalid
+    })
   }
 }

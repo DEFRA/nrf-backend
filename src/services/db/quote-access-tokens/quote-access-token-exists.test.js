@@ -16,7 +16,7 @@ describe('dbQuoteAccessTokenExists', () => {
   })
 
   it.each([
-    ['a row matches', [{ '?column?': 1 }], true],
+    ['a row matches', [{}], true],
     ['no row matches', [], false]
   ])('returns the outcome when %s', async (_name, rows, expected) => {
     const db = { query: vi.fn().mockResolvedValue({ rows }) }

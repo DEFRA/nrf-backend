@@ -1,5 +1,6 @@
 import Boom from '@hapi/boom'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
+import { statusCodes } from '../../common/constants/status-codes.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 
 /**
@@ -39,7 +40,7 @@ export const getController = {
       params: referenceParamSchema
     }
   },
-  handler: async (request) => {
+  async handler(request, h) {
     const { reference } = request.params
     const quote = await dbGetQuote({ db: request.pg, reference })
 
@@ -47,6 +48,6 @@ export const getController = {
       throw Boom.notFound(`No quote found with reference ${reference}`)
     }
 
-    return quote
+    return h.response(quote).code(statusCodes.ok)
   }
 }

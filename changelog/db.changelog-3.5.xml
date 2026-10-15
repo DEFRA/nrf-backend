@@ -11,12 +11,21 @@
 
   <changeSet id="35" author="jon.wyatt">
     <!-- Access tokens become single-use with a 24 hour life: redeeming a token
-         sets expires_at to now(), so the session budget columns are no longer
-         needed. Tokens already viewed are expired first so a spent link does
-         not become usable again. -->
+         stamps redeemed_at, so the session budget columns are no longer needed.
+         Tokens already viewed are marked redeemed and expired first so a spent
+         link does not become usable again.
+         The previous app version still reads the dropped columns, so an app
+         rollback needs the matching DB rollback. The DB rollback is best-effort:
+         session history and viewed-at timestamps are not restored, and tokens
+         expired by this changeset stay expired. -->
+    <addColumn tableName="quote_access_tokens">
+      <column name="redeemed_at" type="TIMESTAMP WITH TIME ZONE"/>
+    </addColumn>
+
     <sql>
       UPDATE quote_access_tokens
-      SET expires_at = LEAST(expires_at, now())
+      SET redeemed_at = COALESCE(first_viewed_at, now()),
+          expires_at = LEAST(expires_at, now())
       WHERE session_count > 0;
     </sql>
 
@@ -45,6 +54,14 @@
         <column name="first_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
         <column name="last_viewed_at" type="TIMESTAMP WITH TIME ZONE"/>
       </addColumn>
+      <sql>
+        UPDATE quote_access_tokens
+        SET session_count = max_sessions,
+            first_viewed_at = redeemed_at,
+            last_viewed_at = redeemed_at
+        WHERE redeemed_at IS NOT NULL;
+      </sql>
+      <dropColumn tableName="quote_access_tokens" columnName="redeemed_at"/>
     </rollback>
   </changeSet>
 
