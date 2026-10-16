@@ -7,6 +7,8 @@ import {
   validEdpsPayload
 } from './fixtures/quotePayloads.js'
 
+const MS_PER_MINUTE = 60_000
+
 /**
  * @param {object} params
  * @param {object} params.server - test server
@@ -92,7 +94,8 @@ export const issueAccessToken = async ({ server, reference, expiresAt }) => {
   return raw
 }
 
-export const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
+export const minutesAgo = (minutes) =>
+  new Date(Date.now() - minutes * MS_PER_MINUTE)
 
 /**
  * Inserts a quote_email_notifications row directly with an explicit status,
