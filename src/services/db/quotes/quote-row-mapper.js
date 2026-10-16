@@ -1,5 +1,6 @@
 import { getLevyAmount } from '../../../api/quote/helpers/get-levy-amount.js'
 import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.js'
+import { QUOTE_EMAIL_TYPES_SQL } from '../../../common/constants/email-type.js'
 
 // ST_Transform looks up the geometry's SRID in spatial_ref_sys and throws if
 // it's not a recognised one — since ST_SetSRID (used on insert) never
@@ -36,7 +37,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
    SELECT notify_send_status, notification_id AS email_notification_id, created_at AS email_requested_at, email_type, retry_count
      FROM quote_email_notifications
     WHERE quote_id = q.id
-      AND email_type <> 'retrieve_quote_link'
+      AND email_type IN (${QUOTE_EMAIL_TYPES_SQL})
     ORDER BY created_at DESC
     LIMIT 1
  ) en ON true`
@@ -68,8 +69,8 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {string|null} planningType
  * @property {number|null} housingUnits - maps quotes.residential_building_count
  * @property {{ geoJsonWgs84: string|null, userInputType: string, filename: string|null }} boundary
- * @property {{ address: string, sendRequestAt: Date|null, notifySendStatus: string|null, emailType: string|null, sendRetryCount: number|null, notifyStatusUrl: string|null }} email
- * @property {object[]} emailNotifications
+ * @property {{ address: string, sendRequestAt: Date|null, notifySendStatus: string|null, emailType: string|null, sendRetryCount: number|null, notifyStatusUrl: string|null }} email - the quote's headline email status: the latest email of a type in QUOTE_EMAIL_TYPES, so another kind of email cannot displace it
+ * @property {object[]} emailNotifications - every email sent for the quote, whatever its type
  * @property {boolean} disableAnalyticsAudit
  * @property {MappedEdp[]} edps
  * @property {{ levyAmountExcludingVat: number, levyAmountInflationAdjusted: number }|null} levyGbp - summed across all EDPs; null when edps is empty

@@ -5,6 +5,10 @@ import {
   getQuoteId,
   insertEmailNotification
 } from '../../../test-utils/quote-request-helpers.js'
+import {
+  EMAIL_TYPE_QUOTE_RESULTS,
+  EMAIL_TYPE_RETRIEVE_QUOTE_LINK
+} from '../../../common/constants/email-type.js'
 
 vi.mock('../../sns/publish-event.js')
 
@@ -19,13 +23,13 @@ describe('dbGetQuote with a retrieve quote email', () => {
     await insertEmailNotification({
       server: getServer(),
       quoteId,
-      emailType: 'quote_results',
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       createdAt: minutesAgo(30)
     })
     await insertEmailNotification({
       server: getServer(),
       quoteId,
-      emailType: 'retrieve_quote_link',
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
       createdAt: minutesAgo(10)
     })
 

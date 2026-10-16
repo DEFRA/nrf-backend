@@ -101,7 +101,7 @@ export const issueAccessToken = async ({ server, reference, expiresAt }) => {
  * @param {object} params
  * @param {object} params.server - test server with a real pg pool
  * @param {number} params.quoteId
- * @param {string} params.emailType - 'quote_results' | 'resend_quote_link' | 'retrieve_quote_link'
+ * @param {string} params.emailType - one of the email-type constants
  * @param {string|null} [params.status] - Notify delivery status, null while still in flight
  * @param {number} [params.retryCount=0] - number of retry attempts already made against this row
  * @param {Date|null} [params.createdAt] - defaults to now()

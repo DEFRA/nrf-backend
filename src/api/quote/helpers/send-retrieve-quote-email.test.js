@@ -6,29 +6,23 @@ vi.mock('../../../services/send-email/send-email-client.js')
 
 describe('sendRetrieveQuoteEmail', () => {
   const recipientEmailAddress = 'test@example.com'
-  const nrfQuoteReference = 'NRL-000001'
   const retrieveQuoteUrl =
     'http://localhost:3000/retrieve/NRL-000001/abc123token'
 
-  it('sends the magic link using the retrieve quote template', async () => {
+  it('sends the magic link using the retrieve quote template and no client reference', async () => {
     await sendRetrieveQuoteEmail({
       recipientEmailAddress,
-      nrfQuoteReference,
       retrieveQuoteUrl
     })
 
     expect(sendEmail).toHaveBeenCalledWith({
       recipientEmailAddress,
-      emailReference: 'NRL-000001-retrieve',
       emailBodyVariables: { retrieveQuoteUrl },
       templateId: config.get('notify.templateIds.retrieveQuote')
     })
   })
 
   it('uses a different template from the quote results email', () => {
-    expect(config.get('notify.templateIds.retrieveQuote')).toBe(
-      'e615fe0a-9d07-4caf-8bb4-6ecce120203e'
-    )
     expect(config.get('notify.templateIds.retrieveQuote')).not.toBe(
       config.get('notify.templateIds.quote')
     )
@@ -40,7 +34,6 @@ describe('sendRetrieveQuoteEmail', () => {
 
     const result = await sendRetrieveQuoteEmail({
       recipientEmailAddress,
-      nrfQuoteReference,
       retrieveQuoteUrl
     })
 
