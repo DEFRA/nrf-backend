@@ -4,6 +4,7 @@ import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-token
 import { sendQuoteEmail } from './send-quote-email.js'
 import { buildQuoteAccessLink } from './build-quote-access-link.js'
 import { recordEmailNotification } from './record-email-notification.js'
+import { EMAIL_TYPE_RESEND_QUOTE_LINK } from '../../../common/constants/email-type.js'
 
 /**
  * Issues a fresh access token for a quote and emails the new access link to
@@ -42,7 +43,7 @@ export const resendQuoteLink = async ({ db, quote }) => {
     db,
     quoteId: quote.id,
     emailResult,
-    emailType: 'resend_quote_link'
+    emailType: EMAIL_TYPE_RESEND_QUOTE_LINK
   })
 
   return Boolean(emailResult)

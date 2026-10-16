@@ -7,7 +7,7 @@ import { config } from '../../config.js'
  * @param {object} params
  * @param {import('notifications-node-client').NotifyClient} params.notifyClient
  * @param {string} params.recipientEmailAddress
- * @param {string} params.emailReference
+ * @param {string} [params.emailReference]
  * @param {object} params.emailBodyVariables
  * @param {string} params.templateId
  * @returns {Promise<{notificationId: string, sentDateTime: string}>}
@@ -38,7 +38,7 @@ const sendEmailOperation = async ({
 /**
  * @param {object} params
  * @param {string} params.recipientEmailAddress
- * @param {string} params.emailReference
+ * @param {string} [params.emailReference] - optional Notify client reference; omitted when the notification id Notify returns is the only identifier needed
  * @param {object} params.emailBodyVariables
  * @param {string} params.templateId
  */

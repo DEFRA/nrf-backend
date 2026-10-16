@@ -12,6 +12,7 @@ import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { buildQuoteAccessLink } from './helpers/build-quote-access-link.js'
 import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
 import { recordEmailNotification } from './helpers/record-email-notification.js'
+import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
 
 /**
  * @openapi
@@ -150,7 +151,7 @@ export const patchController = {
         db: request.pg,
         quoteId: id,
         emailResult,
-        emailType: 'quote_results'
+        emailType: EMAIL_TYPE_QUOTE_RESULTS
       })
     }
 

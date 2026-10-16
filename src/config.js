@@ -168,6 +168,12 @@ const config = convict({
         format: String,
         default: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c',
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
+      },
+      retrieveQuote: {
+        doc: 'Notify template ID for the retrieve your quote email containing the magic link',
+        format: String,
+        default: 'e615fe0a-9d07-4caf-8bb4-6ecce120203e',
+        env: 'NOTIFY_TEMPLATE_ID_RETRIEVE_QUOTE'
       }
     },
     send: {
