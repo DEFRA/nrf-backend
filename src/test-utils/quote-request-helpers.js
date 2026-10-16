@@ -92,6 +92,8 @@ export const issueAccessToken = async ({ server, reference, expiresAt }) => {
   return raw
 }
 
+export const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
+
 /**
  * Inserts a quote_email_notifications row directly with an explicit status,
  * retry_count and created_at, letting tests stage delivery failures and prior
@@ -101,7 +103,7 @@ export const issueAccessToken = async ({ server, reference, expiresAt }) => {
  * @param {object} params
  * @param {object} params.server - test server with a real pg pool
  * @param {number} params.quoteId
- * @param {string} params.emailType - one of the email-type constants
+ * @param {import('../common/constants/email-type.js').EmailType} params.emailType
  * @param {string|null} [params.status] - Notify delivery status, null while still in flight
  * @param {number} [params.retryCount=0] - number of retry attempts already made against this row
  * @param {Date|null} [params.createdAt] - defaults to now()

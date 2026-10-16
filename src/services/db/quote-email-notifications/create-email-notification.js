@@ -12,7 +12,7 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../../common/constants/email-type.j
  * @param {{ query: Function }} params.db
  * @param {number} params.quoteId
  * @param {string} params.notificationId - GOV.UK Notify notification UUID
- * @param {string} [params.emailType=EMAIL_TYPE_QUOTE_RESULTS] - one of the email-type constants
+ * @param {import('../../../common/constants/email-type.js').EmailType} [params.emailType=EMAIL_TYPE_QUOTE_RESULTS]
  */
 export const dbCreateEmailNotification = async ({
   db,

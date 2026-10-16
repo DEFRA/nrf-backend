@@ -1,6 +1,14 @@
 import { getLevyAmount } from '../../../api/quote/helpers/get-levy-amount.js'
 import { buildNotifyStatusUrl } from '../../../common/helpers/notify-status-url.js'
-import { QUOTE_EMAIL_TYPES_SQL } from '../../../common/constants/email-type.js'
+import { QUOTE_EMAIL_TYPES } from '../../../common/constants/email-type.js'
+
+// QUOTE_SELECT_SQL is a bare fragment that callers extend with their own
+// placeholders, so the type list cannot be bound as a parameter here. These are
+// hardcoded constants in our own code (not user input), so inlining them as SQL
+// literals is safe — the same approach the Notify status lists use.
+const quoteEmailTypeLiterals = QUOTE_EMAIL_TYPES.map(
+  (emailType) => `'${emailType}'`
+).join(', ')
 
 // ST_Transform looks up the geometry's SRID in spatial_ref_sys and throws if
 // it's not a recognised one — since ST_SetSRID (used on insert) never
@@ -37,7 +45,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
    SELECT notify_send_status, notification_id AS email_notification_id, created_at AS email_requested_at, email_type, retry_count
      FROM quote_email_notifications
     WHERE quote_id = q.id
-      AND email_type IN (${QUOTE_EMAIL_TYPES_SQL})
+      AND email_type IN (${quoteEmailTypeLiterals})
     ORDER BY created_at DESC
     LIMIT 1
  ) en ON true`

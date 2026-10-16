@@ -8,7 +8,7 @@ const logger = createLogger()
  * @param {{ query: Function }} params.db
  * @param {number} params.quoteId
  * @param {{ notificationId: string } | null} params.emailResult
- * @param {string} params.emailType - one of the email-type constants
+ * @param {import('../../../common/constants/email-type.js').EmailType} params.emailType
  */
 export const recordEmailNotification = async ({
   db,

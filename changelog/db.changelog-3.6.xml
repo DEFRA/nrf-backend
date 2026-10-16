@@ -19,6 +19,9 @@
     </sql>
 
     <rollback>
+      <!-- The DELETE is deliberate: the narrowed CHECK cannot be re-added while
+           retrieve_quote_link rows exist. Rolling back therefore discards the
+           record of any magic-link email already sent. -->
       <sql>
         DELETE FROM quote_email_notifications WHERE email_type = 'retrieve_quote_link';
         ALTER TABLE quote_email_notifications DROP CONSTRAINT chk_qen_email_type;

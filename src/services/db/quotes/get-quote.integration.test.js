@@ -3,7 +3,8 @@ import { setupTestServer } from '../../../test-utils/setup-test-server.js'
 import {
   createQuote,
   getQuoteId,
-  insertEmailNotification
+  insertEmailNotification,
+  minutesAgo
 } from '../../../test-utils/quote-request-helpers.js'
 import {
   EMAIL_TYPE_QUOTE_RESULTS,
@@ -14,8 +15,6 @@ vi.mock('../../sns/publish-event.js')
 
 describe('dbGetQuote with a retrieve quote email', () => {
   const getServer = setupTestServer()
-
-  const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
 
   it('keeps the quote email as the headline email but lists both emails', async () => {
     const { reference } = JSON.parse((await createQuote(getServer())).payload)

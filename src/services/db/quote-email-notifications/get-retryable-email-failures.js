@@ -1,5 +1,5 @@
 import { RETRYABLE_DELIVERY_STATUSES } from '../../../common/constants/notify-status.js'
-import { QUOTE_EMAIL_TYPES_SQL } from '../../../common/constants/email-type.js'
+import { QUOTE_EMAIL_TYPES } from '../../../common/constants/email-type.js'
 
 // RETRYABLE_DELIVERY_STATUSES are hardcoded constants in our own code (not
 // user input), so inlining them as SQL literals is safe and keeps the
@@ -37,19 +37,19 @@ export const dbGetRetryableEmailFailures = async ({
     `SELECT n.id, n.quote_id, n.retry_count
        FROM quote_email_notifications n
       WHERE n.notify_send_status IN (${retryableLiterals})
-        AND n.email_type IN (${QUOTE_EMAIL_TYPES_SQL})
+        AND n.email_type = ANY($4)
         AND n.retry_count < $2
         AND n.created_at > now() - ($3 * interval '1 day')
         AND NOT EXISTS (
           SELECT 1
             FROM quote_email_notifications newer
            WHERE newer.quote_id = n.quote_id
-             AND newer.email_type IN (${QUOTE_EMAIL_TYPES_SQL})
+             AND newer.email_type = ANY($4)
              AND newer.created_at > n.created_at
         )
       ORDER BY n.created_at ASC
       LIMIT $1`,
-    [limit, maxRetryAttempts, maxAgeDays]
+    [limit, maxRetryAttempts, maxAgeDays, QUOTE_EMAIL_TYPES]
   )
   return rows
 }

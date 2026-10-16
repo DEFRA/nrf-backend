@@ -9,7 +9,8 @@ import { setupTestServer } from '../../../test-utils/setup-test-server.js'
 import {
   createQuote,
   getQuoteId,
-  insertEmailNotification
+  insertEmailNotification,
+  minutesAgo
 } from '../../../test-utils/quote-request-helpers.js'
 import { publishEvent } from '../../sns/publish-event.js'
 
@@ -18,8 +19,6 @@ vi.mock('../../sns/publish-event.js')
 describe('dbGetRetryableEmailFailures', () => {
   const getServer = setupTestServer()
   const createdQuoteIds = []
-
-  const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
 
   const createQuoteWithId = async () => {
     const response = await createQuote(getServer())

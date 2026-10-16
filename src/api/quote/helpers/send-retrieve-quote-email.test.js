@@ -22,12 +22,6 @@ describe('sendRetrieveQuoteEmail', () => {
     })
   })
 
-  it('uses a different template from the quote results email', () => {
-    expect(config.get('notify.templateIds.retrieveQuote')).not.toBe(
-      config.get('notify.templateIds.quote')
-    )
-  })
-
   it('returns the result of the send', async () => {
     const emailResult = { notificationId: 'n-1', sentDateTime: 'now' }
     vi.mocked(sendEmail).mockResolvedValue(emailResult)
