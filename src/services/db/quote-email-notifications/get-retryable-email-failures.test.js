@@ -1,10 +1,16 @@
 import { dbGetRetryableEmailFailures } from './get-retryable-email-failures.js'
 import { RETRYABLE_DELIVERY_STATUSES } from '../../../common/constants/notify-status.js'
+import {
+  EMAIL_TYPE_QUOTE_RESULTS,
+  EMAIL_TYPE_RESEND_QUOTE_LINK,
+  EMAIL_TYPE_RETRIEVE_QUOTE_LINK
+} from '../../../common/constants/email-type.js'
 import { setupTestServer } from '../../../test-utils/setup-test-server.js'
 import {
   createQuote,
   getQuoteId,
-  insertEmailNotification
+  insertEmailNotification,
+  minutesAgo
 } from '../../../test-utils/quote-request-helpers.js'
 import { publishEvent } from '../../sns/publish-event.js'
 
@@ -13,9 +19,6 @@ vi.mock('../../sns/publish-event.js')
 describe('dbGetRetryableEmailFailures', () => {
   const getServer = setupTestServer()
   const createdQuoteIds = []
-  const QUOTE_RESULTS = 'quote_results'
-
-  const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000)
 
   const createQuoteWithId = async () => {
     const response = await createQuote(getServer())
@@ -69,20 +72,20 @@ describe('dbGetRetryableEmailFailures', () => {
 
     await seedNotification({
       quoteId: oldest,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       retryCount: 2,
       minutes: 40
     })
     await seedNotification({
       quoteId: middle,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'technical-failure',
       minutes: 30
     })
     await seedNotification({
       quoteId: newest,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 20
     })
@@ -113,7 +116,7 @@ describe('dbGetRetryableEmailFailures', () => {
     ]) {
       await seedNotification({
         quoteId,
-        emailType: QUOTE_RESULTS,
+        emailType: EMAIL_TYPE_QUOTE_RESULTS,
         status: 'temporary-failure',
         minutes
       })
@@ -131,19 +134,19 @@ describe('dbGetRetryableEmailFailures', () => {
     // a newer user-initiated resend supersedes the stale failure
     await seedNotification({
       quoteId: superseded,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 30
     })
     await seedNotification({
       quoteId: superseded,
-      emailType: 'resend_quote_link',
+      emailType: EMAIL_TYPE_RESEND_QUOTE_LINK,
       minutes: 10
     })
 
     await seedNotification({
       quoteId: stillFailing,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 30
     })
@@ -153,12 +156,45 @@ describe('dbGetRetryableEmailFailures', () => {
     expect(failures.map((r) => r.quote_id)).toEqual([stillFailing])
   })
 
+  it('leaves failed retrieve quote emails alone', async () => {
+    const quoteId = await createQuoteWithId()
+
+    await seedNotification({
+      quoteId,
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
+      status: 'temporary-failure',
+      minutes: 30
+    })
+
+    expect(await queryFailures()).toEqual([])
+  })
+
+  it('still retries a failed quote email after a newer retrieve quote email', async () => {
+    const quoteId = await createQuoteWithId()
+
+    await seedNotification({
+      quoteId,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
+      status: 'temporary-failure',
+      minutes: 30
+    })
+    await seedNotification({
+      quoteId,
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
+      minutes: 10
+    })
+
+    const failures = await queryFailures()
+
+    expect(failures.map((r) => r.quote_id)).toEqual([quoteId])
+  })
+
   it('skips rows that have spent their whole retry budget', async () => {
     const quoteId = await createQuoteWithId()
 
     await seedNotification({
       quoteId,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       retryCount: 4,
       minutes: 30
@@ -173,13 +209,13 @@ describe('dbGetRetryableEmailFailures', () => {
 
     await seedNotification({
       quoteId: stale,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'temporary-failure',
       minutes: 60 * 24 * 3
     })
     await seedNotification({
       quoteId: permanent,
-      emailType: QUOTE_RESULTS,
+      emailType: EMAIL_TYPE_QUOTE_RESULTS,
       status: 'permanent-failure',
       minutes: 30
     })
