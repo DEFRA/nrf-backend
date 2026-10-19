@@ -2,14 +2,12 @@ import { audit } from '@defra/cdp-auditing'
 import Boom from '@hapi/boom'
 import { auditEvents } from '../../common/constants/audit-events.js'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
-import { dbIssueQuoteAccessToken } from '../../services/db/quote-access-tokens/issue-quote-access-token.js'
-import { generateToken } from '../../common/helpers/token/generate-token.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { config } from '../../config.js'
 import { patchSchema } from './validation/patch-schema.js'
 import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
-import { buildQuoteAccessLink } from './helpers/build-quote-access-link.js'
+import { buildRequestToUseLink } from './helpers/build-request-to-use-link.js'
 import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
 import { recordEmailNotification } from './helpers/record-email-notification.js'
 import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
@@ -126,16 +124,8 @@ export const patchController = {
     })
 
     if (anyUpdated) {
-      const { raw, hash } = generateToken()
-
-      await dbIssueQuoteAccessToken({
-        db: request.pg,
-        quoteId: id,
-        tokenHash: hash
-      })
-
       const frontEndBaseUrl = config.get('frontEndBaseUrl')
-      const quoteAccessLink = buildQuoteAccessLink({ reference, rawToken: raw })
+      const requestToUseLink = buildRequestToUseLink({ reference })
 
       const emailResult = await sendQuoteEmail({
         nrfQuoteReference: reference,
@@ -144,7 +134,7 @@ export const patchController = {
         edps,
         housingUnits,
         planningType,
-        quoteAccessLink
+        requestToUseLink
       })
 
       await recordEmailNotification({

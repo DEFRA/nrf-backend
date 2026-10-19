@@ -55,20 +55,6 @@ export const sendDeleteRequest = ({ server, reference }) =>
     url: `${routePath}/${reference}`
   })
 
-export const sendResendKnownRequest = ({ server, reference, token }) =>
-  server.inject({
-    method: 'POST',
-    url: `${routePath}/${reference}/resend-known`,
-    payload: { token }
-  })
-
-export const sendResendUnknownRequest = ({ server, reference, email }) =>
-  server.inject({
-    method: 'POST',
-    url: `${routePath}/${reference}/resend-unknown`,
-    payload: { email }
-  })
-
 export const sendEmailQuoteLinkRequest = ({ server, reference, email }) =>
   server.inject({
     method: 'POST',

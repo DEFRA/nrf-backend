@@ -20,7 +20,7 @@ import { formatCurrency } from '@defra/nrf-library'
  * @param {Array<{edpName: string, levyGbp: {amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number}}>} params.edps
  * @param {number} params.housingUnits
  * @param {string} params.planningType
- * @param {string} params.quoteAccessLink
+ * @param {string} params.requestToUseLink
  * @returns {Promise<{ notificationId: string, sentDateTime: string } | null>} - null if Notify rejected the send
  */
 export const sendQuoteEmail = async ({
@@ -31,7 +31,7 @@ export const sendQuoteEmail = async ({
   edps,
   housingUnits,
   planningType,
-  quoteAccessLink
+  requestToUseLink
 }) => {
   const { templateIds } = config.get('notify')
   const { levyAmountExcludingVat, levyAmountInflationAdjusted } =
@@ -47,7 +47,7 @@ export const sendQuoteEmail = async ({
       levyAmount: formatCurrency(levyAmountExcludingVat),
       levyAmountInflationAdjusted: formatCurrency(levyAmountInflationAdjusted),
       nrfServiceUrl,
-      quoteAccessLink
+      requestToUseLink
     },
     templateId: templateIds.quote
   })

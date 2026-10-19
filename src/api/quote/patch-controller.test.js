@@ -64,7 +64,7 @@ describe('Patch quote endpoint', () => {
     expect(notifySendEmail).toHaveBeenCalled()
   })
 
-  it('should include a quote access link in the email', async () => {
+  it('should link to the request to use journey in the email, without a token', async () => {
     const postResponse = await createQuote(getServer())
     const { reference } = JSON.parse(postResponse.payload)
 
@@ -75,9 +75,16 @@ describe('Patch quote endpoint', () => {
     })
 
     const emailOptions = notifySendEmail.mock.calls[0][2]
-    expect(emailOptions.personalisation.quoteAccessLink).toMatch(
-      new RegExp(`/quote/${reference}/[A-Za-z0-9_-]{43}$`)
+    expect(emailOptions.personalisation.requestToUseLink).toMatch(
+      new RegExp(
+        `/request-to-use/enter-nrl-reference\\?nrlReference=${reference}$`
+      )
     )
+    const tokenRows = await getAccessTokenRowsForReference({
+      server: getServer(),
+      reference
+    })
+    expect(tokenRows).toHaveLength(0)
   })
 
   it('should expose the email send date from the recorded notification', async () => {
@@ -240,37 +247,6 @@ describe('Patch quote endpoint', () => {
   })
 
   describe('when duplicate PATCH callbacks race for the same reference', () => {
-    const liveTokens = (rows) =>
-      rows.filter((row) => new Date(row.expires_at).getTime() > Date.now())
-
-    it('issues a single live token so the emailed link stays valid', async () => {
-      const postResponse = await createQuote(getServer())
-      const { reference } = JSON.parse(postResponse.payload)
-
-      const [first, second] = await Promise.all([
-        sendPatchRequest({
-          server: getServer(),
-          reference,
-          payload: validEdpsPayload
-        }),
-        sendPatchRequest({
-          server: getServer(),
-          reference,
-          payload: validEdpsPayload
-        })
-      ])
-
-      expect(first.statusCode).toBe(statusCodes.ok)
-      expect(second.statusCode).toBe(statusCodes.ok)
-
-      const tokenRows = await getAccessTokenRowsForReference({
-        server: getServer(),
-        reference
-      })
-      expect(tokenRows).toHaveLength(1)
-      expect(liveTokens(tokenRows)).toHaveLength(1)
-    })
-
     it('sends only one email', async () => {
       const postResponse = await createQuote(getServer())
       const { reference } = JSON.parse(postResponse.payload)
