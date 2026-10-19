@@ -119,13 +119,32 @@ describe('Email quote link endpoint', () => {
       )
     })
 
-    it('returns 502 when Notify rejects the email', async () => {
+    it('responds as if the email was sent when Notify rejects it, so a match is not revealed', async () => {
       const reference = await createQuoteReference()
       notifySendEmail.mockRejectedValue(new Error('rejected'))
 
       const response = await emailQuoteLink({ reference, email: OWNER_EMAIL })
 
-      expect(response.statusCode).toBe(statusCodes.badGateway)
+      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(JSON.parse(response.payload)).toEqual({ matched: true })
+    })
+
+    it('records the failed send without a Notify id so it can be retried', async () => {
+      const reference = await createQuoteReference()
+      notifySendEmail.mockRejectedValue(new Error('rejected'))
+
+      await emailQuoteLink({ reference, email: OWNER_EMAIL })
+
+      const notifications = await getEmailNotificationRowsForReference({
+        server: getServer(),
+        reference
+      })
+      expect(notifications).toEqual([
+        expect.objectContaining({
+          email_type: 'retrieve_quote_link',
+          notification_id: null
+        })
+      ])
     })
   })
 

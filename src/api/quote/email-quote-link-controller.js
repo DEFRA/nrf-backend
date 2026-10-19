@@ -1,8 +1,10 @@
-import Boom from '@hapi/boom'
 import { dbGetQuote } from '../../services/db/quotes/get-quote.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { emailQuoteLinkPayloadSchema } from './validation/email-quote-link-payload-schema.js'
 import { sendRetrieveQuoteLink } from './helpers/send-retrieve-quote-link.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
+
+const logger = createLogger()
 
 const emailMatches = (quote, submittedEmail) =>
   quote.email.address?.toLowerCase() === submittedEmail.toLowerCase()
@@ -47,8 +49,6 @@ const emailMatches = (quote, submittedEmail) =>
  *                   type: boolean
  *       400:
  *         description: Reference or email format is invalid
- *       502:
- *         description: A quote matched but the email could not be sent
  */
 export const emailQuoteLinkController = {
   options: {
@@ -66,7 +66,13 @@ export const emailQuoteLinkController = {
 
     const emailSent = await sendRetrieveQuoteLink({ db: request.pg, quote })
     if (!emailSent) {
-      throw Boom.badGateway('Retrieve quote email was not sent')
+      // Not surfaced as an error: a failure only happens for a matching quote,
+      // so it would reveal the match. The notification row is recorded without
+      // a Notify id so the failed send can be retried later.
+      logger.warn(
+        { quoteId: quote.id },
+        'Retrieve quote email was not sent; responding as if it was'
+      )
     }
 
     return h.response({ matched: true }).code(statusCodes.ok)
