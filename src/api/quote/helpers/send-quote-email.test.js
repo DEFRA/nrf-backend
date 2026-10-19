@@ -20,7 +20,8 @@ describe('sendQuoteEmail', () => {
   const housingUnits = 5
   const planningType = 'full-planning-permission'
   const nrfServiceUrl = 'http://localhost:3000'
-  const quoteAccessLink = 'http://localhost:3000/quote/NRL-2024-001/abc123token'
+  const requestToUseLink =
+    'http://localhost:3000/quote/NRL-2024-001/abc123token'
 
   const baseArgs = {
     recipientEmailAddress,
@@ -29,7 +30,7 @@ describe('sendQuoteEmail', () => {
     edps,
     housingUnits,
     planningType,
-    quoteAccessLink
+    requestToUseLink
   }
 
   it('calls sendEmail with the correct arguments', async () => {
@@ -45,7 +46,7 @@ describe('sendQuoteEmail', () => {
         levyAmount: '£1,100.00',
         levyAmountInflationAdjusted: '£1,122.00',
         nrfServiceUrl,
-        quoteAccessLink
+        requestToUseLink
       },
       templateId: expect.any(String)
     })

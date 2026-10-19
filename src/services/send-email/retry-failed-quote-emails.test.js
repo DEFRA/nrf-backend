@@ -2,7 +2,6 @@ import { retryFailedQuoteEmails } from './retry-failed-quote-emails.js'
 import { dbGetRetryableEmailFailures } from '../db/quote-email-notifications/get-retryable-email-failures.js'
 import { dbUpdateEmailNotificationForRetry } from '../db/quote-email-notifications/update-email-notification-for-retry.js'
 import { dbGetQuoteById } from '../db/quotes/get-quote-by-id.js'
-import { dbIssueQuoteAccessToken } from '../db/quote-access-tokens/issue-quote-access-token.js'
 import { sendQuoteEmail } from '../../api/quote/helpers/send-quote-email.js'
 import { config } from '../../config.js'
 
@@ -11,7 +10,6 @@ vi.mock(
   '../db/quote-email-notifications/update-email-notification-for-retry.js'
 )
 vi.mock('../db/quotes/get-quote-by-id.js')
-vi.mock('../db/quote-access-tokens/issue-quote-access-token.js')
 vi.mock('../../api/quote/helpers/send-quote-email.js')
 
 const mockLogger = vi.hoisted(() => ({
@@ -58,7 +56,6 @@ const makeQuote = (id) => ({
 describe('retryFailedQuoteEmails', () => {
   beforeEach(() => {
     dbGetQuoteById.mockImplementation(async ({ id }) => makeQuote(id))
-    dbIssueQuoteAccessToken.mockResolvedValue(undefined)
     dbUpdateEmailNotificationForRetry.mockResolvedValue(undefined)
     sendQuoteEmail.mockResolvedValue({
       notificationId: 'notify-id',
@@ -103,8 +100,8 @@ describe('retryFailedQuoteEmails', () => {
         recipientEmailAddress: 'adeola@example.com',
         nrfQuoteReference: 'NRF-0000042',
         emailReference: 'NRF-0000042-retry-1',
-        quoteAccessLink: expect.stringMatching(
-          /\/quote\/NRF-0000042\/[A-Za-z0-9_-]{43}$/
+        requestToUseLink: expect.stringMatching(
+          /\/request-to-use\/enter-nrl-reference\?nrlReference=NRF-0000042$/
         )
       })
     )
@@ -114,7 +111,6 @@ describe('retryFailedQuoteEmails', () => {
         emailReference: 'NRF-0000043-retry-4'
       })
     )
-    expect(dbIssueQuoteAccessToken).toHaveBeenCalledTimes(2)
     expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledWith({
       db: client,
       id: 100,
@@ -193,7 +189,6 @@ describe('retryFailedQuoteEmails', () => {
     await retryFailedQuoteEmails({ pool })
 
     expect(sendQuoteEmail).not.toHaveBeenCalled()
-    expect(dbIssueQuoteAccessToken).not.toHaveBeenCalled()
     expect(dbUpdateEmailNotificationForRetry).not.toHaveBeenCalled()
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ quoteId: 42 }),

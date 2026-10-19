@@ -1,12 +1,10 @@
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
-import { generateToken } from '../../common/helpers/token/generate-token.js'
-import { dbIssueQuoteAccessToken } from '../db/quote-access-tokens/issue-quote-access-token.js'
 import { dbGetQuoteById } from '../db/quotes/get-quote-by-id.js'
 import { dbGetRetryableEmailFailures } from '../db/quote-email-notifications/get-retryable-email-failures.js'
 import { dbUpdateEmailNotificationForRetry } from '../db/quote-email-notifications/update-email-notification-for-retry.js'
 import { sendQuoteEmail } from '../../api/quote/helpers/send-quote-email.js'
-import { buildQuoteAccessLink } from '../../api/quote/helpers/build-quote-access-link.js'
+import { buildRequestToUseLink } from '../../api/quote/helpers/build-request-to-use-link.js'
 
 const logger = createLogger()
 
@@ -23,10 +21,6 @@ const ADVISORY_LOCK_KEY = "hashtext('nrf-notify-email-retry')"
  * are reset so the poller repopulates them for the fresh id. A Notify
  * rejection only bumps retry_count, so it still consumes budget without a
  * new notification_id. Vanished quotes are logged and skipped.
- *
- * A fresh access token is issued for every retry: the raw token is never
- * persisted (only its hash), so we cannot reuse the original link, and the
- * failed email never reached anyone so no stale-link risk exists.
  *
  * @param {object} params
  * @param {{ query: Function }} params.db - the locked pooled client
@@ -46,9 +40,6 @@ const retryQuoteEmail = async ({
     return
   }
 
-  const { raw, hash } = generateToken()
-  await dbIssueQuoteAccessToken({ db, quoteId: quote.id, tokenHash: hash })
-
   const emailResult = await sendQuoteEmail({
     recipientEmailAddress: quote.email.address,
     nrfQuoteReference: quote.reference,
@@ -57,10 +48,7 @@ const retryQuoteEmail = async ({
     edps: quote.edps,
     housingUnits: quote.housingUnits,
     planningType: quote.planningType,
-    quoteAccessLink: buildQuoteAccessLink({
-      reference: quote.reference,
-      rawToken: raw
-    })
+    requestToUseLink: buildRequestToUseLink({ reference: quote.reference })
   })
 
   await dbUpdateEmailNotificationForRetry({
