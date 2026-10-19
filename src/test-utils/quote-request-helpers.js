@@ -69,6 +69,13 @@ export const sendResendUnknownRequest = ({ server, reference, email }) =>
     payload: { email }
   })
 
+export const sendEmailQuoteLinkRequest = ({ server, reference, email }) =>
+  server.inject({
+    method: 'POST',
+    url: `${routePath}/email-quote-link`,
+    payload: { reference, email }
+  })
+
 export const getQuoteId = async ({ server, reference }) => {
   const { rows } = await server.pg.query(
     'SELECT id FROM quotes WHERE reference = $1',

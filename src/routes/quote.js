@@ -3,6 +3,7 @@ import { getController } from '../api/quote/get-controller.js'
 import { getAllController } from '../api/quote/get-all-controller.js'
 import { patchController } from '../api/quote/patch-controller.js'
 import { deleteController } from '../api/quote/delete-controller.js'
+import { emailQuoteLinkController } from '../api/quote/email-quote-link-controller.js'
 import { redeemTokenController } from '../api/quote/redeem-token-controller.js'
 import { resendKnownController } from '../api/quote/resend-known-controller.js'
 import { resendUnknownController } from '../api/quote/resend-unknown-controller.js'
@@ -34,6 +35,11 @@ const quote = [
     method: 'DELETE',
     path: `${routePath}/{reference}`,
     ...deleteController
+  },
+  {
+    method: 'POST',
+    path: `${routePath}/email-quote-link`,
+    ...emailQuoteLinkController
   },
   {
     method: 'POST',
