@@ -184,7 +184,8 @@ describe('mapQuoteRows', () => {
         sendRetryCount: 0,
         sendRequestAt: '2026-08-01T09:00:00.000Z',
         notificationId,
-        notifyStatusUrl: 'https://status/abc'
+        notifyStatusUrl: 'https://status/abc',
+        attempts: []
       },
       {
         emailType: 'resend_quote_link',
@@ -192,9 +193,73 @@ describe('mapQuoteRows', () => {
         sendRetryCount: 1,
         sendRequestAt: '2026-08-02T10:00:00.000Z',
         notificationId: null,
-        notifyStatusUrl: null
+        notifyStatusUrl: null,
+        attempts: []
       }
     ])
+  })
+
+  it('maps each notification attempts with their own status links, defaulting to an empty list', () => {
+    vi.mocked(buildNotifyStatusUrl).mockReturnValue('https://status/abc')
+    const initialId = '47cbb989-9546-418c-8828-232c3dc57537'
+    const retriedId = '8b1dcb42-6ea5-49d3-9cb0-0f4e5a1b2c3d'
+    const rows = [
+      {
+        ...baseRow,
+        edp_id: null,
+        email_notifications: [
+          {
+            emailType: 'quote_results',
+            notifySendStatus: 'delivered',
+            sendRetryCount: 1,
+            sendRequestAt: '2026-08-01T09:00:00.000Z',
+            notificationId: retriedId,
+            attempts: [
+              {
+                attemptNo: 1,
+                notificationId: initialId,
+                notifySendStatus: 'temporary-failure',
+                attemptedAt: '2026-08-01T09:00:05.000Z'
+              },
+              {
+                attemptNo: 2,
+                notificationId: retriedId,
+                notifySendStatus: 'delivered',
+                attemptedAt: '2026-08-01T09:05:00.000Z'
+              }
+            ]
+          },
+          {
+            // no attempts key at all — a lifecycle row predating attempts
+            emailType: 'resend_quote_link',
+            notifySendStatus: null,
+            sendRetryCount: 0,
+            sendRequestAt: '2026-08-02T10:00:00.000Z',
+            notificationId: null
+          }
+        ]
+      }
+    ]
+
+    const result = mapQuoteRows(rows)
+
+    expect(result.emailNotifications[0].attempts).toEqual([
+      {
+        attemptNo: 1,
+        notificationId: initialId,
+        notifySendStatus: 'temporary-failure',
+        attemptedAt: '2026-08-01T09:00:05.000Z',
+        notifyStatusUrl: 'https://status/abc'
+      },
+      {
+        attemptNo: 2,
+        notificationId: retriedId,
+        notifySendStatus: 'delivered',
+        attemptedAt: '2026-08-01T09:05:00.000Z',
+        notifyStatusUrl: 'https://status/abc'
+      }
+    ])
+    expect(result.emailNotifications[1].attempts).toEqual([])
   })
 
   it('returns mapped quote with empty edps when edp_id is null', () => {

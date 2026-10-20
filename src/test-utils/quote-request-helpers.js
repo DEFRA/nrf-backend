@@ -192,3 +192,18 @@ export const getEmailNotificationRowsForReference = async ({
   )
   return rows
 }
+
+export const getEmailNotificationAttemptRowsForReference = async ({
+  server,
+  reference
+}) => {
+  const { rows } = await server.pg.query(
+    `SELECT a.* FROM quote_email_notification_attempts a
+       JOIN quote_email_notifications n ON n.id = a.email_notification_id
+       JOIN quotes q ON q.id = n.quote_id
+      WHERE q.reference = $1
+      ORDER BY n.created_at, a.attempt_no`,
+    [reference]
+  )
+  return rows
+}

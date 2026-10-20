@@ -66,6 +66,7 @@ export const pollNotifyEmailStatuses = async ({ pool }) => {
         await dbUpdateEmailNotificationStatus({
           db: client,
           id,
+          notificationId,
           status,
           sentAt,
           completedAt

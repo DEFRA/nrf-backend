@@ -29,13 +29,27 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
               'notifySendStatus', qen.notify_send_status,
               'sendRetryCount', qen.retry_count,
               'sendRequestAt', qen.created_at,
-              'notificationId', qen.notification_id::text
+              'notificationId', qen.notification_id::text,
+              'attempts', att.attempts
             )
             ORDER BY qen.created_at ASC
           ),
           '[]'::json
         )
         FROM quote_email_notifications qen
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'attemptNo', a.attempt_no,
+              'notificationId', a.notification_id::text,
+              'notifySendStatus', a.notify_send_status,
+              'attemptedAt', a.attempted_at
+            )
+            ORDER BY a.attempt_no ASC
+          ), '[]'::json) AS attempts
+          FROM quote_email_notification_attempts a
+          WHERE a.email_notification_id = qen.id
+        ) att ON true
         WHERE qen.quote_id = q.id) AS email_notifications,
         e.edp_id, e.edp_name, e.edp_type, e.impact, e.catchments, e.levy_excluding_vat, e.levy_base_amount, e.levy_inflation_adjusted, e.levy_model_version
  FROM quotes q
@@ -78,7 +92,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {number|null} housingUnits - maps quotes.residential_building_count
  * @property {{ geoJsonWgs84: string|null, userInputType: string, filename: string|null }} boundary
  * @property {{ address: string, sendRequestAt: Date|null, notifySendStatus: string|null, emailType: string|null, sendRetryCount: number|null, notifyStatusUrl: string|null }} email - the quote's headline email status: the latest email of a type in QUOTE_EMAIL_TYPES, so another kind of email cannot displace it
- * @property {object[]} emailNotifications - every email sent for the quote, whatever its type
+ * @property {object[]} emailNotifications - every email sent for the quote, whatever its type; each carries `attempts`, one entry per send attempt (initial + retries) with its outcome — lifecycle rows created before attempts existed map to an empty list
  * @property {boolean} disableAnalyticsAudit
  * @property {MappedEdp[]} edps
  * @property {{ levyAmountExcludingVat: number, levyAmountInflationAdjusted: number }|null} levyGbp - summed across all EDPs; null when edps is empty
@@ -140,7 +154,16 @@ export const mapQuoteRows = (rows) => {
       notificationId: n.notificationId ?? null,
       notifyStatusUrl: n.notificationId
         ? buildNotifyStatusUrl(n.notificationId)
-        : null
+        : null,
+      attempts: (n.attempts ?? []).map((a) => ({
+        attemptNo: a.attemptNo,
+        notificationId: a.notificationId ?? null,
+        notifySendStatus: a.notifySendStatus ?? null,
+        attemptedAt: a.attemptedAt,
+        notifyStatusUrl: a.notificationId
+          ? buildNotifyStatusUrl(a.notificationId)
+          : null
+      }))
     })),
     disableAnalyticsAudit: row.disable_analytics_audit ?? false,
     edps,

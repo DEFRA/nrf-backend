@@ -3,6 +3,7 @@ import { dbGetRetryableEmailFailures } from '../db/quote-email-notifications/get
 import { dbUpdateEmailNotificationForRetry } from '../db/quote-email-notifications/update-email-notification-for-retry.js'
 import { dbGetQuoteById } from '../db/quotes/get-quote-by-id.js'
 import { sendQuoteEmail } from '../../api/quote/helpers/send-quote-email.js'
+import { sendRetrieveQuoteEmailWithFreshToken } from '../../api/quote/helpers/send-retrieve-quote-email-with-fresh-token.js'
 import { config } from '../../config.js'
 
 vi.mock('../db/quote-email-notifications/get-retryable-email-failures.js')
@@ -11,6 +12,7 @@ vi.mock(
 )
 vi.mock('../db/quotes/get-quote-by-id.js')
 vi.mock('../../api/quote/helpers/send-quote-email.js')
+vi.mock('../../api/quote/helpers/send-retrieve-quote-email-with-fresh-token.js')
 
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
@@ -61,13 +63,17 @@ describe('retryFailedQuoteEmails', () => {
       notificationId: 'notify-id',
       sentDateTime: '2026-08-18T00:00:00.000Z'
     })
+    sendRetrieveQuoteEmailWithFreshToken.mockResolvedValue({
+      notificationId: 'retrieve-notify-id',
+      sentDateTime: '2026-08-18T00:00:00.000Z'
+    })
   })
 
   it('claims the lock, re-sends each failed email with a fresh link and attempt-scoped reference, and updates the existing row with the new notification id', async () => {
     const { pool, client } = makePool(true)
     dbGetRetryableEmailFailures.mockResolvedValue([
-      { id: 100, quote_id: 42, retry_count: 0 },
-      { id: 101, quote_id: 43, retry_count: 3 }
+      { id: 100, quote_id: 42, retry_count: 0, email_type: 'quote_results' },
+      { id: 101, quote_id: 43, retry_count: 3, email_type: 'quote_results' }
     ])
     sendQuoteEmail
       .mockResolvedValueOnce({
@@ -149,8 +155,8 @@ describe('retryFailedQuoteEmails', () => {
   it('bumps retry_count without a new notification id when Notify rejects the send, and still runs the rest of the batch', async () => {
     const { pool, client } = makePool(true)
     dbGetRetryableEmailFailures.mockResolvedValue([
-      { id: 100, quote_id: 42, retry_count: 0 },
-      { id: 101, quote_id: 43, retry_count: 0 }
+      { id: 100, quote_id: 42, retry_count: 0, email_type: 'quote_results' },
+      { id: 101, quote_id: 43, retry_count: 0, email_type: 'quote_results' }
     ])
     sendQuoteEmail.mockResolvedValueOnce(null).mockResolvedValueOnce({
       notificationId: 'notify-id-2',
@@ -182,7 +188,7 @@ describe('retryFailedQuoteEmails', () => {
   it('skips a quote that no longer exists without sending or updating', async () => {
     const { pool } = makePool(true)
     dbGetRetryableEmailFailures.mockResolvedValue([
-      { id: 100, quote_id: 42, retry_count: 0 }
+      { id: 100, quote_id: 42, retry_count: 0, email_type: 'quote_results' }
     ])
     dbGetQuoteById.mockResolvedValue(null)
 
@@ -199,8 +205,8 @@ describe('retryFailedQuoteEmails', () => {
   it('aborts the batch when a quote load fails, so a dead connection wastes no further Notify sends', async () => {
     const { pool } = makePool(true)
     dbGetRetryableEmailFailures.mockResolvedValue([
-      { id: 100, quote_id: 42, retry_count: 0 },
-      { id: 101, quote_id: 43, retry_count: 0 }
+      { id: 100, quote_id: 42, retry_count: 0, email_type: 'quote_results' },
+      { id: 101, quote_id: 43, retry_count: 0, email_type: 'quote_results' }
     ])
     dbGetQuoteById.mockRejectedValue(new Error('connection terminated'))
 
@@ -214,6 +220,111 @@ describe('retryFailedQuoteEmails', () => {
       expect.any(Error),
       expect.stringContaining('quoteId: 42')
     )
+  })
+
+  it('re-sends a failed retrieve quote link with a fresh token and updates the existing row with the new notification id', async () => {
+    const { pool, client } = makePool(true)
+    dbGetRetryableEmailFailures.mockResolvedValue([
+      {
+        id: 200,
+        quote_id: 42,
+        retry_count: 0,
+        email_type: 'retrieve_quote_link'
+      }
+    ])
+
+    await retryFailedQuoteEmails({ pool })
+
+    expect(sendQuoteEmail).not.toHaveBeenCalled()
+    expect(sendRetrieveQuoteEmailWithFreshToken).toHaveBeenCalledTimes(1)
+    expect(sendRetrieveQuoteEmailWithFreshToken).toHaveBeenCalledWith({
+      db: client,
+      quote: makeQuote(42)
+    })
+    expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledWith({
+      db: client,
+      id: 200,
+      notificationId: 'retrieve-notify-id'
+    })
+  })
+
+  it('bumps retry_count without a new notification id when Notify rejects a retrieve quote link retry', async () => {
+    const { pool, client } = makePool(true)
+    dbGetRetryableEmailFailures.mockResolvedValue([
+      {
+        id: 200,
+        quote_id: 42,
+        retry_count: 2,
+        email_type: 'retrieve_quote_link'
+      }
+    ])
+    sendRetrieveQuoteEmailWithFreshToken.mockResolvedValueOnce(null)
+
+    await retryFailedQuoteEmails({ pool })
+
+    expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledWith({
+      db: client,
+      id: 200,
+      notificationId: null
+    })
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ quoteId: 42, attemptNo: 3 }),
+      expect.any(String)
+    )
+  })
+
+  it('skips a retrieve quote link retry for a quote that no longer exists without issuing a token or sending', async () => {
+    const { pool } = makePool(true)
+    dbGetRetryableEmailFailures.mockResolvedValue([
+      {
+        id: 200,
+        quote_id: 42,
+        retry_count: 0,
+        email_type: 'retrieve_quote_link'
+      }
+    ])
+    dbGetQuoteById.mockResolvedValue(null)
+
+    await retryFailedQuoteEmails({ pool })
+
+    expect(sendRetrieveQuoteEmailWithFreshToken).not.toHaveBeenCalled()
+    expect(dbUpdateEmailNotificationForRetry).not.toHaveBeenCalled()
+  })
+
+  it('routes a mixed batch to the right sender for each row', async () => {
+    const { pool, client } = makePool(true)
+    dbGetRetryableEmailFailures.mockResolvedValue([
+      { id: 100, quote_id: 42, retry_count: 0, email_type: 'quote_results' },
+      {
+        id: 200,
+        quote_id: 43,
+        retry_count: 0,
+        email_type: 'retrieve_quote_link'
+      }
+    ])
+
+    await retryFailedQuoteEmails({ pool })
+
+    expect(sendQuoteEmail).toHaveBeenCalledTimes(1)
+    expect(sendQuoteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ nrfQuoteReference: 'NRF-0000042' })
+    )
+    expect(sendRetrieveQuoteEmailWithFreshToken).toHaveBeenCalledTimes(1)
+    expect(sendRetrieveQuoteEmailWithFreshToken).toHaveBeenCalledWith({
+      db: client,
+      quote: makeQuote(43)
+    })
+    expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledTimes(2)
+    expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledWith({
+      db: client,
+      id: 100,
+      notificationId: 'notify-id'
+    })
+    expect(dbUpdateEmailNotificationForRetry).toHaveBeenCalledWith({
+      db: client,
+      id: 200,
+      notificationId: 'retrieve-notify-id'
+    })
   })
 
   it('still releases the client when the advisory-unlock query rejects', async () => {
