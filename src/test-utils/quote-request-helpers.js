@@ -42,6 +42,13 @@ export const sendRedeemTokenRequest = ({ server, reference, token }) =>
     payload: { token }
   })
 
+export const sendResendLinkRequest = ({ server, reference, token }) =>
+  server.inject({
+    method: 'POST',
+    url: `${routePath}/${reference}/resend-link`,
+    payload: { token }
+  })
+
 export const sendPatchRequest = ({ server, reference, payload }) =>
   server.inject({
     method: 'PATCH',
@@ -130,6 +137,35 @@ export const createQuoteWithToken = async ({ server, ...overrides }) => {
 export const redeemToken = async (params) => {
   const response = await sendRedeemTokenRequest(params)
   return JSON.parse(response.payload)
+}
+
+export const createUsedToken = async ({ server }) => {
+  const quote = await createQuoteWithToken({ server })
+  await redeemToken({ server, ...quote })
+  return quote
+}
+
+export const createTimedOutToken = ({ server }) =>
+  createQuoteWithToken({
+    server,
+    expiresAt: new Date(Date.now() - 1000).toISOString()
+  })
+
+export const resendLink = async (params) => {
+  const response = await sendResendLinkRequest(params)
+  return {
+    statusCode: response.statusCode,
+    body: JSON.parse(response.payload)
+  }
+}
+
+/**
+ * The raw token in the magic link of the most recent mocked Notify email.
+ * @param {import('vitest').Mock} notifySendEmail
+ */
+export const tokenFromLastEmail = (notifySendEmail) => {
+  const [, , options] = notifySendEmail.mock.calls.at(-1)
+  return options.personalisation.retrieveQuoteUrl.split('/').pop()
 }
 
 export const getAccessTokenRowsForReference = async ({ server, reference }) => {
