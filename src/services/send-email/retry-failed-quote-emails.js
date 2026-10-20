@@ -35,14 +35,14 @@ const ADVISORY_LOCK_KEY = "hashtext('nrf-notify-email-retry')"
  * @param {number} params.notificationRowId - quote_email_notifications.id of the row to update
  * @param {number} params.quoteId
  * @param {string} params.emailType - which template to re-send for the row
- * @param {number} params.attemptNo - retry attempt number, keeps the Notify reference unique
+ * @param {number} params.retryNo - retry number, keeps the Notify reference unique (the DB attempt_no counts the initial send too)
  */
 const retryEmail = async ({
   db,
   notificationRowId,
   quoteId,
   emailType,
-  attemptNo
+  retryNo
 }) => {
   const quote = await dbGetQuoteById({ db, id: quoteId })
   if (!quote) {
@@ -56,7 +56,7 @@ const retryEmail = async ({
       : await sendQuoteEmail({
           recipientEmailAddress: quote.email.address,
           nrfQuoteReference: quote.reference,
-          emailReference: `${quote.reference}-retry-${attemptNo}`,
+          emailReference: `${quote.reference}-retry-${retryNo}`,
           nrfServiceUrl: config.get('frontEndBaseUrl'),
           edps: quote.edps,
           housingUnits: quote.housingUnits,
@@ -74,7 +74,7 @@ const retryEmail = async ({
 
   if (!emailResult?.sentDateTime) {
     logger.warn(
-      { quoteId, attemptNo },
+      { quoteId, retryNo },
       'Notify rejected the retry send; will retry on a later tick while budget remains'
     )
   }
@@ -136,7 +136,7 @@ export const retryFailedQuoteEmails = async ({ pool }) => {
           notificationRowId,
           quoteId,
           emailType,
-          attemptNo: retryCount + 1
+          retryNo: retryCount + 1
         })
       } catch (error) {
         // DB-side failure: the pooled connection is likely dead (e.g. RDS
