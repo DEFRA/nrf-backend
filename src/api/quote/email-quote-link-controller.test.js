@@ -10,8 +10,7 @@ import {
   redeemToken,
   sendEmailQuoteLinkRequest,
   getAccessTokenRowsForReference,
-  getEmailNotificationRowsForReference,
-  getEmailNotificationAttemptRowsForReference
+  getEmailNotificationRowsForReference
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -144,19 +143,6 @@ describe('Email quote link endpoint', () => {
         expect.objectContaining({
           email_type: 'retrieve_quote_link',
           notification_id: null
-        })
-      ])
-      const attempts = await getEmailNotificationAttemptRowsForReference({
-        server: getServer(),
-        reference
-      })
-      expect(
-        attempts.filter((a) => a.email_notification_id === notifications[0].id)
-      ).toEqual([
-        expect.objectContaining({
-          attempt_no: 1,
-          notification_id: null,
-          notify_send_status: null
         })
       ])
     })

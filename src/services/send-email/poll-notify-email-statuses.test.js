@@ -99,11 +99,7 @@ describe('pollNotifyEmailStatuses', () => {
     expect(getNotificationStatus).toHaveBeenCalledTimes(2)
     expect(dbUpdateEmailNotificationStatus).toHaveBeenCalledTimes(1)
     expect(dbUpdateEmailNotificationStatus).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 2,
-        notificationId: 'uuid-2',
-        status: 'delivered'
-      })
+      expect.objectContaining({ id: 2, status: 'delivered' })
     )
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.objectContaining({ notificationId: 'uuid-1' }),

@@ -42,7 +42,7 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
     })
   })
 
-  it('retries a failed retrieve quote link with a fresh usable token, keeping every attempt visible', async () => {
+  it('retries a failed retrieve quote link with a fresh usable token', async () => {
     const server = getServer()
     const { reference } = JSON.parse((await createQuote(server)).payload)
     await sendEmailQuoteLinkRequest({ server, reference, email: OWNER_EMAIL })
@@ -67,7 +67,6 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
       await dbUpdateEmailNotificationStatus({
         db: client,
         id: initial.id,
-        notificationId: initial.notification_id,
         status: 'temporary-failure'
       })
 
@@ -98,11 +97,10 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
         id: initial.id,
         notificationId
       })
-      // once the poller delivers a status it lands on the matching attempt
+      // the poller then reports the retry as delivered
       await dbUpdateEmailNotificationStatus({
         db: client,
         id: initial.id,
-        notificationId,
         status: 'delivered'
       })
 
@@ -127,22 +125,6 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
     )
     expect(notification.sendRetryCount).toBe(1)
     expect(notification.notificationId).toBe(notificationId)
-    expect(notification.attempts).toEqual([
-      {
-        attemptNo: 1,
-        notificationId: initial.notification_id,
-        notifySendStatus: 'temporary-failure',
-        attemptedAt: expect.any(String),
-        // no Notify API key in the test environment, so no dashboard link
-        notifyStatusUrl: null
-      },
-      {
-        attemptNo: 2,
-        notificationId,
-        notifySendStatus: 'delivered',
-        attemptedAt: expect.any(String),
-        notifyStatusUrl: null
-      }
-    ])
+    expect(notification.notifySendStatus).toBe('delivered')
   })
 })
