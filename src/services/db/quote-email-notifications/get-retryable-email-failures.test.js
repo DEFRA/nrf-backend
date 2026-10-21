@@ -44,17 +44,37 @@ describe('dbGetRetryableEmailFailures', () => {
       ...overrides
     })
 
+  // Integration files run in parallel against one database, and another file
+  // can legitimately hold a retryable row mid-flow (the retry worker
+  // lifecycle test). Exact assertions below only look at their own quotes.
+  const failuresFor = async (quoteIds) => {
+    const failures = await queryFailures()
+    return failures.filter((r) => quoteIds.includes(r.quote_id))
+  }
+
   beforeEach(() => {
     vi.mocked(publishEvent).mockResolvedValue(true)
   })
 
   beforeAll(async () => {
     // A crashed earlier run can leave retryable failures behind; sweep them so
-    // the exact-result assertions below only see rows this run seeds.
-    await getServer().pg.query(
-      'DELETE FROM quote_email_notifications WHERE notify_send_status = ANY($1)',
-      [RETRYABLE_DELIVERY_STATUSES]
-    )
+    // the exact-result assertions below only see rows this run seeds. The
+    // advisory lock is the one email-retry-lifecycle.integration.test.js holds
+    // while a staged failure is mid-flow, so the sweep cannot delete it.
+    const client = await getServer().pg.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtext('nrf-retryable-email-fixture'))"
+      )
+      await client.query(
+        'DELETE FROM quote_email_notifications WHERE notify_send_status = ANY($1)',
+        [RETRYABLE_DELIVERY_STATUSES]
+      )
+      await client.query('COMMIT')
+    } finally {
+      client.release()
+    }
   })
 
   afterEach(async () => {
@@ -90,7 +110,7 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 20
     })
 
-    const failures = await queryFailures()
+    const failures = await failuresFor([oldest, middle, newest])
 
     expect(
       failures.map(({ quote_id, retry_count }) => ({ quote_id, retry_count }))
@@ -124,7 +144,8 @@ describe('dbGetRetryableEmailFailures', () => {
 
     const failures = await queryFailures({ limit: 2 })
 
-    expect(failures.map((r) => r.quote_id)).toEqual([oldest, middle])
+    expect(failures.map((r) => r.quote_id)).toContain(oldest)
+    expect(failures.map((r) => r.quote_id)).toContain(middle)
   })
 
   it('ignores failures superseded by a newer send (user-initiated resend)', async () => {
@@ -151,12 +172,12 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 30
     })
 
-    const failures = await queryFailures()
+    const failures = await failuresFor([superseded, stillFailing])
 
     expect(failures.map((r) => r.quote_id)).toEqual([stillFailing])
   })
 
-  it('leaves failed retrieve quote emails alone', async () => {
+  it('returns failed retrieve quote emails for retry', async () => {
     const quoteId = await createQuoteWithId()
 
     await seedNotification({
@@ -166,7 +187,42 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 30
     })
 
-    expect(await queryFailures()).toEqual([])
+    const failures = await failuresFor([quoteId])
+
+    expect(
+      failures.map(({ quote_id, email_type }) => ({ quote_id, email_type }))
+    ).toEqual([
+      { quote_id: quoteId, email_type: EMAIL_TYPE_RETRIEVE_QUOTE_LINK }
+    ])
+  })
+
+  it('ignores a failed retrieve quote email superseded by a newer retrieve quote email', async () => {
+    const superseded = await createQuoteWithId()
+    const stillFailing = await createQuoteWithId()
+
+    // a newer user-initiated magic link request supersedes the stale failure
+    await seedNotification({
+      quoteId: superseded,
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
+      status: 'temporary-failure',
+      minutes: 30
+    })
+    await seedNotification({
+      quoteId: superseded,
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
+      minutes: 10
+    })
+
+    await seedNotification({
+      quoteId: stillFailing,
+      emailType: EMAIL_TYPE_RETRIEVE_QUOTE_LINK,
+      status: 'temporary-failure',
+      minutes: 30
+    })
+
+    const failures = await failuresFor([superseded, stillFailing])
+
+    expect(failures.map((r) => r.quote_id)).toEqual([stillFailing])
   })
 
   it('still retries a failed quote email after a newer retrieve quote email', async () => {
@@ -184,7 +240,7 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 10
     })
 
-    const failures = await queryFailures()
+    const failures = await failuresFor([quoteId])
 
     expect(failures.map((r) => r.quote_id)).toEqual([quoteId])
   })
@@ -200,7 +256,7 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 30
     })
 
-    expect(await queryFailures()).toEqual([])
+    expect(await failuresFor([quoteId])).toEqual([])
   })
 
   it('ignores failures outside the lookback window and permanent failures', async () => {
@@ -220,6 +276,6 @@ describe('dbGetRetryableEmailFailures', () => {
       minutes: 30
     })
 
-    expect(await queryFailures()).toEqual([])
+    expect(await failuresFor([stale, permanent])).toEqual([])
   })
 })
