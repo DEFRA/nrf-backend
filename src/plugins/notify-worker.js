@@ -10,7 +10,8 @@ const logger = createLogger()
 /**
  * Schedules a single combined job (NRF2-849) that, on each tick:
  *   1. Polls GOV.UK Notify for delivery-status updates on pending notifications
- *   2. Re-sends any quote emails that came back as retryable failures
+ *   2. Re-sends any quote or retrieve-quote-link emails that came back as
+ *      retryable failures
  *
  * Disabled unless `notify.retrySendingEmails.enabled` is true so dev/test stay
  * quiet unless opted in. Registered after the `postgres` plugin so `server.pg`
