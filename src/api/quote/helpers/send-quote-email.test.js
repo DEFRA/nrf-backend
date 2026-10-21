@@ -11,7 +11,7 @@ describe('sendQuoteEmail', () => {
       edpName: 'Norfolk Fens east',
       levyGbp: {
         amountExcludingVat: 1100,
-        amountInflationAdjusted: 1122,
+        amountInflationAdjusted: 1122.5,
         baseAmount: 1000,
         modelVersion: 1
       }
@@ -43,8 +43,8 @@ describe('sendQuoteEmail', () => {
         edpNames: 'Norfolk Fens east',
         housingUnits,
         planningType: 'full planning permission',
-        levyAmount: '£1,100.00',
-        levyAmountInflationAdjusted: '£1,122.00',
+        levyAmount: '£1,100',
+        levyAmountInflationAdjusted: '£1,122.50',
         nrfServiceUrl,
         requestToUseLink
       },

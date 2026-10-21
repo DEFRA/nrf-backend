@@ -2,7 +2,7 @@ import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
 import { getLevyAmount } from './get-levy-amount.js'
 import { getPlanningTypeDisplay } from './get-planning-type-display.js'
-import { formatCurrency } from '@defra/nrf-library'
+import { formatLevyCurrency } from '@defra/nrf-library'
 
 /**
  * Send a quote result email via GOV.UK Notify. Recording the notification id
@@ -44,8 +44,10 @@ export const sendQuoteEmail = async ({
       edpNames: edps.map(({ edpName }) => edpName).join(', '),
       housingUnits,
       planningType: getPlanningTypeDisplay(planningType),
-      levyAmount: formatCurrency(levyAmountExcludingVat),
-      levyAmountInflationAdjusted: formatCurrency(levyAmountInflationAdjusted),
+      levyAmount: formatLevyCurrency(levyAmountExcludingVat),
+      levyAmountInflationAdjusted: formatLevyCurrency(
+        levyAmountInflationAdjusted
+      ),
       nrfServiceUrl,
       requestToUseLink
     },
