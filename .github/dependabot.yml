@@ -6,58 +6,16 @@ updates:
     directory: /
     open-pull-requests-limit: 10
 
-    # Group packages into shared PR
+    # One PR for all minor and patch updates; majors arrive as separate PRs
     groups:
-      build:
-        patterns:
-          - '@babel/*'
-          - 'autoprefixer'
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
 
-      lint:
-        patterns:
-          - 'prettier'
-          - 'stylelint'
-          - 'stylelint-*'
-          - 'neostandard'
-
-      logging:
-        patterns:
-          - '*-pino'
-          - '*-pino-format'
-          - 'pino'
-          - 'pino-*'
-          - 'aws-embedded-metrics'
-
-      tools:
-        patterns:
-          - 'husky'
-          - 'nodemon'
-          - 'npm-run-all'
-
-      vitest:
-        patterns:
-          - 'vitest'
-          - 'vitest-*'
-          - '@vitest/*'
-
-      hapi:
-        patterns:
-          - '@hapi/*'
-          - 'hapi-*'
-          - '@defra/hapi-*'
-
-      config:
-        patterns:
-          - 'convict'
-          - 'convict-format-with-validator'
-          - 'dotenv'
-
-      code:
-        patterns:
-          - 'https-proxy-agent'
-          - 'joi'
-          - 'node-fetch'
-          - 'undici'
+    # Wait before proposing brand new releases
+    cooldown:
+      default-days: 3
 
     ignore:
       - dependency-name: 'eslint-*'
