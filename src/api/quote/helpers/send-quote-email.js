@@ -44,8 +44,12 @@ export const sendQuoteEmail = async ({
       edpNames: edps.map(({ edpName }) => edpName).join(', '),
       housingUnits,
       planningType: getPlanningTypeDisplay(planningType),
-      levyAmount: formatCurrency(levyAmountExcludingVat),
-      levyAmountInflationAdjusted: formatCurrency(levyAmountInflationAdjusted),
+      levyAmount: formatCurrency(levyAmountExcludingVat, {
+        hideZeroPence: true
+      }),
+      levyAmountInflationAdjusted: formatCurrency(levyAmountInflationAdjusted, {
+        hideZeroPence: true
+      }),
       nrfServiceUrl,
       requestToUseLink
     },
