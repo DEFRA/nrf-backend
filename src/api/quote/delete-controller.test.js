@@ -1,3 +1,4 @@
+import { audit } from '@defra/cdp-auditing'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
@@ -53,6 +54,27 @@ describe('Delete quote endpoint', () => {
     expect(notifications.rowCount).toBe(0)
   })
 
+  it('should audit the delete-quote event with the reference only', async () => {
+    const server = getServer()
+    const postResponse = await createQuote(server)
+    const { reference } = JSON.parse(postResponse.payload)
+
+    await sendDeleteRequest({ server, reference })
+
+    expect(vi.mocked(audit)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: {
+          category: 'quote',
+          action: 'delete-quote',
+          actor: { type: 'user', id: expect.any(String) }
+        },
+        context: {
+          quote: { reference }
+        }
+      })
+    )
+  })
+
   it('returns 404 when the quote does not exist', async () => {
     const response = await sendDeleteRequest({
       server: getServer(),
@@ -71,7 +93,7 @@ describe('Delete quote endpoint', () => {
     expect(response.statusCode).toBe(statusCodes.badRequest)
   })
 
-  it('marks the quote as deletable in the list outside production', async () => {
+  it('marks the quote as deletable in the list', async () => {
     const server = getServer()
     const postResponse = await createQuote(server)
     const { reference } = JSON.parse(postResponse.payload)

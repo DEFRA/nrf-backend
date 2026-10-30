@@ -146,14 +146,6 @@ const config = convict({
     sensitive: true,
     env: 'IMPACT_ASSESSOR_API_KEY'
   },
-  quoteDelete: {
-    eligibleEmailPatterns: {
-      doc: 'Comma-separated email addresses or @domain suffixes whose quotes may be deleted in production (from cdp-app-config). An empty list in production disables deletion entirely; other environments ignore it',
-      format: Array,
-      default: [],
-      env: 'QUOTE_DELETE_ELIGIBLE_EMAIL_PATTERNS'
-    }
-  },
   notify: {
     apiKey: {
       doc: 'API key for Notify',
