@@ -80,6 +80,7 @@
     "global-agent": {
       "roarr": "^3.0.0"
     },
+    "joi": "$joi",
     "nodemon": {
       "chokidar": "^4.0.3"
     }
