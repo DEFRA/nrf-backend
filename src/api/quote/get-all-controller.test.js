@@ -51,7 +51,8 @@ describe('Get all quotes endpoint', () => {
       housingUnits: expect.any(Number),
       boundary: expect.any(Object),
       email: expect.any(Object),
-      edps: expect.any(Array)
+      edps: expect.any(Array),
+      deleteEligible: true
     })
   })
 
