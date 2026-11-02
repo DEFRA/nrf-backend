@@ -81,6 +81,7 @@
       "roarr": "^3.0.0"
     },
     "joi": "$joi",
+    "minimatch": "^11.0.1",
     "nodemon": {
       "chokidar": "^4.0.3"
     }
