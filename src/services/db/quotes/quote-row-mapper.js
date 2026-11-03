@@ -85,6 +85,28 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {{ levyAmountExcludingVat: number, levyAmountInflationAdjusted: number }|null} levyGbp - summed across all EDPs; null when edps is empty
  */
 
+const mapEmail = (row) => ({
+  address: row.email_address,
+  sendRequestAt: row.email_requested_at ?? null,
+  notifySendStatus: row.notify_send_status ?? null,
+  emailType: row.email_type ?? null,
+  sendRetryCount: row.retry_count ?? null,
+  notifyStatusUrl: row.email_notification_id
+    ? buildNotifyStatusUrl(row.email_notification_id)
+    : null
+})
+
+const mapEmailNotification = (n) => ({
+  emailType: n.emailType,
+  notifySendStatus: n.notifySendStatus,
+  sendRetryCount: n.sendRetryCount,
+  sendRequestAt: n.sendRequestAt,
+  notificationId: n.notificationId ?? null,
+  notifyStatusUrl: n.notificationId
+    ? buildNotifyStatusUrl(n.notificationId)
+    : null
+})
+
 /**
  * @param {object[]} rows - raw DB rows for a single quote (multiple rows due to EDP join)
  * @returns {MappedQuote|null}
@@ -125,26 +147,10 @@ export const mapQuoteRows = (rows) => {
       userInputType: row.boundary_entry_type,
       filename: row.boundary_filename
     },
-    email: {
-      address: row.email_address,
-      sendRequestAt: row.email_requested_at ?? null,
-      notifySendStatus: row.notify_send_status ?? null,
-      emailType: row.email_type ?? null,
-      sendRetryCount: row.retry_count ?? null,
-      notifyStatusUrl: row.email_notification_id
-        ? buildNotifyStatusUrl(row.email_notification_id)
-        : null
-    },
-    emailNotifications: (row.email_notifications ?? []).map((n) => ({
-      emailType: n.emailType,
-      notifySendStatus: n.notifySendStatus,
-      sendRetryCount: n.sendRetryCount,
-      sendRequestAt: n.sendRequestAt,
-      notificationId: n.notificationId ?? null,
-      notifyStatusUrl: n.notificationId
-        ? buildNotifyStatusUrl(n.notificationId)
-        : null
-    })),
+    email: mapEmail(row),
+    emailNotifications: (row.email_notifications ?? []).map(
+      mapEmailNotification
+    ),
     disableAnalyticsAudit: row.disable_analytics_audit ?? false,
     edps,
     levyGbp: edps.length ? getLevyAmount(edps) : null
