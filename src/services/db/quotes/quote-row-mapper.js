@@ -14,7 +14,7 @@ const quoteEmailTypeLiterals = QUOTE_EMAIL_TYPES.map(
 // it's not a recognised one — since ST_SetSRID (used on insert) never
 // validates the SRID it's given, a single row with a bad/legacy SRID would
 // otherwise fail this query for every quote, not just that row.
-export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.residential_building_count, q.disable_analytics_audit, q.created_at,
+export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning_type, q.boundary_entry_type, q.boundary_filename, q.residential_building_count, q.disable_analytics_audit, q.created_at, q.commitment_certificate_created_at,
         CASE
           WHEN EXISTS (SELECT 1 FROM spatial_ref_sys WHERE srid = ST_SRID(q.boundary_geodata))
           THEN ST_AsGeoJSON(ST_Transform(q.boundary_geodata, 4326))
@@ -74,6 +74,7 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {string} reference
  * @property {string|null} userId
  * @property {Date} createdAt
+ * @property {Date|null} commitmentCertificateCreatedAt
  * @property {string|null} planningType
  * @property {number|null} housingUnits - maps quotes.residential_building_count
  * @property {{ geoJsonWgs84: string|null, userInputType: string, filename: string|null }} boundary
@@ -115,6 +116,8 @@ export const mapQuoteRows = (rows) => {
     reference: row.reference,
     userId: row.user_id,
     createdAt: row.created_at,
+    commitmentCertificateCreatedAt:
+      row.commitment_certificate_created_at ?? null,
     planningType: row.planning_type,
     housingUnits: row.residential_building_count,
     boundary: {

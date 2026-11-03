@@ -2,6 +2,7 @@ import { postController } from '../api/quote/post-controller.js'
 import { getController } from '../api/quote/get-controller.js'
 import { getAllController } from '../api/quote/get-all-controller.js'
 import { patchController } from '../api/quote/patch-controller.js'
+import { commitmentCertificateController } from '../api/quote/commitment-certificate-controller.js'
 import { deleteController } from '../api/quote/delete-controller.js'
 import { emailQuoteLinkController } from '../api/quote/email-quote-link-controller.js'
 import { redeemTokenController } from '../api/quote/redeem-token-controller.js'
@@ -29,6 +30,11 @@ const quote = [
     method: 'PATCH',
     path: `${routePath}/{reference}`,
     ...patchController
+  },
+  {
+    method: 'PATCH',
+    path: `${routePath}/{reference}/commitment-certificate`,
+    ...commitmentCertificateController
   },
   {
     method: 'DELETE',

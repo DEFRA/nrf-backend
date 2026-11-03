@@ -56,6 +56,17 @@ export const sendPatchRequest = ({ server, reference, payload }) =>
     payload
   })
 
+export const sendCommitmentCertificateRequest = ({
+  server,
+  reference,
+  payload = { createCommitmentCertificate: true }
+}) =>
+  server.inject({
+    method: 'PATCH',
+    url: `${routePath}/${reference}/commitment-certificate`,
+    payload
+  })
+
 export const sendDeleteRequest = ({ server, reference }) =>
   server.inject({
     method: 'DELETE',

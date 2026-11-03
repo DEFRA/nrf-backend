@@ -4,7 +4,7 @@ Entity-relationship diagram of the backend **`nrf_backend`** Postgres database
 (schema `public`) — the quote domain.
 
 - **Source:** live `nrf_backend` Postgres instance (`docker compose` service `postgres`), cross-checked against the Liquibase changelog under `backend/changelog/`.
-- **Generated:** 2026-09-08
+- **Generated:** 2026-11-03
 
 - **Scope:** application domain tables only. Liquibase bookkeeping (`databasechangelog`, `databasechangeloglock`) and the PostGIS reference table (`spatial_ref_sys`) are excluded.
 
@@ -52,6 +52,7 @@ erDiagram
         integer residential_building_count "nullable"
         boolean disable_analytics_audit "default false"
         timestamptz created_at
+        timestamptz commitment_certificate_created_at "nullable; set once when the commitment certificate is created"
     }
 
     quote_access_tokens {
