@@ -21,7 +21,8 @@ describe('quoteSchema', () => {
     it('accepts upload', () => {
       const { error } = validate({
         ...validPayload,
-        boundaryEntryType: 'upload'
+        boundaryEntryType: 'upload',
+        boundaryFilename: 'site-boundary.shp'
       })
       expect(error).toBeUndefined()
     })
@@ -63,7 +64,7 @@ describe('quoteSchema', () => {
   })
 
   describe('boundaryFilename', () => {
-    it('is optional', () => {
+    it('is optional for draw entries', () => {
       const { error } = validate(validPayload)
       expect(error).toBeUndefined()
     })
@@ -77,7 +78,24 @@ describe('quoteSchema', () => {
       expect(error).toBeUndefined()
     })
 
-    it('accepts null', () => {
+    it('is required when boundaryEntryType is upload', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryEntryType: 'upload'
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('rejects null when boundaryEntryType is upload', () => {
+      const { error } = validate({
+        ...validPayload,
+        boundaryEntryType: 'upload',
+        boundaryFilename: null
+      })
+      expect(error).toBeDefined()
+    })
+
+    it('accepts null for draw entries', () => {
       const { error } = validate({
         ...validPayload,
         boundaryFilename: null

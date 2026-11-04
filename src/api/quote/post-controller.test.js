@@ -128,6 +128,14 @@ describe('Submit quote endpoint', () => {
       expect(response.statusCode).toBe(statusCodes.badRequest)
     })
 
+    it('should return 400 if boundaryFilename is missing for an upload entry', async () => {
+      const response = await sendPostRequest({
+        server: getServer(),
+        payload: { ...validPayload, boundaryEntryType: 'upload' }
+      })
+      expect(response.statusCode).toBe(statusCodes.badRequest)
+    })
+
     it('should return 400 if housingUnits is missing', async () => {
       const { housingUnits: _, ...rest } = validPayload
       const response = await sendPostRequest({
