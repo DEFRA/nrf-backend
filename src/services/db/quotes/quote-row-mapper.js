@@ -69,6 +69,16 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  */
 
 /**
+ * @typedef {object} MappedEmail
+ * @property {string} address
+ * @property {Date|null} sendRequestAt
+ * @property {string|null} notifySendStatus
+ * @property {string|null} emailType
+ * @property {number|null} sendRetryCount
+ * @property {string|null} notifyStatusUrl
+ */
+
+/**
  * @typedef {object} MappedQuote
  * @property {number} id
  * @property {string} reference
@@ -78,13 +88,17 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {string|null} planningType
  * @property {number|null} housingUnits - maps quotes.residential_building_count
  * @property {{ geoJsonWgs84: string|null, userInputType: string, filename: string|null }} boundary
- * @property {{ address: string, sendRequestAt: Date|null, notifySendStatus: string|null, emailType: string|null, sendRetryCount: number|null, notifyStatusUrl: string|null }} email - the quote's headline email status: the latest email of a type in QUOTE_EMAIL_TYPES, so another kind of email cannot displace it
+ * @property {MappedEmail} email - the quote's headline email status: the latest email of a type in QUOTE_EMAIL_TYPES, so another kind of email cannot displace it
  * @property {object[]} emailNotifications - every email sent for the quote, whatever its type
  * @property {boolean} disableAnalyticsAudit
  * @property {MappedEdp[]} edps
  * @property {{ levyAmountExcludingVat: number, levyAmountInflationAdjusted: number }|null} levyGbp - summed across all EDPs; null when edps is empty
  */
 
+/**
+ * @param {object} row - raw DB row carrying the quote's headline email columns
+ * @returns {MappedEmail}
+ */
 const mapEmail = (row) => ({
   address: row.email_address,
   sendRequestAt: row.email_requested_at ?? null,
@@ -96,6 +110,10 @@ const mapEmail = (row) => ({
     : null
 })
 
+/**
+ * @param {{ emailType: string, notifySendStatus: string|null, sendRetryCount: number|null, sendRequestAt: Date|null, notificationId?: string|null }} n - an email notification record
+ * @returns {object}
+ */
 const mapEmailNotification = (n) => ({
   emailType: n.emailType,
   notifySendStatus: n.notifySendStatus,

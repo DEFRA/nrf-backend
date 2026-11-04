@@ -72,8 +72,10 @@ describe('Commitment certificate endpoint', () => {
       )
     )
 
-    const statusCodes = responses.map((response) => response.statusCode).sort()
-    expect(statusCodes).toEqual([200, 409, 409, 409, 409])
+    const responseCodes = responses
+      .map((response) => response.statusCode)
+      .sort()
+    expect(responseCodes).toEqual([200, 409, 409, 409, 409])
   })
 
   it('should return 404 for an unknown quote', async () => {
