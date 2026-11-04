@@ -18,6 +18,20 @@ const baseRow = {
 }
 
 describe('mapQuoteRows', () => {
+  it('maps the commitment certificate creation time', () => {
+    const createdAt = new Date('2026-05-01T10:30:00.000Z')
+
+    const result = mapQuoteRows([
+      {
+        ...baseRow,
+        edp_id: null,
+        commitment_certificate_created_at: createdAt
+      }
+    ])
+
+    expect(result.commitmentCertificateCreatedAt).toBe(createdAt)
+  })
+
   it('returns mapped quote with EDPs when given populated rows', () => {
     const rows = [
       {
@@ -41,6 +55,7 @@ describe('mapQuoteRows', () => {
       reference: 'NRL-000001',
       userId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       createdAt: '2026-03-23T00:00:00.000Z',
+      commitmentCertificateCreatedAt: null,
       planningType: undefined,
       housingUnits: 10,
       boundary: {
