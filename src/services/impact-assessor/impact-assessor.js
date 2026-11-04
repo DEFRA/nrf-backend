@@ -10,6 +10,8 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+const COMPARE_BOUNDARIES_PATH = '/compare-boundaries'
+
 /**
  * Build request headers for impact assessor calls: trace header plus the
  * service-to-service x-api-key when configured.
@@ -172,6 +174,47 @@ async function postBoundaryCheck(
         boundaryMetadata
       }
     }
+  } catch (error) {
+    logger.error(error, `Error calling impact assessor - url: ${url}`)
+    return { error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_UNREACHABLE }
+  }
+}
+
+/**
+ * Ask the impact assessor whether two boundaries are the same.
+ * @param {{ boundaryOriginal: object, boundaryNew: object }} params - GeoJSON boundaries
+ * @returns {Promise<{ boundariesMatch?: boolean, error?: string, statusCode?: number }>}
+ */
+export async function compareBoundaries({ boundaryOriginal, boundaryNew }) {
+  const url = `${getImpactAssessorUrl()}${COMPARE_BOUNDARIES_PATH}`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: impactAssessorHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ boundaryOriginal, boundaryNew })
+    })
+
+    if (!response.ok) {
+      logger.error(
+        { url, statusCode: response.status },
+        'Boundary comparison failed'
+      )
+      return {
+        error: BOUNDARY_ERRORS.SERVICE.CHECK_FAILED,
+        statusCode: response.status
+      }
+    }
+
+    const { boundariesMatch } = await response.json()
+    if (typeof boundariesMatch !== 'boolean') {
+      logger.error(
+        { url },
+        'Impact assessor returned unexpected boundary comparison response'
+      )
+      return { error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_BAD_RESPONSE }
+    }
+    return { boundariesMatch }
   } catch (error) {
     logger.error(error, `Error calling impact assessor - url: ${url}`)
     return { error: BOUNDARY_ERRORS.SERVICE.IMPACT_ASSESSOR_UNREACHABLE }
