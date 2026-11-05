@@ -70,7 +70,6 @@ jobs:
       OS_API_KEY: ${{ secrets.OS_API_KEY }}
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t defradigital/nrf-backend:${{ github.sha }} .
       - uses: DEFRA/nrf-journey-tests/run-journey-tests@main
         with:
           nrf-backend: ${{ github.sha }}
