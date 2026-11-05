@@ -6,6 +6,7 @@ import { commitmentCertificateController } from '../api/quote/commitment-certifi
 import { deleteController } from '../api/quote/delete-controller.js'
 import { emailQuoteLinkController } from '../api/quote/email-quote-link-controller.js'
 import { redeemTokenController } from '../api/quote/redeem-token-controller.js'
+import { compareBoundariesController } from '../api/quote/compare-boundaries-controller.js'
 import { resendLinkController } from '../api/quote/resend-link-controller.js'
 
 const routePath = '/quotes'
@@ -45,6 +46,11 @@ const quote = [
     method: 'POST',
     path: `${routePath}/email-quote-link`,
     ...emailQuoteLinkController
+  },
+  {
+    method: 'POST',
+    path: `${routePath}/compare-boundaries`,
+    ...compareBoundariesController
   },
   {
     method: 'POST',
