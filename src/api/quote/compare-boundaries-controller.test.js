@@ -101,6 +101,23 @@ describe('Compare boundaries endpoint', () => {
     expect(compareRequests).toEqual([])
   })
 
+  it('should respond boundariesMatch false without calling the impact assessor when the original quote has no readable boundary', async () => {
+    const originalReference = await createQuoteReference()
+    await getServer().pg.query(
+      'UPDATE quotes SET boundary_geodata = ST_SetSRID(boundary_geodata, 1) WHERE reference = $1',
+      [originalReference]
+    )
+
+    const response = await compare({
+      originalReference,
+      currentBoundaryGeoJson
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(JSON.parse(response.payload)).toEqual({ boundariesMatch: false })
+    expect(compareRequests).toEqual([])
+  })
+
   it('should pass through the impact assessor error status', async () => {
     mockCompare({}, 422)
     const originalReference = await createQuoteReference()
