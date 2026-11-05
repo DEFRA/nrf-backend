@@ -6,8 +6,12 @@ import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 
 const mswServer = setupMswServer()
 
-const { getImpactAssessorUrl, checkBoundary, checkBoundaryGeometry } =
-  await import('./impact-assessor.js')
+const {
+  getImpactAssessorUrl,
+  checkBoundary,
+  checkBoundaryGeometry,
+  compareBoundaries
+} = await import('./impact-assessor.js')
 
 const CHECK_BOUNDARY_URL = 'http://localhost:8085/check-boundary'
 
@@ -594,5 +598,66 @@ describe('checkBoundaryGeometry', () => {
       type: 'FeatureCollection',
       features: [feature]
     })
+  })
+})
+
+describe('compareBoundaries', () => {
+  const COMPARE_URL = 'http://localhost:8085/compare-boundaries'
+  const boundaryOriginal = { type: 'Polygon', coordinates: [] }
+  const boundaryNew = { type: 'Polygon', coordinates: [[[0, 0]]] }
+
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'tracing.header' ? 'x-cdp-request-id' : null
+    )
+    delete process.env.ENVIRONMENT
+  })
+
+  it('should post both boundaries and return boundariesMatch', async () => {
+    let capturedBody
+    mswServer.use(
+      http.post(COMPARE_URL, async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({ boundariesMatch: true })
+      })
+    )
+
+    const result = await compareBoundaries({ boundaryOriginal, boundaryNew })
+
+    expect(result).toEqual({ boundariesMatch: true })
+    expect(capturedBody).toEqual({ boundaryOriginal, boundaryNew })
+  })
+
+  it('should return the status code on a non-ok response', async () => {
+    mswServer.use(
+      http.post(COMPARE_URL, () =>
+        HttpResponse.json({}, { status: statusCodes.badRequest })
+      )
+    )
+
+    const result = await compareBoundaries({ boundaryOriginal, boundaryNew })
+
+    expect(result.statusCode).toBe(400)
+    expect(result.error).toBeDefined()
+  })
+
+  it('should return an error when boundariesMatch is not a boolean', async () => {
+    mswServer.use(
+      http.post(COMPARE_URL, () =>
+        HttpResponse.json({ boundariesMatch: 'yes' })
+      )
+    )
+
+    const result = await compareBoundaries({ boundaryOriginal, boundaryNew })
+
+    expect(result).toEqual({ error: expect.any(String) })
+  })
+
+  it('should return an error when the impact assessor is unreachable', async () => {
+    mswServer.use(http.post(COMPARE_URL, () => HttpResponse.error()))
+
+    const result = await compareBoundaries({ boundaryOriginal, boundaryNew })
+
+    expect(result).toEqual({ error: expect.any(String) })
   })
 })
