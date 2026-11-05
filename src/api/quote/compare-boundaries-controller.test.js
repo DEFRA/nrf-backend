@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
+import { boundaryGeometryWgs84 } from '../../test-utils/fixtures/boundaryGeojson.js'
 import {
   createQuote,
   sendCommitmentCertificateRequest
@@ -12,6 +13,7 @@ vi.mock('../../services/sns/publish-event.js')
 
 const COMPARE_URL = 'http://localhost:8085/compare-boundaries'
 const UNKNOWN_REFERENCE = 'NRL-999999'
+const currentBoundaryGeoJson = boundaryGeometryWgs84
 
 describe('Compare boundaries endpoint', () => {
   const getServer = setupTestServer()
@@ -48,63 +50,64 @@ describe('Compare boundaries endpoint', () => {
     mockCompare()
   })
 
-  it('should send both quotes boundaries to the impact assessor and return the result', async () => {
+  it('should send the original quote boundary and the supplied boundary to the impact assessor and return the result', async () => {
     const originalReference = await createQuoteReference()
-    const currentReference = await createQuoteReference()
 
-    const response = await compare({ originalReference, currentReference })
+    const response = await compare({
+      originalReference,
+      currentBoundaryGeoJson
+    })
 
     expect(response.statusCode).toBe(200)
     expect(JSON.parse(response.payload)).toEqual({ boundariesMatch: true })
     expect(compareRequests).toHaveLength(1)
     expect(compareRequests[0]).toEqual({
       boundaryOriginal: expect.objectContaining({ type: expect.any(String) }),
-      boundaryNew: expect.objectContaining({ type: expect.any(String) })
+      boundaryNew: currentBoundaryGeoJson
     })
   })
 
   it('should return the impact assessor result when the boundaries differ', async () => {
     mockCompare({ boundariesMatch: false })
     const originalReference = await createQuoteReference()
-    const currentReference = await createQuoteReference()
 
-    const response = await compare({ originalReference, currentReference })
+    const response = await compare({
+      originalReference,
+      currentBoundaryGeoJson
+    })
 
     expect(JSON.parse(response.payload)).toEqual({ boundariesMatch: false })
   })
 
   it('should return 404 when the original quote is unknown', async () => {
-    const currentReference = await createQuoteReference()
-
     const response = await compare({
       originalReference: UNKNOWN_REFERENCE,
-      currentReference
+      currentBoundaryGeoJson
     })
 
     expect(response.statusCode).toBe(404)
     expect(compareRequests).toEqual([])
   })
 
-  it('should respond boundariesMatch false without calling the impact assessor when the current quote is unknown', async () => {
-    const originalReference = await createQuoteReference()
+  it('should return 404 when the original quote has no commitment certificate', async () => {
+    const originalReference = await createQuoteReference({ committed: false })
 
     const response = await compare({
       originalReference,
-      currentReference: UNKNOWN_REFERENCE
+      currentBoundaryGeoJson
     })
 
-    expect(response.statusCode).toBe(200)
-    expect(JSON.parse(response.payload)).toEqual({ boundariesMatch: false })
+    expect(response.statusCode).toBe(404)
     expect(compareRequests).toEqual([])
   })
 
   it('should pass through the impact assessor error status', async () => {
     mockCompare({}, 422)
-    const reference = await createQuoteReference()
+    const originalReference = await createQuoteReference()
 
     const response = await compare({
-      originalReference: reference,
-      currentReference: reference
+      originalReference,
+      currentBoundaryGeoJson
     })
 
     expect(response.statusCode).toBe(422)
@@ -113,11 +116,11 @@ describe('Compare boundaries endpoint', () => {
 
   it('should return 502 when the impact assessor is unreachable', async () => {
     mswServer.use(http.post(COMPARE_URL, () => HttpResponse.error()))
-    const reference = await createQuoteReference()
+    const originalReference = await createQuoteReference()
 
     const response = await compare({
-      originalReference: reference,
-      currentReference: reference
+      originalReference,
+      currentBoundaryGeoJson
     })
 
     expect(response.statusCode).toBe(502)
@@ -125,12 +128,23 @@ describe('Compare boundaries endpoint', () => {
 
   it.each([
     {
-      scenario: 'a reference is missing',
+      scenario: 'the boundary is missing',
       payload: { originalReference: 'NRL-000001' }
     },
     {
-      scenario: 'a reference is in the wrong format',
-      payload: { originalReference: 'bad', currentReference: 'NRL-000001' }
+      scenario: 'the boundary is not an object',
+      payload: {
+        originalReference: 'NRL-000001',
+        currentBoundaryGeoJson: 'not-an-object'
+      }
+    },
+    {
+      scenario: 'the reference is missing',
+      payload: { currentBoundaryGeoJson }
+    },
+    {
+      scenario: 'the reference is in the wrong format',
+      payload: { originalReference: 'bad', currentBoundaryGeoJson }
     }
   ])('should return 400 when $scenario', async ({ payload }) => {
     const response = await compare(payload)
