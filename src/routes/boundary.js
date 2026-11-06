@@ -87,6 +87,20 @@ async function getFileFromUpload(uploadId, h) {
     }
   }
 
+  // The only other source of a filename would be the S3 key (a UUID-like
+  // string), which would display to the user and persist with the quote
+  if (!uploadedFile.filename) {
+    logger.error(
+      { uploadId, s3Key: uploadedFile.s3Key },
+      'Upload metadata has no filename'
+    )
+    return {
+      error: h
+        .response({ error: BOUNDARY_ERRORS.UPLOAD.FILENAME_MISSING })
+        .code(statusCodes.badRequest)
+    }
+  }
+
   return { fileInfo: uploadedFile }
 }
 
@@ -252,7 +266,9 @@ async function downloadFile(fileInfo, h) {
  *                     For a zip upload, this is the .shp filename inside the
  *                     zip; for a standalone upload, it is the uploaded filename.
  *       400:
- *         description: Invalid or unreadable geometry file
+ *         description: >
+ *           Invalid or unreadable geometry file, or the upload metadata is
+ *           missing a filename
  *       404:
  *         description: Upload not found or not ready
  *       502:
@@ -283,7 +299,7 @@ const checkBoundaryRoute = {
 
     const { fileInfo } = upload
     const { fileData } = download
-    const filename = fileInfo.filename ?? fileData.filename
+    const filename = fileInfo.filename
     const contentType = fileInfo.contentType ?? fileData.contentType
 
     // The boundary filename we show to the user and persist with the quote.

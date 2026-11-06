@@ -31,18 +31,21 @@ export const quoteSchema = joi.object({
     .required(),
   boundaryEntryType: joi.string().valid('draw', 'upload').required(),
   boundaryGeojson: joi.object().required(),
-  // Present for 'upload' entries (the inner .shp for zips, or the uploaded
-  // filename for standalone geojson/kml); absent for 'draw' entries. Every
-  // character is re-validated against the shared safe-filename allowlist to
-  // stop hostile names reaching the DB even if the client bypasses the
+  // Required for 'upload' entries (the inner .shp for zips, or the uploaded
+  // filename for standalone geojson/kml); absent or null for 'draw' entries.
+  // Every character is re-validated against the shared safe-filename allowlist
+  // to stop hostile names reaching the DB even if the client bypasses the
   // upload flow.
   boundaryFilename: joi
     .string()
     .trim()
     .max(MAX_BOUNDARY_FILENAME_LENGTH)
     .custom(safeBoundaryFilename, 'safe boundary filename')
-    .optional()
-    .allow(null),
+    .when('boundaryEntryType', {
+      is: 'upload',
+      then: joi.required(),
+      otherwise: joi.optional().allow(null)
+    }),
   housingUnits: joi
     .number()
     .integer()

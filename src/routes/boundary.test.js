@@ -624,7 +624,38 @@ describe('Boundary routes', () => {
       vi.mocked(s3Client.downloadFromS3).mockRestore()
     })
 
-    it('should fall back to S3 metadata for filename and contentType', async () => {
+    it('rejects an upload whose metadata has no filename', async () => {
+      vi.spyOn(cdpUploaderService, 'getUploadDetails').mockResolvedValue({
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Key: 'uploads/3f2a9d41-8c7b-4f2e-9a1d-6b0c5d8e7f21',
+            s3Bucket: 'boundaries'
+          }
+        }
+      })
+      vi.spyOn(s3Client, 'downloadFromS3').mockResolvedValue({
+        body: Buffer.from('{}'),
+        contentType: 'application/geo+json',
+        filename: '3f2a9d41-8c7b-4f2e-9a1d-6b0c5d8e7f21'
+      })
+
+      const response = await getServer().inject({
+        method: 'POST',
+        url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
+      })
+
+      expect(response.statusCode).toBe(400)
+      const body = JSON.parse(response.payload)
+      expect(body.error).toBe('filename_missing')
+      expect(s3Client.downloadFromS3).not.toHaveBeenCalled()
+      expect(checkBoundary).not.toHaveBeenCalled()
+
+      vi.mocked(cdpUploaderService.getUploadDetails).mockRestore()
+      vi.mocked(s3Client.downloadFromS3).mockRestore()
+    })
+
+    it('should fall back to S3 metadata for contentType', async () => {
       const mockGeojson = { type: 'FeatureCollection', features: [] }
       vi.mocked(checkBoundary).mockResolvedValue({ geojson: mockGeojson })
 
@@ -633,7 +664,8 @@ describe('Boundary routes', () => {
         form: {
           file: {
             s3Key: 'uploads/test.geojson',
-            s3Bucket: 'boundaries'
+            s3Bucket: 'boundaries',
+            filename: 'test.geojson'
           }
         }
       })
@@ -648,7 +680,7 @@ describe('Boundary routes', () => {
         url: '/boundary/check/f6b667d8-998f-4f55-8a20-204c0c289147'
       })
 
-      expect(response.statusCode).toBe(statusCodes.ok)
+      expect(response.statusCode).toBe(200)
       expect(checkBoundary).toHaveBeenCalledWith(
         expect.any(Buffer),
         'test.geojson',
