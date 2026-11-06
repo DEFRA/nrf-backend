@@ -1,3 +1,15 @@
+export const boundaryGeometryWgs84 = {
+  type: 'Polygon',
+  coordinates: [
+    [
+      [-1.0, 52.0],
+      [-1.0, 52.001],
+      [-0.999, 52.001],
+      [-1.0, 52.0]
+    ]
+  ]
+}
+
 export const boundaryGeojson = {
   boundaryGeometryOriginal: {
     type: 'Polygon',

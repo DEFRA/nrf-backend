@@ -17,13 +17,14 @@ const getBoundary = (quote) =>
  *   post:
  *     tags:
  *       - Quote
- *     summary: Check whether two quotes have the same boundary
+ *     summary: Check whether the current boundary matches an original quote's boundary
  *     description: >
- *       Looks up the quotes for the original and current references and sends
- *       their boundary GeoJSON to the impact assessor to compare. Responds 404
- *       when the original reference has no quote or its quote has no
- *       commitmentCertificateCreatedAt date. Responds boundariesMatch false
- *       when the current quote is missing or either quote has no boundary.
+ *       Looks up the original quote's saved boundary GeoJSON and sends it,
+ *       with the supplied current boundary GeoJSON, to the impact assessor to
+ *       compare. The current boundary is supplied by the caller because it may
+ *       not be saved yet. Responds 404 when the original reference has no
+ *       quote or its quote has no commitmentCertificateCreatedAt date.
+ *       Responds boundariesMatch false when the original quote has no boundary.
  *       The 404 reveals whether the original reference has a committed quote;
  *       the caller needs the distinction to send the user to the right page.
  *     requestBody:
@@ -34,14 +35,14 @@ const getBoundary = (quote) =>
  *             type: object
  *             required:
  *               - originalReference
- *               - currentReference
+ *               - currentBoundaryGeoJson
  *             properties:
  *               originalReference:
  *                 type: string
  *                 example: NRL-000001
- *               currentReference:
- *                 type: string
- *                 example: NRL-000002
+ *               currentBoundaryGeoJson:
+ *                 type: object
+ *                 description: WGS84 GeoJSON geometry of the current boundary
  *     responses:
  *       200:
  *         description: Whether the boundaries match
@@ -68,20 +69,20 @@ export const compareBoundariesController = {
     }
   },
   async handler(request, h) {
-    const { originalReference, currentReference } = request.payload
-    const [original, current] = await Promise.all([
-      dbGetQuote({ db: request.pg, reference: originalReference }),
-      dbGetQuote({ db: request.pg, reference: currentReference })
-    ])
+    const { originalReference, currentBoundaryGeoJson: boundaryNew } =
+      request.payload
+    const original = await dbGetQuote({
+      db: request.pg,
+      reference: originalReference
+    })
     if (!original?.commitmentCertificateCreatedAt) {
       throw Boom.notFound(
         `No committed quote found with reference ${originalReference}`
       )
     }
     const boundaryOriginal = getBoundary(original)
-    const boundaryNew = getBoundary(current)
 
-    if (!boundaryOriginal || !boundaryNew) {
+    if (!boundaryOriginal) {
       return h.response({ boundariesMatch: false }).code(statusCodes.ok)
     }
 
