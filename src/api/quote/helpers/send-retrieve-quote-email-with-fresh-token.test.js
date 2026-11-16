@@ -55,6 +55,7 @@ describe('sendRetrieveQuoteEmailWithFreshToken', () => {
         new RegExp(`/request-to-use/retrieve/${QUOTE_REFERENCE}/`)
       )
     )
+    expect(sendArgs.emailBodyVariables.nrfQuoteReference).toBe(QUOTE_REFERENCE)
   })
 
   it('issues a different token on each call, expiring any earlier live one', async () => {

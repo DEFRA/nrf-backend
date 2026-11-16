@@ -60,6 +60,7 @@ describe('Resend quote link endpoint', () => {
       expect(options.personalisation.retrieveQuoteUrl).toContain(
         `/request-to-use/retrieve/${reference}/`
       )
+      expect(options.personalisation.nrfQuoteReference).toBe(reference)
     })
 
     it('issues a new token that the emailed link redeems', async () => {

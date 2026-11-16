@@ -31,6 +31,7 @@ export const sendRetrieveQuoteEmailWithFreshToken = async ({ db, quote }) => {
     retrieveQuoteUrl: buildRetrieveQuoteUrl({
       reference: quote.reference,
       rawToken: raw
-    })
+    }),
+    nrfQuoteReference: quote.reference
   })
 }
