@@ -8,16 +8,18 @@ describe('sendRetrieveQuoteEmail', () => {
   const recipientEmailAddress = 'test@example.com'
   const retrieveQuoteUrl =
     'http://localhost:3000/retrieve/NRL-000001/abc123token'
+  const nrfQuoteReference = 'NRL-000001'
 
-  it('sends the magic link using the retrieve quote template and no client reference', async () => {
+  it('sends the magic link and quote reference using the retrieve quote template and no client reference', async () => {
     await sendRetrieveQuoteEmail({
       recipientEmailAddress,
-      retrieveQuoteUrl
+      retrieveQuoteUrl,
+      nrfQuoteReference
     })
 
     expect(sendEmail).toHaveBeenCalledWith({
       recipientEmailAddress,
-      emailBodyVariables: { retrieveQuoteUrl },
+      emailBodyVariables: { retrieveQuoteUrl, nrfQuoteReference },
       templateId: config.get('notify.templateIds.retrieveQuote')
     })
   })

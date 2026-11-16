@@ -115,6 +115,7 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
     const retryToken = retryOptions.personalisation.retrieveQuoteUrl
       .split('/')
       .pop()
+    expect(retryOptions.personalisation.nrfQuoteReference).toBe(reference)
     expect(
       (await redeemToken({ server, reference, token: retryToken })).accessStatus
     ).toBe('valid')

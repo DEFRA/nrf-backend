@@ -60,6 +60,7 @@ describe('Email quote link endpoint', () => {
       expect(options.personalisation.retrieveQuoteUrl).toContain(
         `/request-to-use/retrieve/${reference}/`
       )
+      expect(options.personalisation.nrfQuoteReference).toBe(reference)
     })
 
     it('matches the email ignoring case', async () => {
