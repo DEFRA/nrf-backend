@@ -8,12 +8,20 @@ export const validQuotePayload = {
   email: 'developer@housebuilder.com'
 }
 
+export const levyCalculationHistory = {
+  calculationDate: '2026-09-14T10:30:15.000Z',
+  originalBaseAmount: 26750,
+  baseChargePerUnit: 2675,
+  originalBaseChargePerUnit: 2675,
+  units: 10
+}
+
 export const validEdpsPayload = {
   edps: [
     {
       edpId: 123,
       edpName: 'Norfolk Fens east',
-      edpType: 'NUTRIENT',
+      edpStartDate: '2026-01-01',
       impact: {
         nitrogenTotal: {
           amount: 80,
@@ -42,8 +50,20 @@ export const validEdpsPayload = {
         amountExcludingVat: 1100,
         amountInflationAdjusted: 1122,
         baseAmount: 1000,
-        modelVersion: 1
+        modelVersion: 1,
+        ...levyCalculationHistory
       }
     }
   ]
+}
+
+export const commitmentLevy = {
+  calculationDate: '2026-11-17T12:00:00.000Z',
+  provisionalAmount: 30000,
+  inflationAdjustedAmount: 30000,
+  originalBaseAmount: 30000,
+  baseChargePerUnit: 3000,
+  originalBaseChargePerUnit: 3000,
+  calculatorVersion: 1,
+  units: 10
 }

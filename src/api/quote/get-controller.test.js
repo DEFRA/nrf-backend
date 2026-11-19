@@ -29,7 +29,7 @@ describe('Get quote endpoint', () => {
     const quote = JSON.parse(response.payload)
     expect(quote.edps).toHaveLength(1)
     expect(quote.levyGbp).toEqual({
-      levyAmountExcludingVat: 1100,
+      levyAmountExcludingVat: 1000,
       levyAmountInflationAdjusted: 1122
     })
   })

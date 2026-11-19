@@ -4,7 +4,7 @@ Entity-relationship diagram of the backend **`nrf_backend`** Postgres database
 (schema `public`) — the quote domain.
 
 - **Source:** live `nrf_backend` Postgres instance (`docker compose` service `postgres`), cross-checked against the Liquibase changelog under `backend/changelog/`.
-- **Generated:** 2026-11-03
+- **Generated:** 2026-11-17
 
 - **Scope:** application domain tables only. Liquibase bookkeeping (`databasechangelog`, `databasechangeloglock`) and the PostGIS reference table (`spatial_ref_sys`) are excluded.
 
@@ -65,18 +65,22 @@ erDiagram
 
     quote_edp_results {
         integer id PK "identity"
+        timestamptz created_at "default now()"
         integer quote_id FK
-        integer edp_id "unique with quote_id"
+        varchar journey "default quote; CHECK: quote / request_to_use"
+        integer edp_id "several rows per quote and EDP; the latest is current"
         varchar edp_name
-        varchar edp_type
-        numeric levy_excluding_vat "nullable"
-        numeric levy_base_amount "nullable"
-        numeric levy_inflation_adjusted "nullable"
-        integer levy_model_version "nullable"
+        date edp_start_date "nullable; start of the EDP charging year"
         jsonb impact
         jsonb catchments "nullable; per-EDP catchments from the impact assessor; CHECK: array of objects with label, catchmentId, catchmentOverlapPercentage"
-        timestamptz created_at "default now()"
-        timestamptz updated_at "nullable"
+        numeric levy_provisional_amount "nullable"
+        numeric levy_inflation_adjusted "nullable"
+        numeric levy_original_base_amount "nullable; numeric(12,2)"
+        numeric levy_base_charge_per_unit "nullable; numeric(12,2); base price in force"
+        numeric levy_original_base_charge_per_unit "nullable; numeric(12,2)"
+        integer levy_units "nullable; dwellings priced"
+        integer levy_model_version "nullable"
+        timestamptz levy_calculated_at "nullable; when the levy was calculated"
     }
 
     quote_email_notifications {
@@ -102,10 +106,12 @@ erDiagram
 | `user_organisations`        | Join table linking users to organisations with a relationship type (employee / agent). Citizens have no organisation link. Not currently populated.                                                                                                                                                                                                                                                                |
 | `quotes`                    | Core quote records: development boundary, type, counts, and the spatial boundary geometry. Optionally linked to a `user`.                                                                                                                                                                                                                                                                                          |
 | `quote_access_tokens`       | Hashed single-use access tokens granting time-limited access to a quote.                                                                                                                                                                                                                                                                                                                                           |
-| `quote_edp_results`         | Per-EDP levy results computed for a quote (unique per `quote_id` + `edp_id`).                                                                                                                                                                                                                                                                                                                                      |
+| `quote_edp_results`         | The levy calculation history for a quote: one row per calculation per EDP, each a complete snapshot (impact, catchments and every levy calculation field). The last row created for a `quote_id` + `edp_id` is the current calculation; `journey` says whether it was made in the quote or the request to use journey.                                                                                             |
 | `quote_email_notifications` | One row per quote email lifecycle, keyed by `email_type`: `quote_results` (impact assessor delivers levy results), `resend_quote_link` (applicant requests a new access link) or `retrieve_quote_link` (applicant asks for a magic link to retrieve a saved quote). Holds the current Notify id and polled delivery status; retries update the row in place and bump `retry_count` rather than inserting new rows. |
 
 ## Notes
+
+- `quote_edp_results` is append-only: a changed quote callback or a completed request to use adds a row and never updates one. A request to use adds a row even when the amounts are unchanged. `ix_quote_edp_results_latest` on `(quote_id, edp_id, created_at DESC, id DESC)` serves the "latest row" lookups. The levy calculation columns are NULL on rows written before the history was recorded.
 
 - `quotes.reference` is a generated column (`NRL-` + a hashed, zero-padded id) defined via raw SQL in the Liquibase changelog.
 - `quote_access_tokens`, `quote_edp_results` and `quote_email_notifications` foreign keys to `quotes` are `ON DELETE CASCADE`.
@@ -117,6 +123,6 @@ erDiagram
 - `quote_email_notifications.email_type` is constrained by a CHECK to `quote_results` (impact assessor delivered results), `resend_quote_link` (applicant requested a new access link) and `retrieve_quote_link` (applicant asked for a magic link to retrieve a saved quote). Each such row represents one email lifecycle — the retry worker updates the row in place, overwriting `notification_id` with the fresh id Notify returns and resetting `notify_send_status` / `sent_at` / `completed_at` so the poller repopulates them; `retry_count` is bumped on every attempt, including ones Notify rejects at accept time (those leave `notification_id` unchanged). The retry worker re-sends the quote email types (`quote_results`, `resend_quote_link`) with the quote results template and `retrieve_quote_link` rows with the retrieve template — a retrieve retry issues a fresh single-use access token (the emailed raw token is unrecoverable, only its hash is stored), expiring any live token exactly like a user-initiated re-request. Superseding is scoped per kind: a quote email is only superseded by a newer quote email, a retrieve link only by a newer retrieve link. The status poller covers every type.
 - `quote_email_notifications.notification_id` is nullable and unique: it stays null until Notify accepts a send, then holds the current Notify id for the lifecycle. The poller skips rows where it is still null (a retry Notify rejected at accept time on a fresh lifecycle).
 - `quote_email_notifications.notify_send_status` is deliberately free-text: it mirrors a GOV.UK Notify delivery status, whose vocabulary Notify owns, so pinning it to a CHECK would break us the day Notify adds a new value. It is null until the Notify status poller first fetches it. See [GOV.UK Notify email status descriptions](https://docs.notifications.service.gov.uk/node.html#email-status-descriptions) for the values Notify currently returns.
-- `quote_edp_results` levy columns (`levy_excluding_vat`, `levy_base_amount`, `levy_inflation_adjusted`) are `NUMERIC(12,2)`; `levy_model_version` is `INTEGER`. All four are nullable — they are populated when the impact assessor reports results.
+- `quote_edp_results` levy columns (`levy_provisional_amount`, `levy_inflation_adjusted`) are `NUMERIC(12,2)`; `levy_model_version` is `INTEGER`. All four are nullable — they are populated when the impact assessor reports results.
 - `quote_edp_results.catchments` is a jsonb array of `{ label: string, catchmentId: string | null, catchmentOverlapPercentage: number 0-100 }`, recorded as-is from the impact assessor callback. The `ck_quote_edp_results_catchments` CHECK constraint enforces that shape (NULL passes — the column is optional while the assessor rolls out) but permits extra keys, so the assessor can add fields without a migration.
 - This is the backend quote database, not the impact-assessor DB (`nrf_impact`, schema `public`).

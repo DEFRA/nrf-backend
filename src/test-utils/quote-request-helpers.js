@@ -1,3 +1,4 @@
+import { commitmentLevy } from './fixtures/quotePayloads.js'
 import { randomUUID } from 'node:crypto'
 
 import { routePath } from '../routes/quote.js'
@@ -59,7 +60,7 @@ export const sendPatchRequest = ({ server, reference, payload }) =>
 export const sendCommitmentCertificateRequest = ({
   server,
   reference,
-  payload = { createCommitmentCertificate: true }
+  payload = { createCommitmentCertificate: true, levy: commitmentLevy }
 }) =>
   server.inject({
     method: 'PATCH',
