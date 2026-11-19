@@ -25,13 +25,13 @@ Core delivery platform Node.js Backend Template.
 
 ### Node.js
 
-Please install [Node.js](http://nodejs.org/) `>= v22` and [npm](https://nodejs.org/) `>= v11`. You will find it
-easier to use the Node Version Manager [nvm](https://github.com/creationix/nvm)
+For the minimum Node / npm versions, see [package.json](./package.json) `engines`, and also [.nvmrc](./.nvmrc). You
+will find it easier to use the Node Version Manager [nvm](https://github.com/creationix/nvm)
 
 To use the correct version of Node.js for this application, via nvm:
 
 ```bash
-cd nrf-backend
+cd backend
 nvm use
 ```
 
@@ -135,8 +135,7 @@ docker run -e PORT=3001 -p 3001:3001 nrf-backend
 
 ### Dependabot
 
-We have added an example dependabot configuration file to the repository. You can enable it by renaming
-the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github/dependabot.yml`
+Dependabot is enabled. The configuration lives in [.github/dependabot.yml](.github/dependabot.yml)
 
 ### SonarCloud
 
@@ -146,7 +145,7 @@ Instructions for setting up SonarCloud can be found in [sonar-project.properties
 
 [Quote database diagram](./docs/quote-database-diagram.md)
 
-Generated using the `create-database-diagram` skill in [nrf-solution](https://github.com/DEFRA/nrf-solution) repository.
+Generated using the `generate-db-diagram` skill in [nrf-solution](https://github.com/DEFRA/nrf-solution) repository.
 
 ## Licence
 
