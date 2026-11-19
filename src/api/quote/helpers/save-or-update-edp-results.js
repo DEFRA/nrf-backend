@@ -55,8 +55,7 @@ const hasEdpChanged = (existing, edp) => {
 export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
   const existingEdpResults = await dbGetEdpResults({ db, quoteId })
   if (existingEdpResults.length === 0) {
-    const inserted = await dbSaveEdpResults({ db, quoteId, edps })
-    return inserted > 0
+    return (await dbSaveEdpResults({ db, quoteId, edps })) > 0
   }
 
   const changedEdps = edps.filter((edp) => {

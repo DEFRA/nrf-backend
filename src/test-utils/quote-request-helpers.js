@@ -1,9 +1,9 @@
-import { commitmentLevy } from './fixtures/quotePayloads.js'
 import { randomUUID } from 'node:crypto'
 
 import { routePath } from '../routes/quote.js'
 import { generateToken } from '../common/helpers/token/generate-token.js'
 import {
+  commitmentLevy,
   validQuotePayload,
   validEdpsPayload
 } from './fixtures/quotePayloads.js'
