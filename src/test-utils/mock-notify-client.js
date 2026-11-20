@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { vi } from 'vitest'
 
 import { createNotifyClient } from '../services/send-email/notify-client.js'
 
