@@ -1,10 +1,11 @@
-import { randomUUID } from 'node:crypto'
-
 import { audit } from '@defra/cdp-auditing'
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
-import { validEdpsPayload } from '../../test-utils/fixtures/quotePayloads.js'
+import {
+  validEdpsPayload,
+  levyCalculationHistory
+} from '../../test-utils/fixtures/quotePayloads.js'
 import {
   createQuote,
   sendGetRequest,
@@ -22,15 +23,7 @@ describe('Patch quote endpoint', () => {
   let notifySendEmail
 
   beforeEach(() => {
-    // Each accepted send returns a fresh Notify notification UUID — the id is
-    // now persisted to a UUID column, so a single hard-coded value would
-    // collide across quotes under the UNIQUE constraint.
-    notifySendEmail = vi
-      .fn()
-      .mockImplementation(async () => ({ data: { id: randomUUID() } }))
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: notifySendEmail
-    })
+    notifySendEmail = mockNotifyClient()
   })
 
   const getQuote = async (reference) => {
@@ -142,7 +135,7 @@ describe('Patch quote endpoint', () => {
       {
         edpId: 123,
         edpName: 'Norfolk Fens east',
-        edpType: 'NUTRIENT',
+        edpStartDate: '2026-01-01',
         impact: {
           nitrogenTotal: {
             amount: 80,
@@ -168,15 +161,23 @@ describe('Patch quote endpoint', () => {
           }
         ],
         levyGbp: {
-          amountExcludingVat: '1100.00',
+          amountExcludingVat: '1000.00',
           amountInflationAdjusted: '1122.00',
           baseAmount: '1000.00',
-          modelVersion: 1
-        }
+          modelVersion: 1,
+          journey: 'quote',
+          createdAt: expect.any(String),
+          calculatedAt: '2026-09-14T10:30:15.000Z',
+          originalBaseAmount: '26750.00',
+          baseChargePerUnit: '2675.00',
+          originalBaseChargePerUnit: '2675.00',
+          units: 10
+        },
+        previousLevyCalculations: []
       }
     ])
     expect(levyGbp).toEqual({
-      levyAmountExcludingVat: 1100,
+      levyAmountExcludingVat: 1000,
       levyAmountInflationAdjusted: 1122
     })
   })
@@ -379,6 +380,82 @@ describe('Patch quote endpoint', () => {
       const secondSentAt = (await getQuote(reference)).email.sendRequestAt
 
       expect(secondSentAt).toBe(firstSentAt)
+    })
+  })
+
+  describe('levy calculation history', () => {
+    const payloadWithHistory = (levyGbp = {}) => ({
+      edps: [
+        {
+          ...validEdpsPayload.edps[0],
+          levyGbp: {
+            ...validEdpsPayload.edps[0].levyGbp,
+            ...levyCalculationHistory,
+            ...levyGbp
+          }
+        }
+      ]
+    })
+
+    it('should record the calculation fields and the journey with the first results', async () => {
+      const { reference } = JSON.parse((await createQuote(getServer())).payload)
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: payloadWithHistory()
+      })
+
+      const { edps } = await getQuote(reference)
+      expect(edps[0].levyGbp).toMatchObject({
+        journey: 'quote',
+        calculatedAt: '2026-09-14T10:30:15.000Z',
+        baseChargePerUnit: '2675.00',
+        units: 10
+      })
+      expect(edps[0].previousLevyCalculations).toEqual([])
+    })
+
+    it('should keep the earlier calculation when the levy changes', async () => {
+      const { reference } = JSON.parse((await createQuote(getServer())).payload)
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: payloadWithHistory()
+      })
+
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: payloadWithHistory({
+          amountExcludingVat: 2000,
+          amountInflationAdjusted: 2000,
+          baseAmount: 2000
+        })
+      })
+
+      const { edps } = await getQuote(reference)
+      expect(edps[0].levyGbp.amountExcludingVat).toBe('2000.00')
+      expect(edps[0].previousLevyCalculations).toEqual([
+        expect.objectContaining({
+          journey: 'quote',
+          provisionalAmount: '1000.00',
+          baseChargePerUnit: '2675.00',
+          units: 10
+        })
+      ])
+    })
+
+    it('should reject a malformed calculation field', async () => {
+      const { reference } = JSON.parse((await createQuote(getServer())).payload)
+
+      const response = await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: payloadWithHistory({ units: 0 })
+      })
+
+      expect(response.statusCode).toBe(400)
     })
   })
 })

@@ -37,10 +37,36 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
         )
         FROM quote_email_notifications qen
         WHERE qen.quote_id = q.id) AS email_notifications,
-        e.edp_id, e.edp_name, e.edp_type, e.impact, e.catchments, e.levy_excluding_vat, e.levy_base_amount, e.levy_inflation_adjusted, e.levy_model_version
+        e.edp_id, e.edp_name, e.impact, e.catchments, e.levy_provisional_amount, e.levy_inflation_adjusted, e.levy_model_version,
+        e.levy_calculated_at, e.levy_base_charge_per_unit, e.levy_units, e.edp_start_date::text AS edp_start_date, e.levy_original_base_amount, e.levy_original_base_charge_per_unit, e.journey, e.created_at AS levy_created_at,
+        (SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'journey', h.journey,
+              'createdAt', h.created_at,
+              'calculatedAt', h.levy_calculated_at,
+              'provisionalAmount', h.levy_provisional_amount::text,
+              'inflationAdjustedAmount', h.levy_inflation_adjusted::text,
+              'baseChargePerUnit', h.levy_base_charge_per_unit::text,
+              'units', h.levy_units,
+              'modelVersion', h.levy_model_version,
+              'originalBaseAmount', h.levy_original_base_amount::text,
+              'originalBaseChargePerUnit', h.levy_original_base_charge_per_unit::text
+            )
+            ORDER BY h.created_at DESC, h.id DESC
+          ),
+          '[]'::json
+        )
+        FROM quote_edp_results h
+        WHERE h.quote_id = q.id AND h.edp_id = e.edp_id AND h.id <> e.id) AS levy_history
  FROM quotes q
  LEFT JOIN users u ON u.id = q.user_id
- LEFT JOIN quote_edp_results e ON e.quote_id = q.id
+ LEFT JOIN LATERAL (
+   SELECT DISTINCT ON (edp_id) *
+     FROM quote_edp_results
+    WHERE quote_id = q.id
+    ORDER BY edp_id, created_at DESC, id DESC
+ ) e ON true
  LEFT JOIN LATERAL (
    SELECT notify_send_status, notification_id AS email_notification_id, created_at AS email_requested_at, email_type, retry_count
      FROM quote_email_notifications
@@ -56,16 +82,38 @@ export const QUOTE_SELECT_SQL = `SELECT q.id, q.reference, q.user_id, q.planning
  * @property {string} amountInflationAdjusted - NUMERIC(12,2); same
  * @property {string} baseAmount - NUMERIC(12,2); same
  * @property {number} modelVersion
+ * @property {string} journey - 'quote' or 'request_to_use': the journey the calculation was made in
+ * @property {Date} createdAt - when this calculation was recorded
+ * @property {Date} calculatedAt - when the levy was calculated
+ * @property {string} originalBaseAmount - NUMERIC(12,2) as string
+ * @property {string} baseChargePerUnit - NUMERIC(12,2) as string
+ * @property {string} originalBaseChargePerUnit - NUMERIC(12,2) as string
+ * @property {number} units
+ */
+
+/**
+ * @typedef {object} MappedPreviousLevyCalculation
+ * @property {string} journey
+ * @property {string} createdAt
+ * @property {string} calculatedAt
+ * @property {string} provisionalAmount
+ * @property {string} inflationAdjustedAmount
+ * @property {string} originalBaseAmount
+ * @property {string} baseChargePerUnit
+ * @property {string} originalBaseChargePerUnit
+ * @property {number} units
+ * @property {number} modelVersion
  */
 
 /**
  * @typedef {object} MappedEdp
  * @property {number} edpId
  * @property {string} edpName
- * @property {string} edpType
+ * @property {string} edpStartDate
  * @property {object} impact - raw JSONB from quote_edp_results.impact
  * @property {Array<{label: string, catchmentId: string|null, catchmentOverlapPercentage: number}>|null} catchments
- * @property {MappedEdpLevyGbp} levyGbp
+ * @property {MappedEdpLevyGbp} levyGbp - the EDP's current (latest) calculation
+ * @property {MappedPreviousLevyCalculation[]} previousLevyCalculations - the EDP's earlier calculations, newest first
  */
 
 /**
@@ -140,15 +188,23 @@ export const mapQuoteRows = (rows) => {
     .map((r) => ({
       edpId: r.edp_id,
       edpName: r.edp_name,
-      edpType: r.edp_type,
+      edpStartDate: r.edp_start_date,
       impact: r.impact,
       catchments: r.catchments ?? null,
       levyGbp: {
-        amountExcludingVat: r.levy_excluding_vat,
+        amountExcludingVat: r.levy_provisional_amount,
         amountInflationAdjusted: r.levy_inflation_adjusted,
-        baseAmount: r.levy_base_amount,
-        modelVersion: r.levy_model_version
-      }
+        baseAmount: r.levy_provisional_amount,
+        modelVersion: r.levy_model_version,
+        journey: r.journey,
+        createdAt: r.levy_created_at,
+        calculatedAt: r.levy_calculated_at,
+        baseChargePerUnit: r.levy_base_charge_per_unit,
+        units: r.levy_units,
+        originalBaseAmount: r.levy_original_base_amount,
+        originalBaseChargePerUnit: r.levy_original_base_charge_per_unit
+      },
+      previousLevyCalculations: r.levy_history ?? []
     }))
 
   return {

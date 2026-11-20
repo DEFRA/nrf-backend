@@ -1,9 +1,12 @@
 import { http, HttpResponse } from 'msw'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
+import { validEdpsPayload } from '../../test-utils/fixtures/quotePayloads.js'
 import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import { boundaryGeometryWgs84 } from '../../test-utils/fixtures/boundaryGeojson.js'
 import {
   createQuote,
+  sendPatchRequest,
   sendCommitmentCertificateRequest
 } from '../../test-utils/quote-request-helpers.js'
 
@@ -34,6 +37,11 @@ describe('Compare boundaries endpoint', () => {
     const postResponse = await createQuote(getServer())
     const { reference } = JSON.parse(postResponse.payload)
     if (committed) {
+      await sendPatchRequest({
+        server: getServer(),
+        reference,
+        payload: validEdpsPayload
+      })
       await sendCommitmentCertificateRequest({ server: getServer(), reference })
     }
     return reference
@@ -47,6 +55,7 @@ describe('Compare boundaries endpoint', () => {
     })
 
   beforeEach(() => {
+    mockNotifyClient()
     mockCompare()
   })
 

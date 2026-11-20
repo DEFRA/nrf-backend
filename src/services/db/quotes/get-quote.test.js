@@ -18,10 +18,8 @@ describe('dbGetQuote', () => {
       retry_count: 0,
       edp_id: 'EDP-001',
       edp_name: 'Test EDP',
-      edp_type: 'flood',
       impact: { score: 1 },
-      levy_excluding_vat: '1100.00',
-      levy_base_amount: '1000.00',
+      levy_provisional_amount: '1000.00',
       levy_inflation_adjusted: '1122.00',
       levy_model_version: 1
     }
@@ -30,7 +28,7 @@ describe('dbGetQuote', () => {
     const result = await dbGetQuote({ db, reference: 'NRL-000001' })
 
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('LEFT JOIN quote_edp_results'),
+      expect.stringContaining('FROM quote_edp_results'),
       ['NRL-000001']
     )
     expect(result).toMatchObject({
@@ -52,10 +50,9 @@ describe('dbGetQuote', () => {
         {
           edpId: 'EDP-001',
           edpName: 'Test EDP',
-          edpType: 'flood',
           impact: { score: 1 },
           levyGbp: {
-            amountExcludingVat: '1100.00',
+            amountExcludingVat: '1000.00',
             amountInflationAdjusted: '1122.00',
             baseAmount: '1000.00',
             modelVersion: 1
@@ -63,7 +60,7 @@ describe('dbGetQuote', () => {
         }
       ],
       levyGbp: {
-        levyAmountExcludingVat: 1100,
+        levyAmountExcludingVat: 1000,
         levyAmountInflationAdjusted: 1122
       }
     })
@@ -84,10 +81,8 @@ describe('dbGetQuote', () => {
       email_address: 'developer@housebuilder.com',
       edp_id: null,
       edp_name: null,
-      edp_type: null,
       impact: null,
-      levy_excluding_vat: null,
-      levy_base_amount: null,
+      levy_provisional_amount: null,
       levy_inflation_adjusted: null,
       levy_model_version: null
     }

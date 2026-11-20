@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto'
-
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { config } from '../../config.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
@@ -28,12 +26,7 @@ describe('Resend quote link endpoint', () => {
   let notifySendEmail
 
   beforeEach(() => {
-    notifySendEmail = vi
-      .fn()
-      .mockImplementation(async () => ({ data: { id: randomUUID() } }))
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: notifySendEmail
-    })
+    notifySendEmail = mockNotifyClient()
   })
 
   describe.each([
