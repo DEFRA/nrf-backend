@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto'
-
 import { audit } from '@defra/cdp-auditing'
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
 import { statusCodes } from '../../common/constants/status-codes.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
@@ -25,15 +23,7 @@ describe('Patch quote endpoint', () => {
   let notifySendEmail
 
   beforeEach(() => {
-    // Each accepted send returns a fresh Notify notification UUID — the id is
-    // now persisted to a UUID column, so a single hard-coded value would
-    // collide across quotes under the UNIQUE constraint.
-    notifySendEmail = vi
-      .fn()
-      .mockImplementation(async () => ({ data: { id: randomUUID() } }))
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: notifySendEmail
-    })
+    notifySendEmail = mockNotifyClient()
   })
 
   const getQuote = async (reference) => {

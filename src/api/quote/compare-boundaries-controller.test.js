@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto'
-
 import { http, HttpResponse } from 'msw'
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
 import { validEdpsPayload } from '../../test-utils/fixtures/quotePayloads.js'
 import { setupMswServer } from '../../test-utils/setup-msw-server.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
@@ -57,11 +55,7 @@ describe('Compare boundaries endpoint', () => {
     })
 
   beforeEach(() => {
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: vi
-        .fn()
-        .mockImplementation(async () => ({ data: { id: randomUUID() } }))
-    })
+    mockNotifyClient()
     mockCompare()
   })
 

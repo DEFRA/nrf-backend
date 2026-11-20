@@ -4,6 +4,8 @@ import {
   dbGetEdpResults
 } from '../../../services/db/quote_edp_results/queries.js'
 
+import { levyCalculationHistory } from '../../../test-utils/fixtures/quotePayloads.js'
+
 vi.mock('../../../services/db/quote_edp_results/queries.js')
 const edp = {
   edpId: 123,
@@ -24,7 +26,8 @@ const edp = {
     amountExcludingVat: 1100,
     amountInflationAdjusted: 1122,
     baseAmount: 1000,
-    modelVersion: 1
+    modelVersion: 1,
+    ...levyCalculationHistory
   }
 }
 
@@ -36,7 +39,12 @@ const existingRow = {
   catchments: edp.catchments,
   levy_provisional_amount: '1000.00',
   levy_inflation_adjusted: '1122.00',
-  levy_model_version: 1
+  levy_model_version: 1,
+  levy_calculated_at: new Date(levyCalculationHistory.calculationDate),
+  levy_base_charge_per_unit: '2675.00',
+  levy_units: 10,
+  levy_original_base_amount: '26750.00',
+  levy_original_base_charge_per_unit: '2675.00'
 }
 
 const db = {}
@@ -131,7 +139,12 @@ describe('saveOrUpdateEdpResults', () => {
     it.each([
       ['amountInflationAdjusted', 250],
       ['baseAmount', 350],
-      ['modelVersion', 2]
+      ['modelVersion', 2],
+      ['calculationDate', '2026-10-01T09:00:00.000Z'],
+      ['baseChargePerUnit', 2700],
+      ['units', 11],
+      ['originalBaseAmount', 27000],
+      ['originalBaseChargePerUnit', 2700]
     ])(
       'appends a history row and returns true when %s changes',
       async (field, value) => {
@@ -213,20 +226,20 @@ describe('saveOrUpdateEdpResults', () => {
       expect(result).toBe(false)
     })
 
-    it('skips an EDP with no matching existing record', async () => {
-      const unmatched = { ...edp, edpId: 999 }
+    it('appends a history row for an EDP seen for the first time, leaving unchanged EDPs alone', async () => {
+      const newEdp = { ...edp, edpId: 999 }
       const result = await saveOrUpdateEdpResults({
         db,
         quoteId: 1,
-        edps: [unmatched]
+        edps: [edp, newEdp]
       })
 
       expect(dbSaveEdpResults).toHaveBeenCalledWith({
         db,
         quoteId: 1,
-        edps: []
+        edps: [newEdp]
       })
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 })

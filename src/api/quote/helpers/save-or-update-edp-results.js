@@ -17,8 +17,8 @@ const sortedStringify = (value) =>
  */
 
 /**
- * @param {{ edp_name: string, edp_start_date_text: string, impact: object, catchments: Catchment[] | null, levy_inflation_adjusted: string, levy_provisional_amount: string, levy_model_version: number }} existing the EDP's current (latest) row
- * @param {{ edpName: string, edpStartDate: string, impact: object, catchments: Catchment[] | undefined, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number } }} edp
+ * @param {{ edp_name: string, edp_start_date_text: string, impact: object, catchments: Catchment[] | null, levy_inflation_adjusted: string, levy_provisional_amount: string, levy_model_version: number, levy_calculated_at: Date, levy_base_charge_per_unit: string, levy_units: number, levy_original_base_amount: string, levy_original_base_charge_per_unit: string }} existing the EDP's current (latest) row
+ * @param {{ edpName: string, edpStartDate: string, impact: object, catchments: Catchment[] | undefined, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number, calculationDate: string | Date, baseChargePerUnit: number, units: number, originalBaseAmount: number, originalBaseChargePerUnit: number } }} edp
  * @returns {boolean} true if any tracked field differs from the stored row
  */
 const hasEdpChanged = (existing, edp) => {
@@ -35,6 +35,15 @@ const hasEdpChanged = (existing, edp) => {
     Number.parseFloat(existing.levy_provisional_amount) !==
       edp.levyGbp.baseAmount,
     existing.levy_model_version !== edp.levyGbp.modelVersion,
+    existing.levy_calculated_at.getTime() !==
+      new Date(edp.levyGbp.calculationDate).getTime(),
+    Number.parseFloat(existing.levy_base_charge_per_unit) !==
+      edp.levyGbp.baseChargePerUnit,
+    existing.levy_units !== edp.levyGbp.units,
+    Number.parseFloat(existing.levy_original_base_amount) !==
+      edp.levyGbp.originalBaseAmount,
+    Number.parseFloat(existing.levy_original_base_charge_per_unit) !==
+      edp.levyGbp.originalBaseChargePerUnit,
     impactChanged,
     catchmentsChanged
   ].some(Boolean)
@@ -42,7 +51,7 @@ const hasEdpChanged = (existing, edp) => {
 
 /**
  * Records the callback's results as new rows in the quote's history: every EDP
- * the first time, and afterwards each EDP whose results changed. A repeat of
+ * the first time, and afterwards each new EDP and each EDP whose results changed. A repeat of
  * the same callback writes nothing. Callers must hold the quote's lock (see
  * withQuoteLock) so concurrent duplicates cannot both see an empty history.
  *
@@ -60,7 +69,7 @@ export const saveOrUpdateEdpResults = async ({ db, quoteId, edps }) => {
 
   const changedEdps = edps.filter((edp) => {
     const existing = existingEdpResults.find((r) => r.edp_id === edp.edpId)
-    return existing && hasEdpChanged(existing, edp)
+    return !existing || hasEdpChanged(existing, edp)
   })
 
   const inserted = await dbSaveEdpResults({ db, quoteId, edps: changedEdps })

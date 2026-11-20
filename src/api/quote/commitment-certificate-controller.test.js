@@ -1,6 +1,4 @@
-import { randomUUID } from 'node:crypto'
-
-import { createNotifyClient } from '../../services/send-email/notify-client.js'
+import { mockNotifyClient } from '../../test-utils/mock-notify-client.js'
 import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   commitmentLevy,
@@ -21,11 +19,7 @@ describe('Commitment certificate endpoint', () => {
   const getServer = setupTestServer()
 
   beforeEach(() => {
-    vi.mocked(createNotifyClient).mockReturnValue({
-      sendEmail: vi
-        .fn()
-        .mockImplementation(async () => ({ data: { id: randomUUID() } }))
-    })
+    mockNotifyClient()
   })
 
   const createReference = async () => {

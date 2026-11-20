@@ -3,14 +3,9 @@ import {
   dbGetEdpResults,
   dbSaveLevyCalculation
 } from './queries.js'
+import { levyCalculationHistory } from '../../../test-utils/fixtures/quotePayloads.js'
 
-const calculation = {
-  calculationDate: '2026-09-14T10:30:15.000Z',
-  originalBaseAmount: 26750,
-  baseChargePerUnit: 2675,
-  originalBaseChargePerUnit: 2675,
-  units: 10
-}
+const calculation = levyCalculationHistory
 
 // The values a calculation contributes to a row, in insert order
 const calculationParams = ['2026-09-14T10:30:15.000Z', 2675, 10, 26750, 2675]

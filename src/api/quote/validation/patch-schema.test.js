@@ -1,4 +1,5 @@
 import { patchSchema } from './patch-schema.js'
+import { levyCalculationHistory } from '../../../test-utils/fixtures/quotePayloads.js'
 
 const validImpactMeasurement = {
   amount: 1.5,
@@ -294,25 +295,18 @@ describe('patchSchema', () => {
   })
 
   describe('levyGbp calculation history fields', () => {
-    const history = {
-      calculationDate: '2026-09-14T10:30:15Z',
-      baseChargePerUnit: 2675,
-      units: 10,
-      originalBaseAmount: 26750,
-      originalBaseChargePerUnit: 2675
-    }
     const validateWith = (fields) =>
       validate({
         edps: [{ ...validEdp, levyGbp: { ...validEdp.levyGbp, ...fields } }]
       })
 
     it('accepts every field', () => {
-      expect(validateWith(history).error).toBeUndefined()
+      expect(validateWith(levyCalculationHistory).error).toBeUndefined()
     })
 
     it('accepts fields the backend no longer records', () => {
       const { error } = validateWith({
-        ...history,
+        ...levyCalculationHistory,
         edpStartYearIndexFactor: 1.0512
       })
 
@@ -342,7 +336,44 @@ describe('patchSchema', () => {
       ['originalBaseAmount', -1],
       ['originalBaseChargePerUnit', 0]
     ])('rejects %s of %s', (field, value) => {
-      expect(validateWith({ ...history, [field]: value }).error).toBeDefined()
+      expect(
+        validateWith({ ...levyCalculationHistory, [field]: value }).error
+      ).toBeDefined()
+    })
+  })
+
+  describe('edp field limits', () => {
+    const validateEdp = (fields) =>
+      validate({ edps: [{ ...validEdp, ...fields }] })
+
+    it.each(['2026-99-99', '2026-02-30', '2026-13-01', '26-01-01'])(
+      'rejects an edpStartDate of %s',
+      (edpStartDate) => {
+        expect(validateEdp({ edpStartDate }).error).toBeDefined()
+      }
+    )
+
+    it('accepts a leap day', () => {
+      expect(validateEdp({ edpStartDate: '2028-02-29' }).error).toBeUndefined()
+    })
+
+    it('rejects an edpName over 255 characters', () => {
+      expect(validateEdp({ edpName: 'a'.repeat(256) }).error).toBeDefined()
+      expect(validateEdp({ edpName: 'a'.repeat(255) }).error).toBeUndefined()
+    })
+
+    it('rejects a catchment label over 255 characters', () => {
+      const catchment = (label) => ({
+        label,
+        catchmentId: '27',
+        catchmentOverlapPercentage: 50
+      })
+      expect(
+        validateEdp({ catchments: [catchment('a'.repeat(256))] }).error
+      ).toBeDefined()
+      expect(
+        validateEdp({ catchments: [catchment('a'.repeat(255))] }).error
+      ).toBeUndefined()
     })
   })
 })
