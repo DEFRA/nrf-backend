@@ -1,15 +1,16 @@
 import { saveOrUpdateEdpResults } from './save-or-update-edp-results.js'
 import {
   dbSaveEdpResults,
-  dbGetEdpResults,
-  dbUpdateEdpResult
+  dbGetEdpResults
 } from '../../../services/db/quote_edp_results/queries.js'
+
+import { levyCalculationHistory } from '../../../test-utils/fixtures/quotePayloads.js'
 
 vi.mock('../../../services/db/quote_edp_results/queries.js')
 const edp = {
   edpId: 123,
   edpName: 'Norfolk Fens east',
-  edpType: 'NUTRIENT',
+  edpStartDate: '2026-01-01',
   impact: {
     nitrogenTotal: { amount: 80, unit: 'mg/I TP', band: { min: 1, max: 3 } },
     phosphorusTotal: { amount: 60, unit: 'mg/I TP', band: { min: 1, max: 4 } }
@@ -25,20 +26,25 @@ const edp = {
     amountExcludingVat: 1100,
     amountInflationAdjusted: 1122,
     baseAmount: 1000,
-    modelVersion: 1
+    modelVersion: 1,
+    ...levyCalculationHistory
   }
 }
 
 const existingRow = {
   edp_id: 123,
   edp_name: 'Norfolk Fens east',
-  edp_type: 'NUTRIENT',
+  edp_start_date_text: '2026-01-01',
   impact: edp.impact,
   catchments: edp.catchments,
-  levy_excluding_vat: '1100.00',
-  levy_base_amount: '1000.00',
+  levy_provisional_amount: '1000.00',
   levy_inflation_adjusted: '1122.00',
-  levy_model_version: 1
+  levy_model_version: 1,
+  levy_calculated_at: new Date(levyCalculationHistory.calculationDate),
+  levy_base_charge_per_unit: '2675.00',
+  levy_units: 10,
+  levy_original_base_amount: '26750.00',
+  levy_original_base_charge_per_unit: '2675.00'
 }
 
 const db = {}
@@ -81,7 +87,9 @@ describe('saveOrUpdateEdpResults', () => {
   describe('when existing records exist', () => {
     beforeEach(() => {
       vi.mocked(dbGetEdpResults).mockResolvedValue([existingRow])
-      vi.mocked(dbUpdateEdpResult).mockResolvedValue()
+      vi.mocked(dbSaveEdpResults).mockImplementation(
+        async ({ edps }) => edps.length
+      )
     })
 
     it('returns false when no fields have changed', async () => {
@@ -91,11 +99,15 @@ describe('saveOrUpdateEdpResults', () => {
         edps: [edp]
       })
 
-      expect(dbUpdateEdpResult).not.toHaveBeenCalled()
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
+        db,
+        quoteId: 1,
+        edps: []
+      })
       expect(result).toBe(false)
     })
 
-    it('updates the record and returns true when edpName changes', async () => {
+    it('appends a history row and returns true when edpName changes', async () => {
       const updated = { ...edp, edpName: 'New Name' }
       const result = await saveOrUpdateEdpResults({
         db,
@@ -103,34 +115,38 @@ describe('saveOrUpdateEdpResults', () => {
         edps: [updated]
       })
 
-      expect(dbUpdateEdpResult).toHaveBeenCalledWith({
-        db,
-        quoteId: 1,
-        edpId: 123,
-        edp: updated
-      })
-      expect(result).toBe(true)
-    })
-
-    it('updates the record and returns true when edpType changes', async () => {
-      const updated = { ...edp, edpType: 'BIODIVERSITY' }
-      const result = await saveOrUpdateEdpResults({
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
         db,
         quoteId: 1,
         edps: [updated]
       })
+      expect(result).toBe(true)
+    })
 
-      expect(dbUpdateEdpResult).toHaveBeenCalled()
+    it('appends a history row and returns true when edpStartDate changes', async () => {
+      const result = await saveOrUpdateEdpResults({
+        db,
+        quoteId: 1,
+        edps: [{ ...edp, edpStartDate: '2027-01-01' }]
+      })
+
+      expect(dbSaveEdpResults).toHaveBeenCalledWith(
+        expect.objectContaining({ edps: [expect.any(Object)] })
+      )
       expect(result).toBe(true)
     })
 
     it.each([
-      ['amountExcludingVat', 150],
       ['amountInflationAdjusted', 250],
       ['baseAmount', 350],
-      ['modelVersion', 2]
+      ['modelVersion', 2],
+      ['calculationDate', '2026-10-01T09:00:00.000Z'],
+      ['baseChargePerUnit', 2700],
+      ['units', 11],
+      ['originalBaseAmount', 27000],
+      ['originalBaseChargePerUnit', 2700]
     ])(
-      'updates the record and returns true when %s changes',
+      'appends a history row and returns true when %s changes',
       async (field, value) => {
         const updated = { ...edp, levyGbp: { ...edp.levyGbp, [field]: value } }
         const result = await saveOrUpdateEdpResults({
@@ -139,12 +155,14 @@ describe('saveOrUpdateEdpResults', () => {
           edps: [updated]
         })
 
-        expect(dbUpdateEdpResult).toHaveBeenCalled()
+        expect(dbSaveEdpResults).toHaveBeenCalledWith(
+          expect.objectContaining({ edps: [expect.any(Object)] })
+        )
         expect(result).toBe(true)
       }
     )
 
-    it('updates the record and returns true when impact changes', async () => {
+    it('appends a history row and returns true when impact changes', async () => {
       const updated = {
         ...edp,
         impact: {
@@ -158,11 +176,13 @@ describe('saveOrUpdateEdpResults', () => {
         edps: [updated]
       })
 
-      expect(dbUpdateEdpResult).toHaveBeenCalled()
+      expect(dbSaveEdpResults).toHaveBeenCalledWith(
+        expect.objectContaining({ edps: [expect.any(Object)] })
+      )
       expect(result).toBe(true)
     })
 
-    it('updates the record and returns true when catchments change', async () => {
+    it('appends a history row and returns true when catchments change', async () => {
       const result = await saveOrUpdateEdpResults({
         db,
         quoteId: 1,
@@ -180,7 +200,9 @@ describe('saveOrUpdateEdpResults', () => {
         ]
       })
 
-      expect(dbUpdateEdpResult).toHaveBeenCalled()
+      expect(dbSaveEdpResults).toHaveBeenCalledWith(
+        expect.objectContaining({ edps: [expect.any(Object)] })
+      )
       expect(result).toBe(true)
     })
 
@@ -196,20 +218,28 @@ describe('saveOrUpdateEdpResults', () => {
         edps: [edpWithoutCatchments]
       })
 
-      expect(dbUpdateEdpResult).not.toHaveBeenCalled()
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
+        db,
+        quoteId: 1,
+        edps: []
+      })
       expect(result).toBe(false)
     })
 
-    it('skips an EDP with no matching existing record', async () => {
-      const unmatched = { ...edp, edpId: 999 }
+    it('appends a history row for an EDP seen for the first time, leaving unchanged EDPs alone', async () => {
+      const newEdp = { ...edp, edpId: 999 }
       const result = await saveOrUpdateEdpResults({
         db,
         quoteId: 1,
-        edps: [unmatched]
+        edps: [edp, newEdp]
       })
 
-      expect(dbUpdateEdpResult).not.toHaveBeenCalled()
-      expect(result).toBe(false)
+      expect(dbSaveEdpResults).toHaveBeenCalledWith({
+        db,
+        quoteId: 1,
+        edps: [newEdp]
+      })
+      expect(result).toBe(true)
     })
   })
 })

@@ -9,6 +9,7 @@ import { referenceParamSchema } from './validation/reference-param-schema.js'
 import { sendQuoteEmail } from './helpers/send-quote-email.js'
 import { buildRequestToUseLink } from './helpers/build-request-to-use-link.js'
 import { saveOrUpdateEdpResults } from './helpers/save-or-update-edp-results.js'
+import { withQuoteLock } from '../../services/db/quote_edp_results/with-quote-lock.js'
 import { recordEmailNotification } from './helpers/record-email-notification.js'
 import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
 
@@ -19,6 +20,9 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
  *     tags:
  *       - Quote
  *     summary: Update a quote by reference
+ *     description: >
+ *       Appends the EDP results and levy calculation to the quote's history.
+ *       A repeat of an unchanged callback writes nothing and sends no email.
  *     parameters:
  *       - in: path
  *         name: reference
@@ -43,7 +47,7 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
  *                   required:
  *                     - edpId
  *                     - edpName
- *                     - edpType
+ *                     - edpStartDate
  *                     - impact
  *                     - levyGbp
  *                   properties:
@@ -51,9 +55,9 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
  *                       type: integer
  *                     edpName:
  *                       type: string
- *                     edpType:
+ *                     edpStartDate:
  *                       type: string
- *                       enum: [NUTRIENT]
+ *                       format: date
  *                     impact:
  *                       type: object
  *                       required:
@@ -71,6 +75,11 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
  *                         - amountInflationAdjusted
  *                         - baseAmount
  *                         - modelVersion
+ *                         - calculationDate
+ *                         - originalBaseAmount
+ *                         - baseChargePerUnit
+ *                         - originalBaseChargePerUnit
+ *                         - units
  *                       properties:
  *                         amountExcludingVat:
  *                           type: number
@@ -83,6 +92,17 @@ import { EMAIL_TYPE_QUOTE_RESULTS } from '../../common/constants/email-type.js'
  *                           format: float
  *                         modelVersion:
  *                           type: integer
+ *                         calculationDate:
+ *                           type: string
+ *                           format: date-time
+ *                         baseChargePerUnit:
+ *                           type: number
+ *                         units:
+ *                           type: integer
+ *                         originalBaseAmount:
+ *                           type: number
+ *                         originalBaseChargePerUnit:
+ *                           type: number
  *     responses:
  *       200:
  *         description: Quote updated
@@ -117,10 +137,11 @@ export const patchController = {
     } = quote
     const { edps } = request.payload
 
-    const anyUpdated = await saveOrUpdateEdpResults({
+    const anyUpdated = await withQuoteLock({
       db: request.pg,
       quoteId: id,
-      edps
+      work: (client) =>
+        saveOrUpdateEdpResults({ db: client, quoteId: id, edps })
     })
 
     if (anyUpdated) {

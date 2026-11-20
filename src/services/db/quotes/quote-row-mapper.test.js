@@ -38,13 +38,17 @@ describe('mapQuoteRows', () => {
         ...baseRow,
         edp_id: 'EDP-001',
         edp_name: 'Test EDP',
-        edp_type: 'flood',
         impact: { score: 1 },
         catchments: null,
-        levy_excluding_vat: '1100.00',
-        levy_base_amount: '1000.00',
+        levy_provisional_amount: '1000.00',
         levy_inflation_adjusted: '1122.00',
-        levy_model_version: 1
+        levy_model_version: 1,
+        levy_calculated_at: new Date('2026-09-14T10:30:15Z'),
+        levy_original_base_amount: '26750.00',
+        levy_base_charge_per_unit: '2675.00',
+        levy_original_base_charge_per_unit: '2675.00',
+        levy_units: 10,
+        edp_start_date: '2026-01-01'
       }
     ]
 
@@ -77,19 +81,27 @@ describe('mapQuoteRows', () => {
         {
           edpId: 'EDP-001',
           edpName: 'Test EDP',
-          edpType: 'flood',
+          edpStartDate: '2026-01-01',
           impact: { score: 1 },
           catchments: null,
           levyGbp: {
-            amountExcludingVat: '1100.00',
+            amountExcludingVat: '1000.00',
             amountInflationAdjusted: '1122.00',
             baseAmount: '1000.00',
-            modelVersion: 1
-          }
+            modelVersion: 1,
+            journey: undefined,
+            createdAt: undefined,
+            calculatedAt: new Date('2026-09-14T10:30:15Z'),
+            originalBaseAmount: '26750.00',
+            baseChargePerUnit: '2675.00',
+            originalBaseChargePerUnit: '2675.00',
+            units: 10
+          },
+          previousLevyCalculations: []
         }
       ],
       levyGbp: {
-        levyAmountExcludingVat: 1100,
+        levyAmountExcludingVat: 1000,
         levyAmountInflationAdjusted: 1122
       }
     })
@@ -113,11 +125,9 @@ describe('mapQuoteRows', () => {
         ...baseRow,
         edp_id: 'EDP-001',
         edp_name: 'Test EDP',
-        edp_type: 'flood',
         impact: { score: 1 },
         catchments,
-        levy_excluding_vat: '1100.00',
-        levy_base_amount: '1000.00',
+        levy_provisional_amount: '1000.00',
         levy_inflation_adjusted: '1122.00',
         levy_model_version: 1
       }
@@ -142,10 +152,8 @@ describe('mapQuoteRows', () => {
         retry_count: 2,
         edp_id: null,
         edp_name: null,
-        edp_type: null,
         impact: null,
-        levy_excluding_vat: null,
-        levy_base_amount: null,
+        levy_provisional_amount: null,
         levy_inflation_adjusted: null,
         levy_model_version: null
       }
@@ -218,10 +226,8 @@ describe('mapQuoteRows', () => {
         ...baseRow,
         edp_id: null,
         edp_name: null,
-        edp_type: null,
         impact: null,
-        levy_excluding_vat: null,
-        levy_base_amount: null,
+        levy_provisional_amount: null,
         levy_inflation_adjusted: null,
         levy_model_version: null
       }
@@ -243,10 +249,8 @@ describe('mapQuoteRows', () => {
         ...baseRow,
         edp_id: 'EDP-001',
         edp_name: 'First EDP',
-        edp_type: 'flood',
         impact: { nitrogenBand: 'low' },
-        levy_excluding_vat: '1100.00',
-        levy_base_amount: '1000.00',
+        levy_provisional_amount: '1000.00',
         levy_inflation_adjusted: '1122.00',
         levy_model_version: 1
       },
@@ -254,10 +258,8 @@ describe('mapQuoteRows', () => {
         ...baseRow,
         edp_id: 'EDP-002',
         edp_name: 'Second EDP',
-        edp_type: 'phosphorus',
         impact: { phosphorusBand: 'high' },
-        levy_excluding_vat: '2100.00',
-        levy_base_amount: '2000.00',
+        levy_provisional_amount: '2000.00',
         levy_inflation_adjusted: '2122.00',
         levy_model_version: 1
       }
@@ -274,5 +276,45 @@ describe('mapQuoteRows', () => {
       edpId: 'EDP-002',
       edpName: 'Second EDP'
     })
+  })
+})
+
+describe('mapQuoteRows levy calculation history', () => {
+  const baseRow = {
+    id: 1,
+    reference: 'NRL-000001',
+    edp_id: 123,
+    edp_name: 'Norfolk Fens east',
+    impact: {},
+    levy_provisional_amount: '26750.00',
+    levy_inflation_adjusted: '26750.00',
+    levy_model_version: 1
+  }
+
+  it('maps the current calculation and the earlier ones for an EDP', () => {
+    const earlier = {
+      journey: 'quote',
+      provisionalAmount: '26000.00'
+    }
+    const result = mapQuoteRows([
+      {
+        ...baseRow,
+        journey: 'request_to_use',
+        levy_created_at: new Date('2026-11-17T12:00:00Z'),
+        levy_calculated_at: new Date('2026-11-17T11:59:00Z'),
+        levy_base_charge_per_unit: '2675.00',
+        levy_units: 10,
+        edp_start_date: '2026-01-01',
+        levy_history: [earlier]
+      }
+    ])
+
+    expect(result.edps[0].levyGbp).toMatchObject({
+      journey: 'request_to_use',
+      calculatedAt: new Date('2026-11-17T11:59:00Z'),
+      baseChargePerUnit: '2675.00',
+      units: 10
+    })
+    expect(result.edps[0].previousLevyCalculations).toEqual([earlier])
   })
 })

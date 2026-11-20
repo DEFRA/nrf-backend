@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { routePath } from '../routes/quote.js'
 import { generateToken } from '../common/helpers/token/generate-token.js'
 import {
+  commitmentLevy,
   validQuotePayload,
   validEdpsPayload
 } from './fixtures/quotePayloads.js'
@@ -59,7 +60,7 @@ export const sendPatchRequest = ({ server, reference, payload }) =>
 export const sendCommitmentCertificateRequest = ({
   server,
   reference,
-  payload = { createCommitmentCertificate: true }
+  payload = { createCommitmentCertificate: true, levy: commitmentLevy }
 }) =>
   server.inject({
     method: 'PATCH',
