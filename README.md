@@ -31,7 +31,7 @@ will find it easier to use the Node Version Manager [nvm](https://github.com/cre
 To use the correct version of Node.js for this application, via nvm:
 
 ```bash
-cd backend
+cd nrf-backend
 nvm use
 ```
 
