@@ -1,0 +1,136 @@
+import {
+  ssclError,
+  ssclErrorCodes
+} from '../common/helpers/sscl/sscl-errors.js'
+import { assertSafeFilename } from '../services/sftp/safe-filename.js'
+import { createSsclClient } from '../services/sftp/sscl-client.js'
+import { buildReply, fakeSsclKeysFor } from './fake-sscl.js'
+import { fakeSsclReplyTime } from './fixtures/sscl.js'
+import { generatePgpTestKeys } from './pgp-test-keys.js'
+import { ssclTestLimits } from './sscl-test-helpers.js'
+
+/**
+ * @typedef {import('../services/sftp/sftp-transport.js').SsclFile} SsclFile
+ * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
+ * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
+ * @typedef {{ data: Buffer, modifyTime: number }} StoredFile
+ */
+
+/**
+ * @param {Map<string, StoredFile>} folder
+ */
+const listing = (folder) =>
+  [...folder]
+    .map(([name, { data, modifyTime }]) => ({
+      name,
+      size: data.length,
+      modifyTime
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+// SSH_FX_NO_SUCH_FILE, as a real SFTP server reports a missing file
+const sftpNoSuchFile = 2
+
+/**
+ * @param {Map<string, StoredFile>} folder
+ * @returns {PullSession}
+ */
+const createPullSession = (folder) => ({
+  list: async () => listing(folder),
+  async stat(filename) {
+    assertSafeFilename(filename)
+    return listing(folder).find((file) => file.name === filename)
+  },
+  async download({ filename, maxBytes }) {
+    assertSafeFilename(filename)
+    const file = folder.get(filename)
+    if (!file) {
+      throw Object.assign(new Error(`No such file: ${filename}`), {
+        code: sftpNoSuchFile
+      })
+    }
+    if (file.data.length > maxBytes) {
+      throw ssclError({
+        code: ssclErrorCodes.fileTooLarge,
+        message: `In-memory SSCL file ${filename} is over ${maxBytes} bytes`
+      })
+    }
+    return file.data
+  },
+  async remove(filename) {
+    assertSafeFilename(filename)
+    folder.delete(filename)
+  }
+})
+
+/**
+ * An in-memory stand-in for MOVEit's push and pull folders, for unit tests
+ * that need exact faults. Refuses unsafe names and reports a missing file as
+ * the SFTP transport does. Starts with one reply from the fake SSCL in the pull
+ * folder. Tests of real SFTP use the sscl-sftp container instead.
+ * @param {{ limits?: Partial<typeof ssclTestLimits> }} [options]
+ */
+export async function createInMemorySsclClient({ limits } = {}) {
+  const pgp = await generatePgpTestKeys()
+  /** @type {Map<string, StoredFile>} */
+  const pushFolder = new Map()
+  /** @type {Map<string, StoredFile>} */
+  const pullFolder = new Map()
+
+  /**
+   * @param {SsclFile & { folder: Map<string, StoredFile>, modifyTime?: number }} file
+   */
+  const putFile = ({ folder, filename, data, modifyTime = Date.now() }) =>
+    folder.set(filename, { data, modifyTime })
+
+  const fakeSsclKeys = fakeSsclKeysFor(pgp)
+  const reply = await buildReply({
+    about: 'startup',
+    time: fakeSsclReplyTime,
+    keys: fakeSsclKeys,
+    maxFileBytes: ssclTestLimits.maxFileBytes
+  })
+  putFile({ folder: pullFolder, ...reply })
+
+  /** @type {SsclTransport} */
+  const transport = {
+    async pushFile({ filename, data }) {
+      assertSafeFilename(filename)
+      if (pushFolder.has(filename)) {
+        throw ssclError({
+          code: ssclErrorCodes.fileExists,
+          message: `In-memory SSCL file ${filename} already exists`
+        })
+      }
+      putFile({ folder: pushFolder, filename, data })
+    },
+    listPushFolder: async () => listing(pushFolder),
+    withPullSession: (work) => work(createPullSession(pullFolder))
+  }
+
+  const client = createSsclClient({
+    transport,
+    keys: {
+      nrfPrivateKey: pgp.nrf.privateKey,
+      nrfPassphrase: pgp.nrf.passphrase,
+      ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
+      ssclSigningPublicKey: pgp.ssclSigning.publicKey
+    },
+    limits: { ...ssclTestLimits, ...limits }
+  })
+
+  return {
+    client,
+    sscl: {
+      transport,
+      fakeSsclKeys,
+      pushFolder,
+      /**
+       * Puts a file in the pull folder as if SSCL had sent it.
+       * @param {SsclFile & { modifyTime?: number }} file
+       */
+      dropInPullFolder: ({ filename, data, modifyTime }) =>
+        putFile({ folder: pullFolder, filename, data, modifyTime })
+    }
+  }
+}
