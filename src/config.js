@@ -27,6 +27,11 @@ const bytesPerMb = 1024 * 1024
 const zipSafetyDefaultMaxMb = 20
 const zipSafetyDefaultMaxBytes = zipSafetyDefaultMaxMb * bytesPerMb
 
+const sftpPortDefault = 22
+const sftpTimeoutDefaultMs = 30000
+const ssclMaxFileDefaultMb = 20
+const ssclMaxFilesPerRunDefault = 50
+
 /**
  * Convict `format` validator that fails closed at startup when a secret
  * is unset in production. Allows empty values in dev/test so local stacks
@@ -356,6 +361,123 @@ const config = convict({
       format: Boolean,
       default: !isTest,
       env: 'AUDIT_ENABLED'
+    }
+  },
+  sscl: {
+    testEnabled: {
+      doc: 'Enable the POST /sftp/test-file route that pushes and pulls SSCL test files. Needs the SSCL SFTP and PGP settings below, which are checked at startup. The backend refuses to start in prod if true, which relies on ENVIRONMENT being set',
+      format: Boolean,
+      default: false,
+      env: 'SSCL_SFTP_TEST_ENABLED'
+    },
+    maxFileBytes: {
+      doc: 'Largest SSCL file we pull, and the most it may decompress to. Larger files are left in the pull folder',
+      format: 'nat',
+      default: ssclMaxFileDefaultMb * bytesPerMb,
+      env: 'SSCL_MAX_FILE_BYTES'
+    },
+    maxFilesPerRun: {
+      doc: 'Most SSCL files pulled in one go. The rest are left for the next pull',
+      format: 'nat',
+      default: ssclMaxFilesPerRunDefault,
+      env: 'SSCL_MAX_FILES_PER_RUN'
+    },
+    sftp: {
+      host: {
+        doc: 'MOVEit SFTP host',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_HOST'
+      },
+      port: {
+        doc: 'MOVEit SFTP port',
+        format: 'port',
+        default: sftpPortDefault,
+        env: 'SSCL_SFTP_PORT'
+      },
+      timeoutMs: {
+        doc: 'Time limit for opening the connection, the SSH handshake and each SFTP operation. Uploads and downloads get this plus one second per 100 KB. An operation that times out closes the connection',
+        format: 'nat',
+        default: sftpTimeoutDefaultMs,
+        env: 'SSCL_SFTP_TIMEOUT_MS'
+      },
+      hostKey: {
+        doc: 'Pinned MOVEit host public key (OpenSSH, RFC 4716 or SHA256 fingerprint), base64',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_HOST_KEY'
+      },
+      privateKey: {
+        doc: 'Our SSH private key for MOVEit, base64',
+        format: String,
+        default: '',
+        sensitive: true,
+        env: 'SSCL_SFTP_PRIVATE_KEY'
+      },
+      publicKey: {
+        doc: 'Our SSH public key, base64. Reference copy only, not used by the app',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_PUBLIC_KEY'
+      },
+      pushUser: {
+        doc: 'MOVEit user for pushing files to SSCL',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_PUSH_USER'
+      },
+      pushFolder: {
+        doc: 'MOVEit folder we push files to',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_PUSH_FOLDER'
+      },
+      pullUser: {
+        doc: 'MOVEit user for pulling files from SSCL',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_PULL_USER'
+      },
+      pullFolder: {
+        doc: 'MOVEit folder we pull files from',
+        format: String,
+        default: '',
+        env: 'SSCL_SFTP_PULL_FOLDER'
+      }
+    },
+    pgp: {
+      nrfPrivateKey: {
+        doc: 'Our PGP private key, ASCII-armoured then base64',
+        format: String,
+        default: '',
+        sensitive: true,
+        env: 'SSCL_PGP_NRF_PRIVATE_KEY'
+      },
+      nrfPassphrase: {
+        doc: 'Passphrase for our PGP private key',
+        format: String,
+        default: '',
+        sensitive: true,
+        env: 'SSCL_PGP_NRF_PASSPHRASE'
+      },
+      nrfPublicKey: {
+        doc: 'Our PGP public key, ASCII-armoured then base64',
+        format: String,
+        default: '',
+        env: 'SSCL_PGP_NRF_PUBLIC_KEY'
+      },
+      ssclEncryptionPublicKey: {
+        doc: 'SSCL PGP encryption public key that files we send are encrypted to, ASCII-armoured then base64',
+        format: String,
+        default: '',
+        env: 'SSCL_PGP_SSCL_ENCRYPTION_PUBLIC_KEY'
+      },
+      ssclSigningPublicKey: {
+        doc: 'SSCL PGP signing public key that files we receive must be signed by, ASCII-armoured then base64',
+        format: String,
+        default: '',
+        env: 'SSCL_PGP_SSCL_SIGNING_PUBLIC_KEY'
+      }
     }
   },
   sns: {
