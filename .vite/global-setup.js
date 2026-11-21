@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process'
 
+import { ensureSftpTestKeys } from './sftp-test-keys.js'
+
 const COMPOSE = 'docker compose -f compose.test.yml -p nrf-backend-test'
 
 function isServiceRunning(service) {
@@ -43,5 +45,12 @@ export default async function setup() {
 
   if (!isServiceRunning('cdp-uploader')) {
     execSync(`${COMPOSE} up -d cdp-uploader --wait`, { stdio: 'inherit' })
+  }
+
+  const newSftpKeys = ensureSftpTestKeys()
+  if (newSftpKeys || !isServiceRunning('sscl-sftp')) {
+    execSync(`${COMPOSE} up -d --force-recreate sscl-sftp --wait`, {
+      stdio: 'inherit'
+    })
   }
 }
