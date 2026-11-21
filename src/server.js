@@ -6,6 +6,7 @@ import { config } from './config.js'
 import { auth } from './plugins/auth.js'
 import { router } from './plugins/router.js'
 import { notifyWorker } from './plugins/notify-worker.js'
+import { ssclSftp } from './plugins/sscl-sftp.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
@@ -48,6 +49,7 @@ async function createServer() {
   // pulse          - provides shutdown handlers
   // auth           - service-to-service x-api-key authentication (default strategy)
   // router         - routes used in the app
+  // ssclSftp       - SSCL file exchange over SFTP (test route behind a flag)
   await server.register([
     requestLogger,
     requestTracing,
@@ -56,7 +58,8 @@ async function createServer() {
     auth,
     router,
     { plugin: postgres.plugin, options: config.get('postgres') },
-    notifyWorker
+    notifyWorker,
+    ssclSftp
   ])
 
   return server
