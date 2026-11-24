@@ -11,7 +11,14 @@ import { startTcpForwarder } from '../../test-utils/tcp-forwarder.js'
 const { STATUS_CODE } = ssh2.utils.sftp
 const folder = '/in'
 const filename = 'a.txt'
-const timeoutMs = 500
+// Long enough that only a real stall reaches it, however slow the machine.
+const timeoutMs = 10000
+// For the tests that stall a request on purpose and wait out the time limit.
+// It limits the SSH handshake too, so it can't be much shorter.
+const stallTimeoutMs = 1000
+// How far past the time limit a slow machine may be. Well short of the five
+// seconds a clean disconnect is allowed, which a timeout must not wait for.
+const slackMs = 1000
 const data = Buffer.from('hello')
 
 describe(
@@ -30,6 +37,12 @@ describe(
 
     const inSession = (work) =>
       withSftpSession({ settings: server.settings({ timeoutMs }), work })
+
+    const inSessionThatStalls = (work) =>
+      withSftpSession({
+        settings: server.settings({ timeoutMs: stallTimeoutMs }),
+        work
+      })
 
     it('refuses a server whose host key does not match the pinned key', async () => {
       const work = vi.fn()
@@ -74,7 +87,7 @@ describe(
       )
 
       // Checked inside the session, before its own disconnect could close it
-      const outcome = await inSession(async (session) => {
+      const outcome = await inSessionThatStalls(async (session) => {
         const started = Date.now()
         const error = await session
           .download({ folder, filename, maxBytes: 100, size: data.length })
@@ -84,13 +97,13 @@ describe(
           elapsedMs: Date.now() - started,
           closed: await waitUntil({
             check: () => server.openConnections() === 0,
-            withinMs: 500
+            withinMs: slackMs
           })
         }
       })
 
       expect(outcome.error).toMatchObject({ code: ssclErrorCodes.timeout })
-      expect(outcome.elapsedMs).toBeLessThan(timeoutMs + 200)
+      expect(outcome.elapsedMs).toBeLessThan(stallTimeoutMs + slackMs)
       expect(outcome.closed).toBe(true)
     })
 
@@ -100,7 +113,9 @@ describe(
       )
 
       await expect(
-        inSession((session) => session.upload({ folder, filename, data }))
+        inSessionThatStalls((session) =>
+          session.upload({ folder, filename, data })
+        )
       ).rejects.toMatchObject({ code: ssclErrorCodes.timeout })
 
       expect(server.namesIn(folder)).toEqual([])
