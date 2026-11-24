@@ -2,8 +2,10 @@ import ssh2 from 'ssh2'
 
 import { withSftpSession } from './sftp-client.js'
 import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
+import { startConnectProxy } from '../../test-utils/connect-proxy.js'
 import { waitUntil } from '../../test-utils/net-test-helpers.js'
 import { startSftpFaultServer } from '../../test-utils/sftp-fault-server.js'
+import { generateSshTestKeyPair } from '../../test-utils/ssh-test-keys.js'
 import { startTcpForwarder } from '../../test-utils/tcp-forwarder.js'
 
 const { STATUS_CODE } = ssh2.utils.sftp
@@ -28,6 +30,42 @@ describe(
 
     const inSession = (work) =>
       withSftpSession({ settings: server.settings({ timeoutMs }), work })
+
+    it('refuses a server whose host key does not match the pinned key', async () => {
+      const work = vi.fn()
+
+      await expect(
+        withSftpSession({
+          settings: {
+            ...server.settings({ timeoutMs }),
+            hostKey: generateSshTestKeyPair().public
+          },
+          work
+        })
+      ).rejects.toThrow('Host denied (verification failed)')
+
+      expect(work).not.toHaveBeenCalled()
+    })
+
+    it('connects through an HTTP CONNECT proxy when one is configured', async () => {
+      const proxy = await startConnectProxy()
+      try {
+        const settings = {
+          ...server.settings({ timeoutMs }),
+          proxyUrl: proxy.url
+        }
+
+        const files = await withSftpSession({
+          settings,
+          work: (session) => session.list(folder)
+        })
+
+        expect(files).toEqual([])
+        expect(proxy.targets).toEqual([`127.0.0.1:${settings.port}`])
+      } finally {
+        await proxy.close()
+      }
+    })
 
     it('closes the connection as soon as a stalled download times out', async () => {
       server.putFile({ folder, filename, data })

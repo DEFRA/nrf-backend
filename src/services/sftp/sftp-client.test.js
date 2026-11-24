@@ -227,6 +227,28 @@ describe('withSftpSession', () => {
     }
   )
 
+  it.each([
+    [
+      'an upload',
+      (session) => session.upload({ folder, filename: '../x', data })
+    ],
+    [
+      'a download',
+      (session) => session.download({ folder, filename: '../x', maxBytes: 100 })
+    ]
+  ])(
+    'refuses %s under an unsafe filename, before asking the server',
+    async (_operation, work) => {
+      await expect(inSession(work)).rejects.toMatchObject({
+        code: ssclErrorCodes.invalidFilename
+      })
+
+      expect(sftpInstance().exists).not.toHaveBeenCalled()
+      expect(sftpInstance().put).not.toHaveBeenCalled()
+      expect(sftpInstance().get).not.toHaveBeenCalled()
+    }
+  )
+
   it('gives up on an operation that takes longer than the time limit and closes the connection', async () => {
     await withFakeTimers(async () => {
       SftpClient.prototype.list.mockImplementation(never)
