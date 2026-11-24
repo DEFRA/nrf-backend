@@ -105,9 +105,8 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
    * the handle is not open: it was closed, or the server never issued it.
    * @param {(reqid: number, state: any, ...args: any[]) => void} handler
    */
-  const withOpenHandle =
-    (handler) =>
-    (reqid, handle, ...args) => {
+  const withOpenHandle = (handler) =>
+    function onRequestForHandle(reqid, handle, ...args) {
       const state = handleState(handle)
       if (!state) {
         sftp.status(reqid, STATUS_CODE.FAILURE)
@@ -150,7 +149,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
 
   on({
     operation: 'readdir',
-    handler: withOpenHandle((reqid, state) => {
+    handler: withOpenHandle(function readdir(reqid, state) {
       if (state.listed) {
         sftp.status(reqid, STATUS_CODE.EOF)
         return
@@ -189,7 +188,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
 
   on({
     operation: 'read',
-    handler: withOpenHandle((reqid, state, offset, length) => {
+    handler: withOpenHandle(function read(reqid, state, offset, length) {
       const file = files.get(state.path)
       if (!file || offset >= file.data.length) {
         sftp.status(reqid, STATUS_CODE.EOF)
@@ -202,7 +201,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
 
   on({
     operation: 'write',
-    handler: withOpenHandle((reqid, state, offset, data) => {
+    handler: withOpenHandle(function write(reqid, state, offset, data) {
       const file = files.get(state.path)
       if (!file) {
         sftp.status(reqid, STATUS_CODE.FAILURE)

@@ -1,6 +1,8 @@
 import http from 'node:http'
 import net from 'node:net'
 
+import { trackSocket } from './net-test-helpers.js'
+
 export const connectProxyTargets = {
   blocked: 'blocked.invalid',
   silent: 'silent.invalid',
@@ -11,6 +13,8 @@ export const connectProxyTargets = {
   endlessHeaders: 'endless.invalid'
 }
 
+const maxPort = 65535
+
 export const bannerSentWithResponse = 'SSH-2.0-banner-in-the-same-packet\r\n'
 
 /**
@@ -20,18 +24,13 @@ export const bannerSentWithResponse = 'SSH-2.0-banner-in-the-same-packet\r\n'
  * close without answering, answer with something other than HTTP, send
  * headers that never end, send its
  * 200 in two writes, or send a server banner in the same write as its 200.
+ * A target with no usable port gets a 400.
  */
 export async function startConnectProxy() {
   const targets = []
   const sockets = new Set()
-  // Node removes its own error listener when it hands a socket over, so
-  // without one here a client that resets its connection would throw an
-  // uncaught exception in the test run.
-  const track = (socket) => {
-    sockets.add(socket)
-    socket.on('close', () => sockets.delete(socket))
-    socket.on('error', () => {})
-  }
+  /** @param {net.Socket} socket */
+  const track = (socket) => trackSocket({ socket, sockets })
   const server = http.createServer((_req, res) => {
     res.writeHead(405).end()
   })
@@ -74,7 +73,12 @@ export async function startConnectProxy() {
       )
       return
     }
-    const upstream = net.connect(Number(port), host, function onUpstream() {
+    const targetPort = Number(port)
+    if (!(targetPort >= 1 && targetPort <= maxPort)) {
+      clientSocket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+      return
+    }
+    const upstream = net.connect(targetPort, host, function onUpstream() {
       clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n')
       upstream.write(head)
       upstream.pipe(clientSocket)

@@ -3,53 +3,87 @@ import net from 'node:net'
 import { startEchoServer } from './echo-server.js'
 import {
   exchangeOverTcp,
+  trackSocket,
   waitUntil,
   watchNetConnect
 } from './net-test-helpers.js'
 
+const localhost = '127.0.0.1'
+const text = 'hello'
+
+/**
+ * Starts a TCP server on a random local port that handles each connection
+ * with onConnection.
+ * @param {(socket: net.Socket) => void} onConnection
+ */
+const startServer = async (onConnection) => {
+  const server = net.createServer(onConnection)
+  await new Promise((resolve) => server.listen(0, localhost, resolve))
+  return server
+}
+
+/** @param {net.Server} server */
+const stopServer = (server) => new Promise((resolve) => server.close(resolve))
+
 describe('exchangeOverTcp', () => {
   let echo
   let closer
+  let silent
 
   beforeAll(async () => {
     echo = await startEchoServer()
-    closer = net.createServer((socket) => socket.resume().end('bye'))
-    await new Promise((resolve) => closer.listen(0, '127.0.0.1', resolve))
+    closer = await startServer((socket) => socket.resume().end('bye'))
+    silent = await startServer((socket) => socket.resume())
   })
 
   afterAll(async () => {
-    await new Promise((resolve) => echo.close(resolve))
-    await new Promise((resolve) => closer.close(resolve))
+    await Promise.all([echo, closer, silent].map(stopServer))
   })
 
   it('returns what came back and says the server closed the connection', async () => {
     const result = await exchangeOverTcp({
       port: closer.address().port,
-      text: 'hello'
+      text
     })
 
-    expect(result).toEqual({ received: 'bye', closed: true })
+    expect(result).toEqual({ received: 'bye', stoppedBy: 'close' })
   })
 
   it('stops as soon as until says enough has come back', async () => {
     const result = await exchangeOverTcp({
       port: echo.address().port,
-      text: 'hello',
-      until: (soFar) => soFar === 'hello'
+      text,
+      until: (soFar) => soFar === text
     })
 
-    expect(result).toEqual({ received: 'hello', closed: false })
+    expect(result).toEqual({ received: text, stoppedBy: 'until' })
   })
 
-  it('gives up after waitMs when the connection stays open', async () => {
+  it('gives up after waitMs when nothing ends the exchange', async () => {
     const result = await exchangeOverTcp({
-      port: echo.address().port,
-      text: 'hello',
-      until: (soFar) => soFar === 'never sent',
+      port: silent.address().port,
+      text,
       waitMs: 50
     })
 
-    expect(result).toEqual({ received: 'hello', closed: false })
+    expect(result).toEqual({ received: '', stoppedBy: 'timeout' })
+  })
+})
+
+describe('trackSocket', () => {
+  it('keeps a socket until it closes, and takes its errors', async () => {
+    const echo = await startEchoServer()
+    const sockets = new Set()
+    const socket = net.connect(echo.address().port, localhost)
+    trackSocket({ socket, sockets })
+    const tracked = [...sockets]
+
+    socket.destroy(new Error('connection lost'))
+    await new Promise((resolve) => socket.once('close', resolve))
+    await stopServer(echo)
+
+    expect(tracked).toEqual([socket])
+    expect(sockets.size).toBe(0)
   })
 })
 
@@ -60,14 +94,14 @@ describe('watchNetConnect', () => {
     const original = net.connect
     const watch = watchNetConnect()
 
-    const socket = net.connect(port, '127.0.0.1')
+    const socket = net.connect(port, localhost)
     socket.destroy()
     const seen = { sockets: watch.sockets(), calls: watch.calls() }
     watch.restore()
-    await new Promise((resolve) => echo.close(resolve))
+    await stopServer(echo)
 
     expect(seen.sockets).toEqual([socket])
-    expect(seen.calls).toEqual([[port, '127.0.0.1']])
+    expect(seen.calls).toEqual([[port, localhost]])
     expect(net.connect).toBe(original)
   })
 })

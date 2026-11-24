@@ -1,5 +1,7 @@
 import net from 'node:net'
 
+import { trackSocket } from './net-test-helpers.js'
+
 /**
  * What happens to a connection once a number of bytes have passed in one
  * direction: `blackhole` stops forwarding anything but keeps both sockets
@@ -25,11 +27,8 @@ export async function startTcpForwarder({ targetHost, targetPort }) {
   let faultyConnectionsLeft = 0
   let droppedBytes = 0
 
-  const track = (socket) => {
-    sockets.add(socket)
-    socket.on('close', () => sockets.delete(socket))
-    socket.on('error', () => {})
-  }
+  /** @param {net.Socket} socket */
+  const track = (socket) => trackSocket({ socket, sockets })
 
   const server = net.createServer(function onConnection(client) {
     const upstream = net.connect(targetPort, targetHost)
