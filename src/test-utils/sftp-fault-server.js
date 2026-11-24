@@ -100,6 +100,22 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
   const byPath = (remotePath) => remotePath
   const byHandle = (handle) => handleState(handle)?.path ?? ''
 
+  /**
+   * Gives a handler the state of an open handle. Answers FAILURE instead when
+   * the handle is not open: it was closed, or the server never issued it.
+   * @param {(reqid: number, state: any, ...args: any[]) => void} handler
+   */
+  const withOpenHandle =
+    (handler) =>
+    (reqid, handle, ...args) => {
+      const state = handleState(handle)
+      if (!state) {
+        sftp.status(reqid, STATUS_CODE.FAILURE)
+        return
+      }
+      handler(reqid, state, ...args)
+    }
+
   on({
     operation: 'realpath',
     handler: (reqid, remotePath) => {
@@ -134,8 +150,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
 
   on({
     operation: 'readdir',
-    handler: (reqid, handle) => {
-      const state = handleState(handle)
+    handler: withOpenHandle((reqid, state) => {
       if (state.listed) {
         sftp.status(reqid, STATUS_CODE.EOF)
         return
@@ -150,7 +165,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
           attrs: fileAttrs(file)
         }))
       sftp.name(reqid, entries)
-    },
+    }),
     pathOf: byHandle
   })
 
@@ -174,21 +189,21 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
 
   on({
     operation: 'read',
-    handler: (reqid, handle, offset, length) => {
-      const file = files.get(handleState(handle).path)
+    handler: withOpenHandle((reqid, state, offset, length) => {
+      const file = files.get(state.path)
       if (!file || offset >= file.data.length) {
         sftp.status(reqid, STATUS_CODE.EOF)
         return
       }
       sftp.data(reqid, file.data.subarray(offset, offset + length))
-    },
+    }),
     pathOf: byHandle
   })
 
   on({
     operation: 'write',
-    handler: (reqid, handle, offset, data) => {
-      const file = files.get(handleState(handle).path)
+    handler: withOpenHandle((reqid, state, offset, data) => {
+      const file = files.get(state.path)
       if (!file) {
         sftp.status(reqid, STATUS_CODE.FAILURE)
         return
@@ -200,7 +215,7 @@ const serveSftp = ({ sftp, files, folders, fault, closeConnection }) => {
       file.data = grown
       file.modifyTime = Date.now()
       sftp.status(reqid, STATUS_CODE.OK)
-    },
+    }),
     pathOf: byHandle
   })
 
@@ -308,7 +323,8 @@ export async function startSftpFaultServer({
       currentFault = next
     },
     /**
-     * Connection settings for withSftpSession.
+     * Connection settings for an SFTP client, in the shape withSftpSession
+     * takes.
      * @param {{ timeoutMs?: number }} [overrides]
      */
     settings: ({ timeoutMs = 2000 } = {}) => ({
