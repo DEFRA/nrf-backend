@@ -24,13 +24,21 @@ export const bannerSentWithResponse = 'SSH-2.0-banner-in-the-same-packet\r\n'
 export async function startConnectProxy() {
   const targets = []
   const sockets = new Set()
+  // Node removes its own error listener when it hands a socket over, so
+  // without one here a client that resets its connection would throw an
+  // uncaught exception in the test run.
+  const track = (socket) => {
+    sockets.add(socket)
+    socket.on('close', () => sockets.delete(socket))
+    socket.on('error', () => {})
+  }
   const server = http.createServer((_req, res) => {
     res.writeHead(405).end()
   })
 
   server.on('connect', function handleConnect(req, clientSocket, head) {
     targets.push(req.url)
-    sockets.add(clientSocket)
+    track(clientSocket)
     const [host, port] = req.url.split(':')
     if (host === connectProxyTargets.blocked) {
       clientSocket.end('HTTP/1.1 403 Forbidden\r\n\r\n')
@@ -72,7 +80,7 @@ export async function startConnectProxy() {
       upstream.pipe(clientSocket)
       clientSocket.pipe(upstream)
     })
-    sockets.add(upstream)
+    track(upstream)
     upstream.on('error', () => clientSocket.destroy())
     clientSocket.on('error', () => upstream.destroy())
   })
@@ -83,6 +91,8 @@ export async function startConnectProxy() {
   return {
     url: `http://127.0.0.1:${port}`,
     targets,
+    /** Sockets still open, client and upstream sides together. */
+    openSockets: () => sockets.size,
     close: () =>
       new Promise((resolve) => {
         sockets.forEach((socket) => socket.destroy())
