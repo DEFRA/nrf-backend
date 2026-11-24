@@ -171,8 +171,15 @@ export const resendLink = async (params) => {
   }
 }
 
-const RETRIEVE_QUOTE_URL_PATTERN =
-  /https?:\/\/[^\s)\]>]*\/request-to-use\/retrieve\/[^\s)\]>]+/
+const MARKDOWN_LINK_PATTERN = /\[[^\]]+\]\(([^)\s]+)\)/g
+
+/**
+ * The URL of every Markdown link in the content of an email sent to Notify.
+ * @param {string} content
+ * @returns {string[]}
+ */
+export const linkUrlsFromEmailContent = (content) =>
+  [...content.matchAll(MARKDOWN_LINK_PATTERN)].map(([, url]) => url)
 
 /**
  * The retrieve-quote magic link in the content of an email sent to Notify.
@@ -180,7 +187,9 @@ const RETRIEVE_QUOTE_URL_PATTERN =
  * @returns {string | undefined}
  */
 export const retrieveQuoteUrlFromEmailContent = (content) =>
-  RETRIEVE_QUOTE_URL_PATTERN.exec(content)?.[0]
+  linkUrlsFromEmailContent(content).find((url) =>
+    url.includes('/request-to-use/retrieve/')
+  )
 
 /**
  * The raw token in the magic link of the most recent mocked Notify email.

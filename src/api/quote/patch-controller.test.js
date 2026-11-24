@@ -11,7 +11,8 @@ import {
   sendGetRequest,
   sendPatchRequest,
   getAccessTokenRowsForReference,
-  getEmailNotificationRowsForReference
+  getEmailNotificationRowsForReference,
+  linkUrlsFromEmailContent
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('@defra/cdp-auditing')
@@ -68,9 +69,9 @@ describe('Patch quote endpoint', () => {
     })
 
     const emailOptions = notifySendEmail.mock.calls[0][2]
-    const requestToUseLink = emailOptions.personalisation.content.match(
-      /https?:\/\/[^\s)\]>]*\/request-to-use\/enter-nrl-reference\?[^\s)\]>]+/
-    )?.[0]
+    const requestToUseLink = linkUrlsFromEmailContent(
+      emailOptions.personalisation.content
+    ).find((url) => url.includes('/request-to-use/enter-nrl-reference'))
     expect(requestToUseLink).toMatch(
       new RegExp(
         `/request-to-use/enter-nrl-reference\\?nrlReference=${reference}$`

@@ -1,5 +1,6 @@
 import {
   edpWithLevy,
+  expectedQuoteEmail,
   validQuoteEmailInput
 } from '../../../test-utils/fixtures/emails.js'
 import { buildQuoteEmailContent } from './build-quote-email-content.js'
@@ -44,7 +45,8 @@ describe('buildQuoteEmailContent', () => {
   it.each([
     [1100, 1122, '£1,100', '£1,122'],
     [1100, 1122.5, '£1,100', '£1,122.50'],
-    [1100.25, 26750, '£1,100.25', '£26,750']
+    [1100.25, 26750, '£1,100.25', '£26,750'],
+    ['1000.00', '1122.50', '£1,000', '£1,122.50']
   ])(
     'shows levy amounts of %s and %s as %s and %s',
     (
@@ -127,11 +129,9 @@ describe('buildQuoteEmailContent', () => {
     )
   })
 
-  it('is well formed', () => {
-    const { content } = buildQuoteEmailContent(validQuoteEmailInput)
-
-    expect(content).toBe(content.trim())
-    expect(content).not.toContain('\n\n\n')
-    expect(content).not.toMatch(/undefined|\(\(|\$\{/)
+  it('is exactly the recorded email', () => {
+    expect(buildQuoteEmailContent(validQuoteEmailInput)).toEqual(
+      expectedQuoteEmail
+    )
   })
 })

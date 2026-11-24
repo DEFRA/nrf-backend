@@ -9,7 +9,11 @@ import { getPlanningTypeDisplay } from './get-planning-type-display.js'
  */
 
 /**
- * @typedef {{ edpName: string, levyGbp: { amountExcludingVat: number, amountInflationAdjusted: number } }} QuoteEmailEdp
+ * @typedef {object} QuoteEmailEdp
+ * @property {string} edpName
+ * @property {object} levyGbp
+ * @property {number | string} levyGbp.amountExcludingVat - a number from the PATCH payload, a string from the database (NUMERIC columns)
+ * @property {number | string} levyGbp.amountInflationAdjusted - same
  */
 
 const QUOTE_EMAIL_TITLE = 'Nature restoration levy – quote'

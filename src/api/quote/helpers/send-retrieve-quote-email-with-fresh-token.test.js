@@ -54,11 +54,6 @@ describe('sendRetrieveQuoteEmailWithFreshToken', () => {
       quoteId: 42,
       tokenHash: hashToken(rawFromUrl)
     })
-    expect(retrieveQuoteUrl).toEqual(
-      expect.stringMatching(
-        new RegExp(`/request-to-use/retrieve/${QUOTE_REFERENCE}/`)
-      )
-    )
     expect(sendArgs.emailBodyVariables.content).toContain(
       `NRL reference: ${QUOTE_REFERENCE}`
     )

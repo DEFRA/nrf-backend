@@ -1,4 +1,7 @@
-import { validRetrieveQuoteEmailInput } from '../../../test-utils/fixtures/emails.js'
+import {
+  expectedRetrieveQuoteEmail,
+  validRetrieveQuoteEmailInput
+} from '../../../test-utils/fixtures/emails.js'
 import { buildRetrieveQuoteEmailContent } from './build-retrieve-quote-email-content.js'
 
 describe('buildRetrieveQuoteEmailContent', () => {
@@ -37,13 +40,9 @@ describe('buildRetrieveQuoteEmailContent', () => {
     expect(content).not.toContain('What do you think of this service')
   })
 
-  it('is well formed', () => {
-    const { content } = buildRetrieveQuoteEmailContent(
-      validRetrieveQuoteEmailInput
-    )
-
-    expect(content).toBe(content.trim())
-    expect(content).not.toContain('\n\n\n')
-    expect(content).not.toMatch(/undefined|\(\(|\$\{/)
+  it('is exactly the recorded email', () => {
+    expect(
+      buildRetrieveQuoteEmailContent(validRetrieveQuoteEmailInput)
+    ).toEqual(expectedRetrieveQuoteEmail)
   })
 })
