@@ -29,7 +29,9 @@ export async function pgpKeyFingerprint(armoredKey) {
 
 /**
  * Encrypts data to the recipient's public key and signs it with our private
- * key, returning a binary OpenPGP message.
+ * key, returning a binary OpenPGP message. Throws if either key cannot be read
+ * or the passphrase does not open our private key. Nothing is caught here: the
+ * caller decides what a failure means.
  * @param {{ data: Buffer, encryptionKey: string, signingKey: string, passphrase: string }} params
  *   keys are ASCII-armoured
  * @returns {Promise<Buffer>}
