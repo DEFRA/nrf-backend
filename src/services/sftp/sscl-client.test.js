@@ -10,7 +10,11 @@ import {
 } from '../../test-utils/sscl-test-helpers.js'
 import { partialSuffix } from './partial-suffix.js'
 import { createInMemorySsclClient } from '../../test-utils/in-memory-sscl.js'
-import { buildReply, receivePushedFile } from '../../test-utils/fake-sscl.js'
+import {
+  buildReply,
+  fakeSsclReplyFaults,
+  receivePushedFile
+} from '../../test-utils/fake-sscl.js'
 import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyFilename as replyFilename,
@@ -87,6 +91,40 @@ describe('SSCL client', () => {
       ]
     )
     expect(await pullFolderNames(sscl.transport)).toEqual([garbageFilename])
+  })
+
+  it.each([
+    ['is not signed', fakeSsclReplyFaults.unsigned],
+    ["is signed by a key that is not SSCL's", fakeSsclReplyFaults.wrongKey]
+  ])('leaves a file that %s as unverified', async (_case, fault) => {
+    const reply = await buildReply({
+      about: 'faulty',
+      time: fakeSsclReplyTime,
+      keys: sscl.fakeSsclKeys,
+      maxFileBytes: 1024 * 1024,
+      fault
+    })
+    sscl.dropInPullFolder(reply)
+
+    const result = await client.pullFiles(collectPulledFiles())
+
+    expect(pulledStatuses(result)).toContainEqual([
+      reply.filename,
+      'unverified'
+    ])
+    expect(await pullFolderNames(sscl.transport)).toEqual([reply.filename])
+  })
+
+  it('logs the name, size and status of a file it could not verify', async () => {
+    const data = Buffer.from('not pgp')
+    sscl.dropInPullFolder({ filename: garbageFilename, data })
+
+    await client.pullFiles(collectPulledFiles())
+
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.any(Error),
+      `SSCL file ${garbageFilename} (${data.length} bytes) not received: unverified`
+    )
   })
 
   it('leaves a file in place when it could not be stored', async () => {
@@ -475,6 +513,26 @@ describe('SSCL client', () => {
       problems: [],
       contents: Buffer.from('invoices')
     })
+  })
+
+  it('logs the name and size of a pushed file but never its content', async () => {
+    const content = 'content that must not be logged'
+
+    await client.pushFile({
+      filename: ssclTestInvoiceFilename,
+      data: Buffer.from(content)
+    })
+
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      {
+        sscl: {
+          filename: ssclTestInvoiceFilename,
+          size: sscl.pushFolder.get(ssclTestInvoiceFilename).data.length
+        }
+      },
+      'SSCL file pushed'
+    )
+    expect(JSON.stringify(mockLogger.info.mock.calls)).not.toContain(content)
   })
 
   it('refuses to push over a file of the same name', async () => {

@@ -109,7 +109,7 @@ const report = ({ pulled, error, sftpError }) => {
   if (problem) {
     logger.error(
       problem,
-      `SSCL file ${pulled.filename} not received: ${pulled.status}`
+      `SSCL file ${pulled.filename} (${pulled.size} bytes) not received: ${pulled.status}`
     )
   } else if (pulled.status === 'received') {
     logger.info({ sscl: pulled }, 'SSCL file received')

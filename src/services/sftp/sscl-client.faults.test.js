@@ -3,6 +3,8 @@ import ssh2 from 'ssh2'
 import { createSsclClient } from './sscl-client.js'
 import { createSftpTransport } from './sftp-transport.js'
 import { encryptAndSign } from '../../common/helpers/sscl/pgp.js'
+import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
+import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
 import { startSftpFaultServer } from '../../test-utils/sftp-fault-server.js'
 import {
@@ -17,7 +19,7 @@ const names = ['SSCL_1.pgp', 'SSCL_2.pgp']
 // Long enough that only a real stall reaches it, however slow the machine.
 const timeoutMs = 10000
 
-describe('SSCL pull against a faulty SFTP server', { timeout: 20000 }, () => {
+describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
   let keys
   let server
   let client
@@ -98,6 +100,24 @@ describe('SSCL pull against a faulty SFTP server', { timeout: 20000 }, () => {
       [names[0], 'download-failed'],
       [names[1], 'received']
     ])
+    expect(server.namesIn(folders.pull)).toEqual([names[0]])
+  })
+
+  it('refuses to push under a name that is already in the push folder', async () => {
+    server.putFile({
+      folder: folders.push,
+      filename: ssclTestInvoiceFilename,
+      data: Buffer.from('already there')
+    })
+
+    await expect(
+      client.pushFile({
+        filename: ssclTestInvoiceFilename,
+        data: Buffer.from('invoices')
+      })
+    ).rejects.toMatchObject({ code: ssclErrorCodes.fileExists })
+
+    expect(server.namesIn(folders.push)).toEqual([ssclTestInvoiceFilename])
   })
 
   it('stops the pull when the connection drops, leaving the rest for later', async () => {
