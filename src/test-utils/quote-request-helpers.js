@@ -171,15 +171,16 @@ export const resendLink = async (params) => {
   }
 }
 
+const RETRIEVE_QUOTE_URL_PATTERN =
+  /https?:\/\/[^\s)\]>]*\/request-to-use\/retrieve\/[^\s)\]>]+/
+
 /**
  * The retrieve-quote magic link in the content of an email sent to Notify.
  * @param {string} content
  * @returns {string | undefined}
  */
 export const retrieveQuoteUrlFromEmailContent = (content) =>
-  content.match(
-    /https?:\/\/[^\s)\]>]*\/request-to-use\/retrieve\/[^\s)\]>]+/
-  )?.[0]
+  RETRIEVE_QUOTE_URL_PATTERN.exec(content)?.[0]
 
 /**
  * The raw token in the magic link of the most recent mocked Notify email.
