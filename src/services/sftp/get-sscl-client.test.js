@@ -131,15 +131,16 @@ describe('assertSsclConfig', () => {
     await expect(assertSsclConfig()).resolves.toBeUndefined()
   })
 
-  it('requires the MOVEit settings when the test route uses MOVEit', async () => {
-    loadUsableMoveitTestConfig({ keys })
-    config.set(testEnabledKey, true)
-    config.set('sscl.sftp.pullFolder', '')
+  it.each(requiredKeys)(
+    'fails at startup when the test route is on and %s is not set',
+    async (key) => {
+      loadUsableMoveitTestConfig({ keys })
+      config.set(testEnabledKey, true)
+      config.set(key, '')
 
-    await expect(assertSsclConfig()).rejects.toThrow(
-      'sscl.sftp.pullFolder is not set'
-    )
-  })
+      await expect(assertSsclConfig()).rejects.toThrow(`${key} is not set`)
+    }
+  )
 
   it.each([
     ['sscl.sftp.hostKey', 'SFTP host key'],
@@ -158,6 +159,7 @@ describe('assertSsclConfig', () => {
 
       await expect(failure).rejects.toThrow(`${key} is not a valid ${what}`)
       await expect(failure).rejects.not.toThrow('not a key at all')
+      await expect(failure).rejects.not.toThrow(junk)
     }
   )
 
