@@ -1,6 +1,11 @@
 import * as openpgp from 'openpgp'
 
-import { decryptAndVerify, encryptAndSign, pgpKeyFingerprint } from './pgp.js'
+import {
+  assertPgpPrivateKeyUnlocks,
+  decryptAndVerify,
+  encryptAndSign,
+  pgpKeyFingerprint
+} from './pgp.js'
 import { generatePgpTestKeys } from '../../../test-utils/pgp-test-keys.js'
 
 const plaintextContent = 'NRF test file\n'
@@ -134,6 +139,37 @@ describe('pgp', () => {
         passphrase: 'wrong'
       })
     ).rejects.toThrow(/Incorrect key passphrase/)
+  })
+
+  it('accepts the passphrase that opens the private key', async () => {
+    await expect(
+      assertPgpPrivateKeyUnlocks({
+        privateKey: keys.nrf.privateKey,
+        passphrase: keys.nrf.passphrase
+      })
+    ).resolves.toBeUndefined()
+  })
+
+  it('rejects a passphrase that does not open the private key', async () => {
+    await expect(
+      assertPgpPrivateKeyUnlocks({
+        privateKey: keys.nrf.privateKey,
+        passphrase: 'wrong'
+      })
+    ).rejects.toThrow(/Incorrect key passphrase/)
+  })
+
+  it('uses a private key that has no passphrase as it is', async () => {
+    const { privateKey } = await openpgp.generateKey({
+      type: 'ecc',
+      curve: 'curve25519Legacy',
+      userIDs: [{ name: 'No passphrase' }],
+      format: 'armored'
+    })
+
+    await expect(
+      assertPgpPrivateKeyUnlocks({ privateKey, passphrase: '' })
+    ).resolves.toBeUndefined()
   })
 
   it('gives a private key and its public key the same fingerprint', async () => {
