@@ -1,7 +1,7 @@
 import net from 'node:net'
 
 import { startEchoServer } from './echo-server.js'
-import { exchangeOverTcp as exchange } from './net-test-helpers.js'
+import { exchangeOverTcp as exchange, waitUntil } from './net-test-helpers.js'
 import { startTcpForwarder } from './tcp-forwarder.js'
 
 describe('startTcpForwarder', () => {
@@ -22,9 +22,14 @@ describe('startTcpForwarder', () => {
   })
 
   it('forwards both ways when no fault is set', async () => {
-    const { received } = await exchange({ port: forwarder.port, text: 'hello' })
+    const { received } = await exchange({
+      port: forwarder.port,
+      text: 'hello',
+      until: (soFar) => soFar === 'hello'
+    })
 
     expect(received).toBe('hello')
+    expect(forwarder.droppedBytes()).toBe(0)
   })
 
   it('closes the connection once the bytes pass the limit when told to cut', async () => {
@@ -56,7 +61,8 @@ describe('startTcpForwarder', () => {
 
     const { received, closed } = await exchange({
       port: forwarder.port,
-      text: 'hello'
+      text: 'hello',
+      until: () => forwarder.droppedBytes() === 'hello'.length
     })
 
     expect(received).toBe('')
@@ -79,14 +85,16 @@ describe('startTcpForwarder', () => {
     const socket = net.connect(forwarder.port, '127.0.0.1')
     let received = ''
     socket.on('data', (chunk) => (received += chunk.toString()))
-    await new Promise((resolve) => socket.once('connect', resolve))
     socket.write('one')
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await waitUntil({ check: () => received === 'one' })
 
     forwarder.blackholeOpenConnections()
     socket.write('two')
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    const dropped = await waitUntil({
+      check: () => forwarder.droppedBytes() === 'two'.length
+    })
 
+    expect(dropped).toBe(true)
     expect(received).toBe('one')
     expect(socket.destroyed).toBe(false)
     socket.destroy()
@@ -96,7 +104,11 @@ describe('startTcpForwarder', () => {
     forwarder.setFault({ afterBytes: 3, action: 'cut' })
 
     await exchange({ port: forwarder.port, text: 'hello' })
-    const { received } = await exchange({ port: forwarder.port, text: 'again' })
+    const { received } = await exchange({
+      port: forwarder.port,
+      text: 'again',
+      until: (soFar) => soFar === 'again'
+    })
 
     expect(received).toBe('again')
   })

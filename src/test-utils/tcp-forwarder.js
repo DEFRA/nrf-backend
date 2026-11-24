@@ -23,6 +23,7 @@ export async function startTcpForwarder({ targetHost, targetPort }) {
   /** @type {ForwarderFault | undefined} */
   let fault
   let faultyConnectionsLeft = 0
+  let droppedBytes = 0
 
   const track = (socket) => {
     sockets.add(socket)
@@ -58,12 +59,14 @@ export async function startTcpForwarder({ targetHost, targetPort }) {
         (connectionFault.direction ?? 'upstream') === direction
       from.on('data', function forwardChunk(chunk) {
         if (state.blackholed) {
+          droppedBytes += chunk.length
           return
         }
         if (faulty) {
           bytesSeen += chunk.length
           if (bytesSeen > connectionFault.afterBytes) {
             applyFault()
+            droppedBytes += chunk.length
             return
           }
         }
@@ -91,6 +94,8 @@ export async function startTcpForwarder({ targetHost, targetPort }) {
     port: server.address().port,
     /** Sockets still open, client and upstream sides together. */
     openSockets: () => sockets.size,
+    /** Bytes that arrived but were not forwarded, over every connection. */
+    droppedBytes: () => droppedBytes,
     /** Stops forwarding on every open connection, leaving them open. */
     blackholeOpenConnections() {
       connections.forEach((state) => (state.blackholed = true))

@@ -1,25 +1,40 @@
 import net from 'node:net'
 
 /**
- * Sends text over TCP and collects what comes back until the socket closes or
- * waitMs passes.
- * @param {{ port: number, text: string, waitMs?: number }} params
+ * Sends text over TCP and collects what comes back. Stops when the socket
+ * closes, when until() says enough has happened, or when waitMs passes.
+ * @param {{ port: number, text: string, until?: (received: string) => boolean, waitMs?: number }} params
+ *   until is given what has come back so far; waitMs is a backstop, so pass
+ *   until whenever the connection is expected to stay open
  * @returns {Promise<{ received: string, closed: boolean }>}
  */
-export const exchangeOverTcp = ({ port, text, waitMs = 200 }) =>
+export const exchangeOverTcp = ({
+  port,
+  text,
+  until = () => false,
+  waitMs = 2000
+}) =>
   new Promise((resolve) => {
     const socket = net.connect(port, '127.0.0.1')
     let received = ''
+    const finish = (closed) => {
+      clearInterval(poll)
+      clearTimeout(backstop)
+      resolve({ received, closed })
+      socket.destroy()
+    }
+    const poll = setInterval(function checkUntil() {
+      if (until(received)) {
+        finish(false)
+      }
+    }, 10)
+    const backstop = setTimeout(() => finish(false), waitMs)
     socket.on('data', (chunk) => {
       received += chunk.toString()
     })
     socket.on('error', () => {})
-    socket.on('close', () => resolve({ received, closed: true }))
+    socket.on('close', () => finish(true))
     socket.on('connect', () => socket.write(text))
-    setTimeout(function onWaited() {
-      resolve({ received, closed: false })
-      socket.destroy()
-    }, waitMs)
   })
 
 /**
