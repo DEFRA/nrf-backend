@@ -33,20 +33,14 @@ describe('sendQuoteEmail', () => {
     requestToUseLink
   }
 
-  it('calls sendEmail with the correct arguments', async () => {
+  it('calls sendEmail with the built email and the correct arguments', async () => {
     await sendQuoteEmail(baseArgs)
     expect(sendEmail).toHaveBeenCalledWith({
       recipientEmailAddress,
       emailReference: nrfQuoteReference,
       emailBodyVariables: {
-        nrfQuoteReference,
-        edpNames: 'Norfolk Fens east',
-        housingUnits,
-        planningType: 'full planning permission',
-        levyAmount: '£1,100',
-        levyAmountInflationAdjusted: '£1,122.50',
-        nrfServiceUrl,
-        requestToUseLink
+        subject: expect.any(String),
+        content: expect.stringContaining(nrfQuoteReference)
       },
       templateId: expect.any(String)
     })
@@ -69,40 +63,8 @@ describe('sendQuoteEmail', () => {
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         emailReference: `${nrfQuoteReference}-retry-1`,
-        emailBodyVariables: expect.objectContaining({ nrfQuoteReference })
-      })
-    )
-  })
-
-  it('lists multiple EDP names', async () => {
-    const args = {
-      ...baseArgs,
-      edps: [
-        {
-          edpName: 'One',
-          levyGbp: {
-            amountExcludingVat: 1100,
-            amountInflationAdjusted: 1122,
-            baseAmount: 1000,
-            modelVersion: 1
-          }
-        },
-        {
-          edpName: 'Two',
-          levyGbp: {
-            amountExcludingVat: 1100,
-            amountInflationAdjusted: 1122,
-            baseAmount: 1000,
-            modelVersion: 1
-          }
-        }
-      ]
-    }
-    await sendQuoteEmail(args)
-    expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({
         emailBodyVariables: expect.objectContaining({
-          edpNames: 'One, Two'
+          content: expect.stringContaining(nrfQuoteReference)
         })
       })
     )

@@ -19,9 +19,15 @@ describe('sendRetrieveQuoteEmail', () => {
 
     expect(sendEmail).toHaveBeenCalledWith({
       recipientEmailAddress,
-      emailBodyVariables: { retrieveQuoteUrl, nrfQuoteReference },
+      emailBodyVariables: {
+        subject: expect.any(String),
+        content: expect.stringContaining(retrieveQuoteUrl)
+      },
       templateId: config.get('notify.templateIds.retrieveQuote')
     })
+    expect(sendEmail.mock.calls[0][0].emailBodyVariables.content).toContain(
+      `NRL reference: ${nrfQuoteReference}`
+    )
   })
 
   it('returns the result of the send', async () => {

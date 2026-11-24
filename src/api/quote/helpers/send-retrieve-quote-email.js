@@ -1,5 +1,6 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
+import { buildRetrieveQuoteEmailContent } from './build-retrieve-quote-email-content.js'
 
 /**
  * Sends the retrieve your quote email containing the magic link.
@@ -9,6 +10,10 @@ import { config } from '../../../config.js'
  * for one quote, so there is no per-quote value that would stay unique.
  * Persisting that id against the quote is the caller's responsibility, as it is
  * for the quote email.
+ *
+ * The Notify template only passes the email through: its subject and content
+ * come from buildRetrieveQuoteEmailContent, so the copy changes with the code
+ * and never in the Notify console.
  *
  * @param {object} params
  * @param {string} params.recipientEmailAddress
@@ -24,7 +29,10 @@ export const sendRetrieveQuoteEmail = async ({
   const { templateIds } = config.get('notify')
   return sendEmail({
     recipientEmailAddress,
-    emailBodyVariables: { retrieveQuoteUrl, nrfQuoteReference },
+    emailBodyVariables: buildRetrieveQuoteEmailContent({
+      retrieveQuoteUrl,
+      nrfQuoteReference
+    }),
     templateId: templateIds.retrieveQuote
   })
 }
