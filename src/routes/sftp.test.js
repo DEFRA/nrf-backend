@@ -1,3 +1,4 @@
+import { createLogger } from '../common/helpers/logging/logger.js'
 import { config } from '../config.js'
 import { resetSsclClient } from '../services/sftp/get-sscl-client.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
@@ -19,7 +20,8 @@ import {
   namesInSftpTestFolder,
   putInSftpTestFolder,
   sftpRouteTestFolders as folders,
-  sftpTestHookTimeoutMs
+  sftpTestHookTimeoutMs,
+  sftpTestUsers
 } from '../test-utils/sftp-test-server.js'
 
 const testFilePath = '/sftp/test-file'
@@ -45,6 +47,22 @@ describe('POST /sftp/test-file', { timeout: 30000 }, () => {
   }, sftpTestHookTimeoutMs)
 
   const getServer = setupTestServer()
+
+  it('logs a connection as the push user and as the pull user', async () => {
+    const info = vi.spyOn(createLogger(), 'info')
+    try {
+      await getServer().inject({ method: 'POST', url: testFilePath })
+
+      const connectedAs = info.mock.calls
+        .filter(([, message]) => message === 'SFTP connected')
+        .map(([context]) => context.sftp.username)
+      expect(new Set(connectedAs)).toEqual(
+        new Set([sftpTestUsers.push, sftpTestUsers.pull])
+      )
+    } finally {
+      info.mockRestore()
+    }
+  })
 
   it('pushes a test file SSCL accepts, lists it and pulls the reply waiting for NRF', async () => {
     const reply = await buildReply({
