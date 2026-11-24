@@ -1,8 +1,6 @@
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
-import { getLevyAmount } from './get-levy-amount.js'
-import { getPlanningTypeDisplay } from './get-planning-type-display.js'
-import { formatCurrency } from '@defra/nrf-library'
+import { buildQuoteEmailContent } from './build-quote-email-content.js'
 
 /**
  * Send a quote result email via GOV.UK Notify. Recording the notification id
@@ -12,12 +10,16 @@ import { formatCurrency } from '@defra/nrf-library'
  * persistence out of here means one helper is not tied to one persistence
  * shape.
  *
+ * The Notify template only passes the email through: its subject and content
+ * come from buildQuoteEmailContent, so the copy changes with the code and
+ * never in the Notify console.
+ *
  * @param {object} params
  * @param {string} params.recipientEmailAddress
  * @param {string} params.nrfQuoteReference
  * @param {string} [params.emailReference=nrfQuoteReference] - Notify dedup/reference key for the send; retries pass a suffixed value so a re-send can never be deduplicated against an earlier attempt
  * @param {string} params.nrfServiceUrl
- * @param {Array<{edpName: string, levyGbp: {amountExcludingVat: number, amountInflationAdjusted: number, baseAmount: number, modelVersion: number}}>} params.edps
+ * @param {import('./build-quote-email-content.js').QuoteEmailEdp[]} params.edps
  * @param {number} params.housingUnits
  * @param {string} params.planningType
  * @param {string} params.requestToUseLink
@@ -34,25 +36,17 @@ export const sendQuoteEmail = async ({
   requestToUseLink
 }) => {
   const { templateIds } = config.get('notify')
-  const { levyAmountExcludingVat, levyAmountInflationAdjusted } =
-    getLevyAmount(edps)
   return sendEmail({
     recipientEmailAddress,
     emailReference,
-    emailBodyVariables: {
+    emailBodyVariables: buildQuoteEmailContent({
       nrfQuoteReference,
-      edpNames: edps.map(({ edpName }) => edpName).join(', '),
-      housingUnits,
-      planningType: getPlanningTypeDisplay(planningType),
-      levyAmount: formatCurrency(levyAmountExcludingVat, {
-        hideZeroPence: true
-      }),
-      levyAmountInflationAdjusted: formatCurrency(levyAmountInflationAdjusted, {
-        hideZeroPence: true
-      }),
       nrfServiceUrl,
+      edps,
+      housingUnits,
+      planningType,
       requestToUseLink
-    },
+    }),
     templateId: templateIds.quote
   })
 }

@@ -68,7 +68,10 @@ describe('Patch quote endpoint', () => {
     })
 
     const emailOptions = notifySendEmail.mock.calls[0][2]
-    expect(emailOptions.personalisation.requestToUseLink).toMatch(
+    const requestToUseLink = emailOptions.personalisation.content.match(
+      /https?:\/\/[^\s)\]>]*\/request-to-use\/enter-nrl-reference\?[^\s)\]>]+/
+    )?.[0]
+    expect(requestToUseLink).toMatch(
       new RegExp(
         `/request-to-use/enter-nrl-reference\\?nrlReference=${reference}$`
       )

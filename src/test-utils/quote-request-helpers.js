@@ -172,12 +172,24 @@ export const resendLink = async (params) => {
 }
 
 /**
+ * The retrieve-quote magic link in the content of an email sent to Notify.
+ * @param {string} content
+ * @returns {string | undefined}
+ */
+export const retrieveQuoteUrlFromEmailContent = (content) =>
+  content.match(
+    /https?:\/\/[^\s)\]>]*\/request-to-use\/retrieve\/[^\s)\]>]+/
+  )?.[0]
+
+/**
  * The raw token in the magic link of the most recent mocked Notify email.
  * @param {import('vitest').Mock} notifySendEmail
  */
 export const tokenFromLastEmail = (notifySendEmail) => {
   const [, , options] = notifySendEmail.mock.calls.at(-1)
-  return options.personalisation.retrieveQuoteUrl.split('/').pop()
+  return retrieveQuoteUrlFromEmailContent(options.personalisation.content)
+    .split('/')
+    .pop()
 }
 
 export const getAccessTokenRowsForReference = async ({ server, reference }) => {

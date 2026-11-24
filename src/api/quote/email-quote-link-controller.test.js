@@ -8,7 +8,8 @@ import {
   redeemToken,
   sendEmailQuoteLinkRequest,
   getAccessTokenRowsForReference,
-  getEmailNotificationRowsForReference
+  getEmailNotificationRowsForReference,
+  tokenFromLastEmail
 } from '../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../services/send-email/notify-client.js')
@@ -33,11 +34,6 @@ describe('Email quote link endpoint', () => {
   const emailQuoteLink = (params) =>
     sendEmailQuoteLinkRequest({ server: getServer(), ...params })
 
-  const tokenFromEmail = () => {
-    const [, , options] = notifySendEmail.mock.calls.at(-1)
-    return options.personalisation.retrieveQuoteUrl.split('/').pop()
-  }
-
   describe('when the reference and email match a quote', () => {
     it('reports a match and emails a magic link using the retrieve template', async () => {
       const reference = await createQuoteReference()
@@ -50,10 +46,17 @@ describe('Email quote link endpoint', () => {
       const [templateId, recipient, options] = notifySendEmail.mock.calls[0]
       expect(templateId).toBe(config.get('notify.templateIds.retrieveQuote'))
       expect(recipient).toBe(OWNER_EMAIL)
-      expect(options.personalisation.retrieveQuoteUrl).toContain(
+      // The two placeholders the Notify template declares: no more, no fewer
+      expect(Object.keys(options.personalisation).toSorted()).toEqual([
+        'content',
+        'subject'
+      ])
+      expect(options.personalisation.content).toContain(
         `/request-to-use/retrieve/${reference}/`
       )
-      expect(options.personalisation.nrfQuoteReference).toBe(reference)
+      expect(options.personalisation.content).toContain(
+        `NRL reference: ${reference}`
+      )
     })
 
     it('matches the email ignoring case', async () => {
@@ -71,7 +74,7 @@ describe('Email quote link endpoint', () => {
       const reference = await createQuoteReference()
 
       await emailQuoteLink({ reference, email: OWNER_EMAIL })
-      const token = tokenFromEmail()
+      const token = tokenFromLastEmail(notifySendEmail)
       const params = { server: getServer(), reference, token }
 
       expect((await redeemToken(params)).accessStatus).toBe('valid')

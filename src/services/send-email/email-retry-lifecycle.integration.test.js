@@ -11,7 +11,8 @@ import { setupTestServer } from '../../test-utils/setup-test-server.js'
 import {
   createQuote,
   redeemToken,
-  sendEmailQuoteLinkRequest
+  sendEmailQuoteLinkRequest,
+  tokenFromLastEmail
 } from '../../test-utils/quote-request-helpers.js'
 import { EMAIL_TYPE_RETRIEVE_QUOTE_LINK } from '../../common/constants/email-type.js'
 
@@ -112,10 +113,10 @@ describe('retrieve quote link retry lifecycle with a real database', () => {
     // the retry send went out on the retrieve template with a fresh token
     expect(notifySendEmail).toHaveBeenCalledTimes(2)
     const retryOptions = notifySendEmail.mock.calls.at(-1)[2]
-    const retryToken = retryOptions.personalisation.retrieveQuoteUrl
-      .split('/')
-      .pop()
-    expect(retryOptions.personalisation.nrfQuoteReference).toBe(reference)
+    const retryToken = tokenFromLastEmail(notifySendEmail)
+    expect(retryOptions.personalisation.content).toContain(
+      `NRL reference: ${reference}`
+    )
     expect(
       (await redeemToken({ server, reference, token: retryToken })).accessStatus
     ).toBe('valid')

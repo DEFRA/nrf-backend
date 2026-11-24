@@ -50,10 +50,17 @@ describe('Resend quote link endpoint', () => {
       const [templateId, recipient, options] = notifySendEmail.mock.calls[0]
       expect(templateId).toBe(config.get('notify.templateIds.retrieveQuote'))
       expect(recipient).toBe(OWNER_EMAIL)
-      expect(options.personalisation.retrieveQuoteUrl).toContain(
+      // The two placeholders the Notify template declares: no more, no fewer
+      expect(Object.keys(options.personalisation).toSorted()).toEqual([
+        'content',
+        'subject'
+      ])
+      expect(options.personalisation.content).toContain(
         `/request-to-use/retrieve/${reference}/`
       )
-      expect(options.personalisation.nrfQuoteReference).toBe(reference)
+      expect(options.personalisation.content).toContain(
+        `NRL reference: ${reference}`
+      )
     })
 
     it('issues a new token that the emailed link redeems', async () => {

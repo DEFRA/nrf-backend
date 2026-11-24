@@ -156,15 +156,15 @@ const config = convict({
     },
     templateIds: {
       quote: {
-        doc: 'Notify template ID for quote email',
+        doc: 'Notify template ID for the quote email. The template only passes through the subject and Markdown content the backend builds, so the copy changes with a backend deploy and never in the Notify console',
         format: String,
-        default: 'f6a9c35d-f189-452a-80f6-bc05bf00b11c',
+        default: 'f7ebb3da-bfb0-40c9-b23d-b77c031117bf',
         env: 'NOTIFY_TEMPLATE_ID_QUOTE'
       },
       retrieveQuote: {
-        doc: 'Notify template ID for the retrieve your quote email containing the magic link',
+        doc: 'Notify template ID for the retrieve your quote email containing the magic link. The template only passes through the subject and Markdown content the backend builds, so the copy changes with a backend deploy and never in the Notify console',
         format: String,
-        default: 'e615fe0a-9d07-4caf-8bb4-6ecce120203e',
+        default: '4dbda9d8-cec0-456b-b8c3-6c4c170d94c9',
         env: 'NOTIFY_TEMPLATE_ID_RETRIEVE_QUOTE'
       }
     },

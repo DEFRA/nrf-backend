@@ -3,6 +3,7 @@ import { hashToken } from '../../../common/helpers/token/hash-token.js'
 import { dbIssueQuoteAccessToken } from '../../../services/db/quote-access-tokens/issue-quote-access-token.js'
 import { sendEmail } from '../../../services/send-email/send-email-client.js'
 import { config } from '../../../config.js'
+import { retrieveQuoteUrlFromEmailContent } from '../../../test-utils/quote-request-helpers.js'
 
 vi.mock('../../../services/db/quote-access-tokens/issue-quote-access-token.js')
 // The Notify boundary is mocked rather than the neighbouring
@@ -34,7 +35,10 @@ describe('sendRetrieveQuoteEmailWithFreshToken', () => {
     await sendRetrieveQuoteEmailWithFreshToken({ db: {}, quote })
 
     const sendArgs = sendEmail.mock.calls[0][0]
-    const rawFromUrl = sendArgs.emailBodyVariables.retrieveQuoteUrl.match(
+    const retrieveQuoteUrl = retrieveQuoteUrlFromEmailContent(
+      sendArgs.emailBodyVariables.content
+    )
+    const rawFromUrl = retrieveQuoteUrl.match(
       new RegExp(
         `${config.get('frontEndBaseUrl')}/request-to-use/retrieve/${QUOTE_REFERENCE}/(.+)$`
       )
@@ -50,22 +54,24 @@ describe('sendRetrieveQuoteEmailWithFreshToken', () => {
       quoteId: 42,
       tokenHash: hashToken(rawFromUrl)
     })
-    expect(sendArgs.emailBodyVariables.retrieveQuoteUrl).toEqual(
+    expect(retrieveQuoteUrl).toEqual(
       expect.stringMatching(
         new RegExp(`/request-to-use/retrieve/${QUOTE_REFERENCE}/`)
       )
     )
-    expect(sendArgs.emailBodyVariables.nrfQuoteReference).toBe(QUOTE_REFERENCE)
+    expect(sendArgs.emailBodyVariables.content).toContain(
+      `NRL reference: ${QUOTE_REFERENCE}`
+    )
   })
 
   it('issues a different token on each call, expiring any earlier live one', async () => {
     await sendRetrieveQuoteEmailWithFreshToken({ db: {}, quote })
     await sendRetrieveQuoteEmailWithFreshToken({ db: {}, quote })
 
-    const [firstSend, secondSend] = sendEmail.mock.calls.map(
-      (call) => call[0].emailBodyVariables.retrieveQuoteUrl
+    const [firstUrl, secondUrl] = sendEmail.mock.calls.map((call) =>
+      retrieveQuoteUrlFromEmailContent(call[0].emailBodyVariables.content)
     )
-    expect(firstSend).not.toBe(secondSend)
+    expect(firstUrl).not.toBe(secondUrl)
   })
 
   it('returns the result of the send, including null when Notify rejected it', async () => {
