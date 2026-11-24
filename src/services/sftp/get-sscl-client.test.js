@@ -11,6 +11,8 @@ import {
   wrapBase64
 } from '../../test-utils/sscl-test-helpers.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
+import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
+import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
 
 const testEnabledKey = 'sscl.testEnabled'
 
@@ -52,6 +54,20 @@ describe('getSsclClient', () => {
     const second = await getSsclClient()
 
     expect(second).toBe(first)
+  })
+
+  it('gives the client the file size limit from config', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set('sscl.maxFileBytes', 10)
+
+    const client = await getSsclClient()
+
+    await expect(
+      client.pushFile({
+        filename: ssclTestInvoiceFilename,
+        data: Buffer.from('more than ten bytes once encrypted')
+      })
+    ).rejects.toMatchObject({ code: ssclErrorCodes.pushTooLarge })
   })
 
   it('refuses the test route in prod, even without the plugin', async () => {
