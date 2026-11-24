@@ -25,6 +25,11 @@ export const disconnectLimitMs = 5000
  */
 export const minBytesPerSecond = 100 * 1024
 
+const msPerSecond = 1000
+
+/** Random bytes in a partial upload's name, so two uploads never share one. */
+const partialIdBytes = 4
+
 /**
  * @typedef {object} SftpConnectionSettings
  * @property {string} host
@@ -89,7 +94,7 @@ const fileExistsError = (filename) =>
  * @param {{ timeoutMs: number, bytes: number }} params
  */
 export const transferTimeoutMs = ({ timeoutMs, bytes }) =>
-  timeoutMs + Math.ceil((bytes / minBytesPerSecond) * 1000)
+  timeoutMs + Math.ceil((bytes / minBytesPerSecond) * msPerSecond)
 
 /**
  * Runs an SFTP operation within a time limit, failing with a timeout error.
@@ -137,12 +142,19 @@ const connectDirect = ({ host, port, timeoutMs }) =>
  * Opens the TCP connection ourselves, directly or through the proxy, so a
  * timeout can close it: ssh2's own end() does nothing once the socket is
  * ending, and would let an upload or rename finish after we gave up on it.
+ *
+ * Turns off Nagle's algorithm, as SSH clients do. Without its native add-on
+ * (not built in our image) ssh2 sends each packet as several small writes, and
+ * on Linux Nagle's algorithm then holds each packet back for about 40 ms.
  * @param {SftpConnectionSettings} settings
  */
-const openSocket = ({ proxyUrl, host, port, timeoutMs }) =>
-  proxyUrl
+const openSocket = async ({ proxyUrl, host, port, timeoutMs }) => {
+  const socket = await (proxyUrl
     ? openProxyTunnel({ proxyUrl, host, port, timeoutMs })
-    : connectDirect({ host, port, timeoutMs })
+    : connectDirect({ host, port, timeoutMs }))
+  socket.setNoDelay(true)
+  return socket
+}
 
 /**
  * @param {{ settings: SftpConnectionSettings, socket: net.Socket }} params
@@ -329,7 +341,7 @@ const createSession = ({ connection, timeoutMs, leftovers }) => {
     stat: (ref) =>
       timed({ name: 'stat', operation: () => statFile({ client, ref }) }),
     async upload(file) {
-      const partialName = `${file.filename}.${randomBytes(4).toString('hex')}${partialSuffix}`
+      const partialName = `${file.filename}.${randomBytes(partialIdBytes).toString('hex')}${partialSuffix}`
       /** @type {UploadState} */
       const state = { partialLeft: false }
       try {

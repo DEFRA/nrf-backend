@@ -104,6 +104,18 @@ describe('withSftpSession', () => {
     expect(options.hostVerifier(otherBlob)).toBe(false)
   })
 
+  it("turns off Nagle's algorithm on the connection, so SSH packets are not held back", async () => {
+    const setNoDelay = vi.spyOn(net.Socket.prototype, 'setNoDelay')
+    try {
+      await inSession((session) => session.list(folder))
+
+      const call = setNoDelay.mock.contexts.indexOf(connectOptions().sock)
+      expect(setNoDelay.mock.calls[call]).toEqual([true])
+    } finally {
+      setNoDelay.mockRestore()
+    }
+  })
+
   it('runs every operation over one connection, then disconnects', async () => {
     await inSession(async (session) => {
       await session.list(folder)
