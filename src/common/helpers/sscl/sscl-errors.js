@@ -21,7 +21,9 @@ export const ssclError = ({ code, message }) =>
 const sftpNoSuchFile = 2
 // SSH_FX_NO_CONNECTION and SSH_FX_CONNECTION_LOST: numeric, but about the
 // connection, not the request.
-const sftpConnectionCodes = new Set([6, 7])
+const sftpNoConnection = 6
+const sftpConnectionLost = 7
+const sftpConnectionCodes = new Set([sftpNoConnection, sftpConnectionLost])
 
 const fileLevelSsclCodes = new Set([
   ssclErrorCodes.fileTooLarge,

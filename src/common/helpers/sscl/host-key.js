@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto'
 
 const fingerprintPrefix = 'SHA256:'
 
+// OpenSSH writes the fingerprint without base64 padding, and '=' appears in
+// base64 only as padding.
 const fingerprintOf = (keyBlob) =>
   fingerprintPrefix +
-  createHash('sha256').update(keyBlob).digest('base64').replace(/=+$/, '')
+  createHash('sha256').update(keyBlob).digest('base64').replaceAll('=', '')
 
 /**
  * The base64 key lines of an RFC 4716 block, skipping the BEGIN/END markers

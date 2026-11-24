@@ -39,7 +39,9 @@ const refusal = ({ statusCode, statusLine }) =>
     ? new Error(`Proxy sent an unexpected response: ${statusLine}`)
     : new Error(`Proxy refused tunnel (${statusCode})`)
 
-const defaultPorts = { 'http:': 80, 'https:': 443 }
+const httpPort = 80
+const httpsPort = 443
+const defaultPorts = { 'http:': httpPort, 'https:': httpsPort }
 
 /**
  * The proxy's host and port. Refuses credentials in the URL, since the
@@ -54,7 +56,7 @@ const proxyAddress = (proxyUrl) => {
   }
   return {
     host: proxy.hostname,
-    port: Number(proxy.port || defaultPorts[proxy.protocol] || 80)
+    port: Number(proxy.port || defaultPorts[proxy.protocol] || httpPort)
   }
 }
 
