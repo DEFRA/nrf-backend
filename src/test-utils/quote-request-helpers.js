@@ -171,7 +171,7 @@ export const resendLink = async (params) => {
   }
 }
 
-const MARKDOWN_LINK_PATTERN = /\[[^\]]+\]\(([^)\s]+)\)/g
+const MARKDOWN_LINK_PATTERN = /\]\(([^()\s]+)\)/g
 
 /**
  * The URL of every Markdown link in the content of an email sent to Notify.
