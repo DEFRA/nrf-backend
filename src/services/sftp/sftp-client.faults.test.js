@@ -80,6 +80,30 @@ describe(
       }
     })
 
+    it('uploads a file under its final name and downloads its content', async () => {
+      const downloaded = await inSession(async (session) => {
+        await session.upload({ folder, filename, data })
+        return session.download({ folder, filename, maxBytes: 100 })
+      })
+
+      expect(server.namesIn(folder)).toEqual([filename])
+      expect(downloaded).toEqual(data)
+    })
+
+    it('removes a file, and succeeds when the file is already gone', async () => {
+      server.putFile({ folder, filename, data })
+
+      const namesAfterFirstRemove = await inSession(async (session) => {
+        await session.remove({ folder, filename })
+        const names = server.namesIn(folder)
+        await session.remove({ folder, filename })
+        return names
+      })
+
+      expect(namesAfterFirstRemove).toEqual([])
+      expect(server.namesIn(folder)).toEqual([])
+    })
+
     it('closes the connection as soon as a stalled download times out', async () => {
       server.putFile({ folder, filename, data })
       server.setFault(({ operation }) =>
