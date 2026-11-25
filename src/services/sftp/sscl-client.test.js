@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import ssh2 from 'ssh2'
 
 import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
 import {
@@ -6,19 +7,20 @@ import {
   overridePullSession,
   pulledStatuses,
   pullFolderNames,
+  ssclTestLimits,
   withCode
 } from '../../test-utils/sscl-test-helpers.js'
 import { partialSuffix } from './partial-suffix.js'
 import { createInMemorySsclClient } from '../../test-utils/in-memory-sscl.js'
-import {
-  buildReply,
-  fakeSsclReplyFaults,
-  receivePushedFile
-} from '../../test-utils/fake-sscl.js'
+import { buildReply, fakeSsclReplyFaults } from '../../test-utils/fake-sscl.js'
+import { receiveAsFakeSscl } from '../../test-utils/fake-sscl-test-helpers.js'
 import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyFilename as replyFilename,
-  ssclTestInvoiceFilename
+  ssclTestGarbageFile as garbageFile,
+  ssclTestGarbageFirstFile as garbageFirstFile,
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText as invoiceText
 } from '../../test-utils/fixtures/sscl.js'
 
 const mockLogger = vi.hoisted(() => ({
@@ -30,9 +32,7 @@ vi.mock('../../common/helpers/logging/logger.js', () => ({
   createLogger: () => mockLogger
 }))
 
-const garbageFilename = 'unsigned.pgp'
-/** Sorts before the startup reply, so it takes the first slot of a pull. */
-const garbageFirstFilename = 'a_garbage.pgp'
+const { STATUS_CODE } = ssh2.utils.sftp
 
 describe('SSCL client', () => {
   let sscl
@@ -42,19 +42,7 @@ describe('SSCL client', () => {
     ;({ sscl, client } = await createInMemorySsclClient())
   })
 
-  /** Puts a second good reply in the pull folder and returns its name. */
-  const dropSecondReply = async () => {
-    const reply = await buildReply({
-      about: 'second',
-      time: fakeSsclReplyTime,
-      keys: sscl.fakeSsclKeys,
-      maxFileBytes: 1024 * 1024
-    })
-    sscl.dropInPullFolder(reply)
-    return reply.filename
-  }
-
-  it('hands a verified file to onFile, then removes it from the pull folder', async () => {
+  it('hands over a verified file to be stored, then removes it from the pull folder', async () => {
     const { stored, onFile } = collectPulledFiles()
 
     const result = await client.pullFiles({ onFile })
@@ -77,20 +65,19 @@ describe('SSCL client', () => {
   })
 
   it('leaves a file that fails verification without failing the others', async () => {
-    sscl.dropInPullFolder({
-      filename: garbageFilename,
-      data: Buffer.from('not pgp')
-    })
+    sscl.dropInPullFolder(garbageFile)
 
     const { files } = await client.pullFiles(collectPulledFiles())
 
     expect(files.map(({ filename, status }) => ({ filename, status }))).toEqual(
       [
         { filename: replyFilename, status: 'received' },
-        { filename: garbageFilename, status: 'unverified' }
+        { filename: garbageFile.filename, status: 'unverified' }
       ]
     )
-    expect(await pullFolderNames(sscl.transport)).toEqual([garbageFilename])
+    expect(await pullFolderNames(sscl.transport)).toEqual([
+      garbageFile.filename
+    ])
   })
 
   it.each([
@@ -101,7 +88,7 @@ describe('SSCL client', () => {
       about: 'faulty',
       time: fakeSsclReplyTime,
       keys: sscl.fakeSsclKeys,
-      maxFileBytes: 1024 * 1024,
+      maxFileBytes: ssclTestLimits.maxFileBytes,
       fault
     })
     sscl.dropInPullFolder(reply)
@@ -116,14 +103,13 @@ describe('SSCL client', () => {
   })
 
   it('logs the name, size and status of a file it could not verify', async () => {
-    const data = Buffer.from('not pgp')
-    sscl.dropInPullFolder({ filename: garbageFilename, data })
+    sscl.dropInPullFolder(garbageFile)
 
     await client.pullFiles(collectPulledFiles())
 
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.any(Error),
-      `SSCL file ${garbageFilename} (${data.length} bytes) not received: unverified`
+      `SSCL file ${garbageFile.filename} (${garbageFile.data.length} bytes) not received: unverified`
     )
   })
 
@@ -204,7 +190,7 @@ describe('SSCL client', () => {
   })
 
   it('stops pulling when the connection is lost, leaving the rest for later', async () => {
-    sscl.dropInPullFolder({ filename: garbageFilename, data: Buffer.from('x') })
+    sscl.dropInPullFolder(garbageFile)
     overridePullSession({
       transport: sscl.transport,
       overrides: { download: () => Promise.reject(new Error('ECONNRESET')) }
@@ -225,8 +211,8 @@ describe('SSCL client', () => {
   })
 
   it('counts a file that vanished before it was downloaded as gone, and carries on', async () => {
-    sscl.dropInPullFolder({ filename: garbageFilename, data: Buffer.from('x') })
-    const noSuchFile = withCode(2)
+    sscl.dropInPullFolder(garbageFile)
+    const noSuchFile = withCode(STATUS_CODE.NO_SUCH_FILE)
     overridePullSession({
       transport: sscl.transport,
       overrides: { download: () => Promise.reject(noSuchFile) }
@@ -239,8 +225,8 @@ describe('SSCL client', () => {
   })
 
   it('carries on when one file is not readable', async () => {
-    sscl.dropInPullFolder({ filename: garbageFilename, data: Buffer.from('x') })
-    const permissionDenied = withCode(3)
+    sscl.dropInPullFolder(garbageFile)
+    const permissionDenied = withCode(STATUS_CODE.PERMISSION_DENIED)
     overridePullSession({
       transport: sscl.transport,
       overrides: { download: () => Promise.reject(permissionDenied) }
@@ -256,7 +242,7 @@ describe('SSCL client', () => {
   })
 
   it('leaves out a file the sender is still uploading under a partial name', async () => {
-    const partial = `${garbageFilename}${partialSuffix}`
+    const partial = `${garbageFile.filename}${partialSuffix}`
     sscl.dropInPullFolder({ filename: partial, data: Buffer.from('half') })
     const pulledFiles = collectPulledFiles()
 
@@ -280,12 +266,12 @@ describe('SSCL client', () => {
   })
 
   it.each([
-    ['permission denied', 3],
-    ['failure', 4]
+    ['a permission error', STATUS_CODE.PERMISSION_DENIED],
+    ['a server failure', STATUS_CODE.FAILURE]
   ])(
-    'reports a stored file it could not remove (SFTP %s) and carries on',
+    'reports a stored file it could not remove because of %s, and carries on',
     async (_case, code) => {
-      const second = await dropSecondReply()
+      const { filename: second, names } = await sscl.dropSecondReply()
       const { withPullSession } = sscl.transport
       overridePullSession({
         transport: sscl.transport,
@@ -299,19 +285,18 @@ describe('SSCL client', () => {
 
       const result = await client.pullFiles(collectPulledFiles())
 
+      const statuses = { [second]: 'received', [replyFilename]: 'not-deleted' }
       expect(pulledStatuses(result)).toEqual(
-        [
-          [second, 'received'],
-          [replyFilename, 'not-deleted']
-        ].sort((a, b) => a[0].localeCompare(b[0]))
+        names.map((name) => [name, statuses[name]])
       )
       expect(result.notProcessed).toBe(0)
     }
   )
 
   it('stops pulling when removing a stored file loses the connection', async () => {
-    const second = await dropSecondReply()
-    const [first] = [replyFilename, second].sort((a, b) => a.localeCompare(b))
+    const {
+      names: [first]
+    } = await sscl.dropSecondReply()
     overridePullSession({
       transport: sscl.transport,
       overrides: { remove: () => Promise.reject(new Error('ECONNRESET')) }
@@ -327,33 +312,27 @@ describe('SSCL client', () => {
     ;({ sscl, client } = await createInMemorySsclClient({
       limits: { maxFilesPerRun: 1 }
     }))
-    sscl.dropInPullFolder({
-      filename: garbageFirstFilename,
-      data: Buffer.from('not pgp')
-    })
+    sscl.dropInPullFolder(garbageFirstFile)
 
     const first = await client.pullFiles(collectPulledFiles())
     const second = await client.pullFiles(collectPulledFiles())
 
     expect(pulledStatuses(first)).toEqual([
-      [garbageFirstFilename, 'unverified']
+      [garbageFirstFile.filename, 'unverified']
     ])
     expect(pulledStatuses(second)).toEqual([[replyFilename, 'received']])
     expect(second.notProcessed).toBe(1)
   })
 
   it('warns when a pull only retried files that failed before', async () => {
-    sscl.dropInPullFolder({
-      filename: garbageFirstFilename,
-      data: Buffer.from('not pgp')
-    })
+    sscl.dropInPullFolder(garbageFirstFile)
     await client.pullFiles(collectPulledFiles())
     mockLogger.warn.mockClear()
 
     const { files } = await client.pullFiles(collectPulledFiles())
 
     expect(pulledStatuses({ files })).toEqual([
-      [garbageFirstFilename, 'unverified']
+      [garbageFirstFile.filename, 'unverified']
     ])
     expect(mockLogger.warn).toHaveBeenCalledWith(
       { sscl: { retried: 1 } },
@@ -365,37 +344,32 @@ describe('SSCL client', () => {
     ;({ sscl, client } = await createInMemorySsclClient({
       limits: { maxFilesPerRun: 1 }
     }))
-    sscl.dropInPullFolder({
-      filename: garbageFirstFilename,
-      data: Buffer.from('not pgp')
-    })
+    sscl.dropInPullFolder(garbageFirstFile)
     await client.pullFiles(collectPulledFiles())
     sscl.dropInPullFolder({
-      filename: garbageFirstFilename,
+      ...garbageFirstFile,
       data: Buffer.from('not pgp either')
     })
 
     const { files } = await client.pullFiles(collectPulledFiles())
 
     expect(pulledStatuses({ files })).toEqual([
-      [garbageFirstFilename, 'unverified']
+      [garbageFirstFile.filename, 'unverified']
     ])
   })
 
   it('tries a file whose download timed out last on the next pull', async () => {
-    const second = await dropSecondReply()
-    const [first, later] = [replyFilename, second].sort((a, b) =>
-      a.localeCompare(b)
-    )
-    const { withPullSession } = sscl.transport
-    overridePullSession({
+    const {
+      names: [first, later]
+    } = await sscl.dropSecondReply()
+    const restorePullSession = overridePullSession({
       transport: sscl.transport,
       overrides: {
         download: () => Promise.reject(withCode(ssclErrorCodes.timeout))
       }
     })
     const timedOut = await client.pullFiles(collectPulledFiles())
-    sscl.transport.withPullSession = withPullSession
+    restorePullSession()
 
     const next = await client.pullFiles(collectPulledFiles())
 
@@ -406,8 +380,8 @@ describe('SSCL client', () => {
     ])
   })
 
-  it('counts a file that grew past the size limit after it was listed as changed, and carries on', async () => {
-    const second = await dropSecondReply()
+  it('counts a file that outgrew the size limit after listing as changed, and carries on', async () => {
+    const { names } = await sscl.dropSecondReply()
     overridePullSession({
       transport: sscl.transport,
       overrides: {
@@ -421,12 +395,10 @@ describe('SSCL client', () => {
       'changed',
       'changed'
     ])
-    expect(await pullFolderNames(sscl.transport)).toEqual(
-      [replyFilename, second].sort((a, b) => a.localeCompare(b))
-    )
+    expect(await pullFolderNames(sscl.transport)).toEqual(names)
   })
 
-  it('counts a file as not stored when onFile takes too long, and accepts the next pull', async () => {
+  it('counts a file as not stored when storing it takes too long, and accepts the next pull', async () => {
     const { files } = await client.pullFiles({
       onFile: () => new Promise(() => {}),
       storeTimeoutMs: 20
@@ -439,9 +411,12 @@ describe('SSCL client', () => {
     )
   })
 
-  it('hands onFile the sha256 of the file as it is in the pull folder', async () => {
+  it('hands over the checksum of the file as it is in the pull folder', async () => {
     const [listed] = await sscl.transport.withPullSession(async (session) => [
-      await session.download({ filename: replyFilename, maxBytes: 1024 * 1024 })
+      await session.download({
+        filename: replyFilename,
+        maxBytes: ssclTestLimits.maxFileBytes
+      })
     ])
     const { stored, onFile } = collectPulledFiles()
 
@@ -452,32 +427,30 @@ describe('SSCL client', () => {
     )
   })
 
-  it('accepts the next pull after one that could not connect, without touching the transport while it runs', async () => {
-    const { withPullSession } = sscl.transport
-    let connect
-    sscl.transport.withPullSession = vi.fn(
-      () => new Promise((_resolve, reject) => (connect = reject))
-    )
+  it('refuses a second pull without connecting, then accepts one once the first has failed', async () => {
+    const connecting = Promise.withResolvers()
+    const withPullSession = vi
+      .spyOn(sscl.transport, 'withPullSession')
+      .mockReturnValueOnce(connecting.promise)
     const failing = client.pullFiles(collectPulledFiles())
     const refused = client.pullFiles(collectPulledFiles())
 
     await expect(refused).rejects.toMatchObject({
-      code: ssclErrorCodes.pullInProgress
+      code: 'SSCL_PULL_IN_PROGRESS'
     })
-    expect(sscl.transport.withPullSession).toHaveBeenCalledTimes(1)
-    connect(new Error('auth failed'))
+    expect(withPullSession).toHaveBeenCalledTimes(1)
+    connecting.reject(new Error('auth failed'))
     await expect(failing).rejects.toThrow('auth failed')
-    sscl.transport.withPullSession = withPullSession
     await expect(client.pullFiles(collectPulledFiles())).resolves.toMatchObject(
       { files: [expect.objectContaining({ status: 'received' })] }
     )
   })
 
-  it('pulls at most maxFilesPerRun files, leaving the rest for later', async () => {
+  it('pulls no more files than its limit for one run, leaving the rest for later', async () => {
     ;({ sscl, client } = await createInMemorySsclClient({
       limits: { maxFilesPerRun: 1 }
     }))
-    sscl.dropInPullFolder({ filename: garbageFilename, data: Buffer.from('x') })
+    sscl.dropInPullFolder(garbageFile)
 
     const result = await client.pullFiles(collectPulledFiles())
 
@@ -490,7 +463,7 @@ describe('SSCL client', () => {
     const second = client.pullFiles(collectPulledFiles())
 
     await expect(second).rejects.toMatchObject({
-      code: ssclErrorCodes.pullInProgress
+      code: 'SSCL_PULL_IN_PROGRESS'
     })
     await expect(first).resolves.toMatchObject({ notProcessed: 0 })
   })
@@ -498,20 +471,17 @@ describe('SSCL client', () => {
   it('pushes a file the fake SSCL accepts as encrypted to SSCL and signed by NRF', async () => {
     await client.pushFile({
       filename: ssclTestInvoiceFilename,
-      data: Buffer.from('invoices')
+      data: Buffer.from(invoiceText)
     })
 
-    const receipt = await receivePushedFile({
-      filename: ssclTestInvoiceFilename,
+    const receipt = await receiveAsFakeSscl({
       data: sscl.pushFolder.get(ssclTestInvoiceFilename).data,
-      keys: sscl.fakeSsclKeys,
-      maxFileBytes: 1024,
-      archivedNames: new Set()
+      keys: sscl.fakeSsclKeys
     })
     expect(receipt).toEqual({
       accepted: true,
       problems: [],
-      contents: Buffer.from('invoices')
+      contents: Buffer.from(invoiceText)
     })
   })
 
@@ -536,11 +506,14 @@ describe('SSCL client', () => {
   })
 
   it('refuses to push over a file of the same name', async () => {
-    const file = { filename: ssclTestInvoiceFilename, data: Buffer.from('x') }
+    const file = {
+      filename: ssclTestInvoiceFilename,
+      data: Buffer.from(invoiceText)
+    }
     await client.pushFile(file)
 
     await expect(client.pushFile(file)).rejects.toMatchObject({
-      code: ssclErrorCodes.fileExists
+      code: 'SSCL_FILE_EXISTS'
     })
   })
 
@@ -548,9 +521,9 @@ describe('SSCL client', () => {
     await expect(
       client.pushFile({
         filename: `${ssclTestInvoiceFilename}${partialSuffix}`,
-        data: Buffer.from('x')
+        data: Buffer.from(invoiceText)
       })
-    ).rejects.toMatchObject({ code: ssclErrorCodes.invalidFilename })
+    ).rejects.toMatchObject({ code: 'SSCL_INVALID_FILENAME' })
     expect(await client.listPushFolder()).toEqual([])
   })
 
@@ -562,9 +535,9 @@ describe('SSCL client', () => {
     await expect(
       client.pushFile({
         filename: ssclTestInvoiceFilename,
-        data: Buffer.from('x')
+        data: Buffer.from(invoiceText)
       })
-    ).rejects.toMatchObject({ code: ssclErrorCodes.pushTooLarge })
+    ).rejects.toMatchObject({ code: 'SSCL_PUSH_TOO_LARGE' })
     expect(await client.listPushFolder()).toEqual([])
   })
 
@@ -575,7 +548,7 @@ describe('SSCL client', () => {
         data: Buffer.alloc(0)
       })
     ).rejects.toMatchObject({
-      code: ssclErrorCodes.emptyFile,
+      code: 'SSCL_EMPTY_FILE',
       message: `Refusing to push ${ssclTestInvoiceFilename} with no data`
     })
     expect(await client.listPushFolder()).toEqual([])

@@ -1,12 +1,16 @@
 import ssh2 from 'ssh2'
 
 import { createSsclClient } from './sscl-client.js'
-import { createSftpTransport } from './sftp-transport.js'
-import { encryptAndSign } from '../../common/helpers/sscl/pgp.js'
-import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
-import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
+import { sentBySscl } from '../../test-utils/fake-sscl-test-helpers.js'
+import {
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText
+} from '../../test-utils/fixtures/sscl.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
-import { startSftpFaultServer } from '../../test-utils/sftp-fault-server.js'
+import {
+  sftpTestFolders as folders,
+  startSftpTestTransport
+} from '../../test-utils/sftp-test-transport.js'
 import {
   collectPulledFiles,
   pulledStatuses,
@@ -14,37 +18,27 @@ import {
 } from '../../test-utils/sscl-test-helpers.js'
 
 const { STATUS_CODE } = ssh2.utils.sftp
-const folders = { push: '/NRLIn', pull: '/NRLOut' }
 const names = ['SSCL_1.pgp', 'SSCL_2.pgp']
-// Long enough that only a real stall reaches it, however slow the machine.
-const timeoutMs = 10000
 
 describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
-  let keys
+  let pgp
   let server
   let client
 
   beforeAll(async () => {
-    keys = await generatePgpTestKeys()
+    pgp = await generatePgpTestKeys()
   })
 
   beforeEach(async () => {
-    server = await startSftpFaultServer({
-      folders: [folders.push, folders.pull]
-    })
+    const sftp = await startSftpTestTransport()
+    server = sftp.server
     client = createSsclClient({
-      transport: createSftpTransport({
-        connection: server.settings({ timeoutMs }),
-        pushUser: 'push',
-        pushFolder: folders.push,
-        pullUser: 'pull',
-        pullFolder: folders.pull
-      }),
+      transport: sftp.transport,
       keys: {
-        nrfPrivateKey: keys.nrf.privateKey,
-        nrfPassphrase: keys.nrf.passphrase,
-        ssclEncryptionPublicKey: keys.ssclEncryption.publicKey,
-        ssclSigningPublicKey: keys.ssclSigning.publicKey
+        nrfPrivateKey: pgp.nrf.privateKey,
+        nrfPassphrase: pgp.nrf.passphrase,
+        ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
+        ssclSigningPublicKey: pgp.ssclSigning.publicKey
       },
       limits: ssclTestLimits
     })
@@ -52,12 +46,7 @@ describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
       server.putFile({
         folder: folders.pull,
         filename,
-        data: await encryptAndSign({
-          data: Buffer.from(filename),
-          encryptionKey: keys.nrf.publicKey,
-          signingKey: keys.ssclSigning.privateKey,
-          passphrase: keys.ssclSigning.passphrase
-        })
+        data: await sentBySscl({ text: filename, pgp })
       })
     }
   })
@@ -113,9 +102,9 @@ describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
     await expect(
       client.pushFile({
         filename: ssclTestInvoiceFilename,
-        data: Buffer.from('invoices')
+        data: Buffer.from(ssclTestInvoiceText)
       })
-    ).rejects.toMatchObject({ code: ssclErrorCodes.fileExists })
+    ).rejects.toMatchObject({ code: 'SSCL_FILE_EXISTS' })
 
     expect(server.namesIn(folders.push)).toEqual([ssclTestInvoiceFilename])
   })
