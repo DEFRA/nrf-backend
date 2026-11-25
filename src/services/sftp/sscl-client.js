@@ -268,7 +268,31 @@ const newFilesFirst = ({ listed, failing }) => {
 }
 
 /**
- * @param {{ files: PulledFile[], retried: number }} params
+ * The files tried so far in one pull, and how many of them had failed on an
+ * earlier pull.
+ * @typedef {{ files: PulledFile[], retried: number }} PullTally
+ */
+
+/**
+ * Adds a tried file to the tally, and to failing unless it needs no more
+ * attention, so a later pull tries it after the others.
+ * @param {{ tally: PullTally, failing: Set<string>, file: SftpFile, pulled: PulledFile }} params
+ */
+const recordOutcome = ({ tally, failing, file, pulled }) => {
+  const key = listingKey(file)
+  if (failing.has(key)) {
+    tally.retried++
+  }
+  tally.files.push(pulled)
+  if (completedPullStatuses.has(pulled.status)) {
+    failing.delete(key)
+  } else {
+    failing.add(key)
+  }
+}
+
+/**
+ * @param {PullTally} tally
  */
 const warnIfOnlyRetried = ({ files, retried }) => {
   if (files.length > 0 && retried === files.length) {
@@ -290,34 +314,69 @@ const pullAll = ({ transport, failing, ...context }) =>
       listed: withoutUploadsInProgress(await session.list()),
       failing
     })
-    const files = []
-    let retried = 0
+    const tally = { files: [], retried: 0 }
     for (const file of listed.slice(0, context.limits.maxFilesPerRun)) {
       if (Date.now() >= context.stopAt) {
         break
       }
-      const key = listingKey(file)
-      if (failing.has(key)) {
-        retried++
-      }
-      const { pulled, connectionLost } = await pullOne({
-        ...context,
-        session,
-        file
-      })
-      files.push(pulled)
-      if (completedPullStatuses.has(pulled.status)) {
-        failing.delete(key)
-      } else {
-        failing.add(key)
-      }
-      if (connectionLost) {
+      const outcome = await pullOne({ ...context, session, file })
+      recordOutcome({ tally, failing, file, pulled: outcome.pulled })
+      if (outcome.connectionLost) {
         break
       }
     }
-    warnIfOnlyRetried({ files, retried })
-    return { files, notProcessed: listed.length - files.length }
+    warnIfOnlyRetried(tally)
+    return {
+      files: tally.files,
+      notProcessed: listed.length - tally.files.length
+    }
   })
+
+/**
+ * @param {SsclFile} file
+ */
+const assertPushable = ({ filename, data }) => {
+  if (filename.endsWith(partialSuffix)) {
+    throw ssclError({
+      code: ssclErrorCodes.invalidFilename,
+      message: `Refusing to push ${filename}: names ending ${partialSuffix} are for uploads in progress`
+    })
+  }
+  // Agreed with SSCL (18 Nov 2026): send no file when there is no data.
+  // An empty file would still be a valid PGP message, so SSCL's jobs would
+  // pick it up. Callers should skip the push rather than rely on this.
+  if (data.length === 0) {
+    throw ssclError({
+      code: ssclErrorCodes.emptyFile,
+      message: `Refusing to push ${filename} with no data`
+    })
+  }
+}
+
+/**
+ * @param {{ data: Buffer, keys: SsclPgpKeys }} params
+ * @returns {Promise<Buffer>}
+ */
+const encryptForSscl = ({ data, keys }) =>
+  encryptAndSign({
+    data,
+    encryptionKey: keys.ssclEncryptionPublicKey,
+    signingKey: keys.nrfPrivateKey,
+    passphrase: keys.nrfPassphrase
+  })
+
+/**
+ * The limit is on the file as sent, so this can only run once it is encrypted.
+ * @param {{ filename: string, encrypted: Buffer, limits: SsclLimits }} params
+ */
+const assertWithinPushLimit = ({ filename, encrypted, limits }) => {
+  if (encrypted.length > limits.maxFileBytes) {
+    throw ssclError({
+      code: ssclErrorCodes.pushTooLarge,
+      message: `Refusing to push ${filename}: ${encrypted.length} bytes encrypted, over ${limits.maxFileBytes}`
+    })
+  }
+}
 
 /**
  * @typedef {ReturnType<typeof createSsclClient>} SsclClient
@@ -334,43 +393,19 @@ export function createSsclClient({ transport, keys, limits }) {
 
   return {
     /**
-     * Encrypts, signs and pushes a file. Fails with ssclErrorCodes.fileExists
-     * rather than overwrite a file of the same name, and with
-     * ssclErrorCodes.emptyFile when there is nothing to send, and with
-     * ssclErrorCodes.pushTooLarge when the encrypted file is over
-     * maxFileBytes. fileExists
-     * after a push that failed part way may mean that push got through: the
-     * rename can succeed after the connection to us is lost.
+     * Encrypts, signs and pushes a file. Fails with:
+     * - ssclErrorCodes.fileExists rather than overwrite a file of the same
+     *   name. After a push that failed part way, this may mean that push got
+     *   through: the rename can succeed after the connection to us is lost.
+     * - ssclErrorCodes.emptyFile when there is nothing to send.
+     * - ssclErrorCodes.pushTooLarge when the encrypted file is over
+     *   maxFileBytes.
      * @param {SsclFile} file
      */
     async pushFile({ filename, data }) {
-      if (filename.endsWith(partialSuffix)) {
-        throw ssclError({
-          code: ssclErrorCodes.invalidFilename,
-          message: `Refusing to push ${filename}: names ending ${partialSuffix} are for uploads in progress`
-        })
-      }
-      // Agreed with SSCL (18 Nov 2026): send no file when there is no data.
-      // An empty file would still be a valid PGP message, so SSCL's jobs would
-      // pick it up. Callers should skip the push rather than rely on this.
-      if (data.length === 0) {
-        throw ssclError({
-          code: ssclErrorCodes.emptyFile,
-          message: `Refusing to push ${filename} with no data`
-        })
-      }
-      const encrypted = await encryptAndSign({
-        data,
-        encryptionKey: keys.ssclEncryptionPublicKey,
-        signingKey: keys.nrfPrivateKey,
-        passphrase: keys.nrfPassphrase
-      })
-      if (encrypted.length > limits.maxFileBytes) {
-        throw ssclError({
-          code: ssclErrorCodes.pushTooLarge,
-          message: `Refusing to push ${filename}: ${encrypted.length} bytes encrypted, over ${limits.maxFileBytes}`
-        })
-      }
+      assertPushable({ filename, data })
+      const encrypted = await encryptForSscl({ data, keys })
+      assertWithinPushLimit({ filename, encrypted, limits })
       await transport.pushFile({ filename, data: encrypted })
       logger.info(
         { sscl: { filename, size: encrypted.length } },
