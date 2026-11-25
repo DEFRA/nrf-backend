@@ -41,6 +41,15 @@ describe('openProxyTunnel', () => {
     expect(proxy.targets).toContain(`127.0.0.1:${port}`)
   })
 
+  it('hands over a socket whose errors do not stop the process before the caller listens for them', async () => {
+    const { port } = echoServer.address()
+
+    const socket = await tunnelTo({ host: '127.0.0.1', port })
+
+    expect(() => socket.emit('error', new Error('reset'))).not.toThrow()
+    socket.destroy()
+  })
+
   it('keeps server bytes that arrive in the same packet as the proxy response', async () => {
     const socket = await tunnelTo({
       host: connectProxyTargets.bannerWithResponse

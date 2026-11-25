@@ -60,6 +60,8 @@ const proxyAddress = (proxyUrl) => {
   }
 }
 
+const ignoreError = () => {}
+
 /**
  * Opens a raw TCP tunnel to host:port through an HTTP CONNECT proxy (the CDP
  * squid proxy), for protocols such as SFTP that can't use an HTTP agent.
@@ -115,6 +117,9 @@ export async function openProxyTunnel({ proxyUrl, host, port, timeoutMs }) {
         return
       }
       stopListening()
+      // Until the caller adds its own listener, an 'error' on the socket would
+      // be uncaught and stop the process.
+      socket.on('error', ignoreError)
       // The server's first bytes (the SSH banner) can arrive with the proxy's
       // 200; put them back or the SSH handshake waits for them forever.
       if (response.head.length > 0) {

@@ -51,4 +51,24 @@ describe('withTimeout', () => {
     await rejected
     expect(onTimeout).toHaveBeenCalledTimes(1)
   })
+
+  it('still rejects with the given error when onTimeout throws, keeping what it threw as the cause', async () => {
+    const cleanupError = new Error('already closed')
+    const outcome = withTimeout({
+      timeoutMs: 100,
+      work: () => new Promise(() => {}),
+      makeError: () => new Error('late'),
+      onTimeout: () => {
+        throw cleanupError
+      }
+    })
+    const rejected = expect(outcome).rejects.toMatchObject({
+      message: 'late',
+      cause: cleanupError
+    })
+
+    await vi.advanceTimersByTimeAsync(100)
+
+    await rejected
+  })
 })

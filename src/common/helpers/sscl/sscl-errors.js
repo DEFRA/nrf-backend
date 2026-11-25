@@ -25,6 +25,8 @@ const sftpNoConnection = 6
 const sftpConnectionLost = 7
 const sftpConnectionCodes = new Set([sftpNoConnection, sftpConnectionLost])
 
+// emptyFile, pushTooLarge and pullInProgress are left out: they are raised
+// before any SFTP request is made, so they never reach isFileLevelError.
 const fileLevelSsclCodes = new Set([
   ssclErrorCodes.fileTooLarge,
   ssclErrorCodes.invalidFilename,

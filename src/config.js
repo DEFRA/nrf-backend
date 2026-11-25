@@ -365,7 +365,7 @@ const config = convict({
   },
   sscl: {
     testEnabled: {
-      doc: 'Enable the POST /sftp/test-file route that pushes and pulls SSCL test files. Needs the SSCL SFTP and PGP settings below, which are checked at startup. The backend refuses to start in prod if true, which relies on ENVIRONMENT being set',
+      doc: 'Enable the POST /sftp/test-file route that pushes and pulls SSCL test files. Needs the SSCL SFTP and PGP settings below',
       format: Boolean,
       default: false,
       env: 'SSCL_SFTP_TEST_ENABLED'
@@ -402,7 +402,7 @@ const config = convict({
         env: 'SSCL_SFTP_TIMEOUT_MS'
       },
       hostKey: {
-        doc: 'Pinned MOVEit host public key (OpenSSH, RFC 4716 or SHA256 fingerprint), base64',
+        doc: 'Pinned MOVEit host key: an OpenSSH public key line, an RFC 4716 block or a SHA256 fingerprint, then base64',
         format: String,
         default: '',
         env: 'SSCL_SFTP_HOST_KEY'
