@@ -286,6 +286,9 @@ export async function startSftpFaultServer({
     { hostKeys: [hostKey.private] },
     function onConnection(client) {
       connections.add(client)
+      // ssh2 sends each packet as several small writes. On Linux, Nagle's
+      // algorithm would hold each one back for about 40 ms.
+      client.setNoDelay(true)
       client.on('close', () => connections.delete(client))
       client.on('error', () => {})
       client.on('authentication', (ctx) =>
