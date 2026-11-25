@@ -2,6 +2,7 @@ import net from 'node:net'
 import SftpClient from 'ssh2-sftp-client'
 
 import {
+  cleanupLimitMs,
   disconnectLimitMs,
   minBytesPerSecond,
   transferTimeoutMs,
@@ -45,16 +46,21 @@ const connectOptions = () => vi.mocked(firstInstance().connect).mock.calls[0][0]
 const inSession = (work) => withSftpSession({ settings, work })
 
 /**
- * Starts a session and says when its work has begun, so a test using fake
- * timers advances them only once the real socket has connected.
+ * Starts a session without waiting for it, for a test that moves fake timers
+ * on while it runs. begun resolves with the session's socket once its work has
+ * started, which is when the real socket has connected.
  */
-const startSession = (work) => {
-  let begin
-  const begun = new Promise((resolve) => (begin = resolve))
-  const result = inSession((session) => {
-    begin(connectOptions().sock)
-    return work(session)
+const startSession = (work, sessionSettings = settings) => {
+  const { promise: begun, resolve: begin } = Promise.withResolvers()
+  const result = withSftpSession({
+    settings: sessionSettings,
+    work: (session) => {
+      begin(connectOptions().sock)
+      return work(session)
+    }
   })
+  // The test asserts on result later. This only stops Node reporting the
+  // rejection as unhandled before then.
   result.catch(() => {})
   return { result, begun }
 }
@@ -102,6 +108,47 @@ describe('withSftpSession', () => {
     const otherBlob = Buffer.from(clientKey.public.split(' ')[1], 'base64')
     expect(options.hostVerifier(hostBlob)).toBe(true)
     expect(options.hostVerifier(otherBlob)).toBe(false)
+  })
+
+  it.each([[''], ['not a host key']])(
+    'opens no connection when the pinned host key is %j',
+    async (unusable) => {
+      const connect = vi.spyOn(net, 'connect')
+      try {
+        await expect(
+          withSftpSession({
+            settings: { ...settings, hostKey: unusable },
+            work: (session) => session.list(folder)
+          })
+        ).rejects.toThrow(/^SFTP host key /)
+
+        expect(connect).not.toHaveBeenCalled()
+      } finally {
+        connect.mockRestore()
+      }
+    }
+  )
+
+  it('listens for errors on the socket from the moment it connects', async () => {
+    const realConnect = net.connect
+    let listenersOnConnect
+    const connect = vi.spyOn(net, 'connect').mockImplementation((...args) => {
+      const socket = realConnect(...args)
+      // Queued, so this listener runs after the client's own 'connect' one
+      queueMicrotask(() =>
+        socket.once('connect', () => {
+          listenersOnConnect = socket.listenerCount('error')
+        })
+      )
+      return socket
+    })
+    try {
+      await inSession((session) => session.list(folder))
+
+      expect(listenersOnConnect).toBeGreaterThan(0)
+    } finally {
+      connect.mockRestore()
+    }
   })
 
   it("turns off Nagle's algorithm on the connection, so SSH packets are not held back", async () => {
@@ -342,6 +389,47 @@ describe('withSftpSession', () => {
       expect(SftpClient).toHaveBeenCalledTimes(2)
       expect(firstInstance().delete).not.toHaveBeenCalled()
       expect(sftpInstance().delete).toHaveBeenCalledWith(partial, true)
+    })
+  })
+
+  it('stops waiting for a partial upload to be removed once the removal has had its own time limit', async () => {
+    const slow = { ...settings, timeoutMs: 3 * cleanupLimitMs }
+    const handshakeMs = cleanupLimitMs - 1000
+    await withFakeTimers(async () => {
+      SftpClient.prototype.put.mockImplementationOnce(never)
+      SftpClient.prototype.connect
+        .mockResolvedValueOnce(undefined)
+        .mockImplementationOnce(
+          () => new Promise((resolve) => setTimeout(resolve, handshakeMs))
+        )
+      SftpClient.prototype.delete.mockImplementation(never)
+      const { result, begun } = startSession(
+        (session) => session.upload({ folder, filename, data }),
+        slow
+      )
+      const outcome = expect(result).rejects.toThrow('SFTP upload timed out')
+      await begun
+      await vi.advanceTimersByTimeAsync(
+        transferTimeoutMs({ timeoutMs: slow.timeoutMs, bytes: data.length })
+      )
+      await vi.waitFor(() =>
+        expect(sftpInstance().connect).toHaveBeenCalledTimes(1)
+      )
+      expect(SftpClient).toHaveBeenCalledTimes(2)
+      const cleanupSocket = sftpInstance().connect.mock.calls[0][0].sock
+
+      await vi.advanceTimersByTimeAsync(handshakeMs)
+      await vi.advanceTimersByTimeAsync(cleanupLimitMs - handshakeMs)
+
+      await outcome
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: ssclErrorCodes.timeout,
+          message: `SFTP removal of a partial upload timed out after ${cleanupLimitMs}ms`
+        }),
+        'SFTP could not remove a partial upload'
+      )
+      expect(cleanupSocket.destroyed).toBe(true)
     })
   })
 

@@ -20,6 +20,14 @@ const logger = createLogger()
 export const disconnectLimitMs = 5000
 
 /**
+ * The longest a caller waits for a partial upload to be removed from a fresh
+ * session, so that an upload that has failed is not reported much later.
+ */
+export const cleanupLimitMs = 10000
+
+const ignoreError = () => {}
+
+/**
  * The slowest transfer rate allowed before an upload or download times out,
  * on top of timeoutMs. At 100 KB/s a 20 MB file has about 200 extra seconds.
  */
@@ -134,6 +142,9 @@ const connectDirect = ({ host, port, timeoutMs }) =>
     socket.once('connect', function onConnect() {
       clearTimeout(timer)
       socket.off('error', fail)
+      // Until the caller adds its own listener, an 'error' on the socket would
+      // be uncaught and stop the process.
+      socket.on('error', ignoreError)
       resolve(socket)
     })
   })
@@ -157,14 +168,14 @@ const openSocket = async ({ proxyUrl, host, port, timeoutMs }) => {
 }
 
 /**
- * @param {{ settings: SftpConnectionSettings, socket: net.Socket }} params
+ * @param {{ settings: SftpConnectionSettings, hostVerifier: (key: Buffer) => boolean, socket: net.Socket }} params
  */
-const connectOptions = ({ settings, socket }) => ({
+const connectOptions = ({ settings, hostVerifier, socket }) => ({
   host: settings.host,
   port: settings.port,
   username: settings.username,
   privateKey: settings.privateKey,
-  hostVerifier: createHostVerifier(settings.hostKey),
+  hostVerifier,
   readyTimeout: settings.timeoutMs,
   sock: socket
 })
@@ -395,19 +406,34 @@ const disconnect = async ({ client, connection }) => {
 
 /**
  * Removes partial uploads the session could not remove itself (the connection
- * was lost, or the removal failed), from a fresh session. Best effort: a failure is logged, not thrown, so the caller sees
- * the error that stopped the upload.
+ * was lost, or the removal failed), from a fresh session. Best effort: a
+ * failure is logged, not thrown, so the caller sees the error that stopped the
+ * upload. The whole session gets cleanupLimitMs, then its connection is closed.
  * @param {{ settings: SftpConnectionSettings, partials: SftpFileRef[] }} params
  */
 const removeLeftoverPartials = async ({ settings, partials }) => {
+  /** @type {net.Socket | undefined} */
+  let socket
   try {
-    await withSftpSession({
-      settings,
-      work: async (session) => {
-        for (const partial of partials) {
-          await session.remove(partial)
-        }
-      }
+    await timedOperation({
+      name: 'removal of a partial upload',
+      timeoutMs: cleanupLimitMs,
+      operation: () =>
+        runSession({
+          settings: {
+            ...settings,
+            timeoutMs: Math.min(settings.timeoutMs, cleanupLimitMs)
+          },
+          onSocket: (opened) => {
+            socket = opened
+          },
+          work: async (session) => {
+            for (const partial of partials) {
+              await session.remove(partial)
+            }
+          }
+        }),
+      onTimeout: () => socket?.destroy()
     })
   } catch (error) {
     logger.error(error, 'SFTP could not remove a partial upload')
@@ -426,14 +452,13 @@ const quietEvents = {
 }
 
 /**
- * Connects as settings.username, runs work with one session for all its
- * operations, then always disconnects. Errors are thrown, not logged, so the
- * caller can log them once with its own context.
  * @template T
- * @param {{ settings: SftpConnectionSettings, work: (session: SftpSession) => Promise<T> }} params
+ * @param {{ settings: SftpConnectionSettings, work: (session: SftpSession) => Promise<T>, onSocket?: (socket: net.Socket) => void }} params
  * @returns {Promise<T>}
  */
-export async function withSftpSession({ settings, work }) {
+async function runSession({ settings, work, onSocket = () => {} }) {
+  // Before any network traffic, so an unusable host key opens no connection
+  const hostVerifier = createHostVerifier(settings.hostKey)
   const context = {
     sftp: {
       host: settings.host,
@@ -449,8 +474,9 @@ export async function withSftpSession({ settings, work }) {
   try {
     logger.info(context, 'SFTP connecting')
     const socket = await openSocket(settings)
+    onSocket(socket)
     connection = trackConnection({ client, socket })
-    await client.connect(connectOptions({ settings, socket }))
+    await client.connect(connectOptions({ settings, hostVerifier, socket }))
     logger.info(context, 'SFTP connected')
     return await work(
       createSession({ connection, timeoutMs: settings.timeoutMs, leftovers })
@@ -462,3 +488,14 @@ export async function withSftpSession({ settings, work }) {
     }
   }
 }
+
+/**
+ * Connects as settings.username, runs work with one session for all its
+ * operations, then always disconnects. Errors are thrown, not logged, so the
+ * caller can log them once with its own context.
+ * @template T
+ * @param {{ settings: SftpConnectionSettings, work: (session: SftpSession) => Promise<T> }} params
+ * @returns {Promise<T>}
+ */
+export const withSftpSession = ({ settings, work }) =>
+  runSession({ settings, work })
