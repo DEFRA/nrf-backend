@@ -456,6 +456,9 @@ describe('SSCL client', () => {
 
     expect(result.files.map((file) => file.filename)).toEqual([replyFilename])
     expect(result.notProcessed).toBe(1)
+    expect(await pullFolderNames(sscl.transport)).toEqual([
+      garbageFile.filename
+    ])
   })
 
   it('runs one pull at a time', async () => {
