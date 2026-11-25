@@ -1,3 +1,6 @@
+import { config } from '../config.js'
+import { generateSshTestKeyPair } from './ssh-test-keys.js'
+
 /**
  * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
  * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
@@ -19,6 +22,54 @@ export const nrfPgpKeysFor = (pgp) => ({
   ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
   ssclSigningPublicKey: pgp.ssclSigning.publicKey
 })
+
+/**
+ * @param {string} text
+ */
+export const toBase64 = (text) => Buffer.from(text).toString('base64')
+
+const anyBase64 = 'aA=='
+const sshKeys = generateSshTestKeyPair()
+
+/**
+ * Loads config for MOVEit with every required setting present: real SSH keys,
+ * placeholder PGP keys unless given (the client checks PGP keys when built).
+ * @param {{ pgp?: object }} [overrides]
+ */
+export const loadMoveitTestConfig = ({ pgp } = {}) =>
+  config.load({
+    sscl: {
+      sftp: {
+        host: 'h',
+        hostKey: toBase64(sshKeys.public),
+        privateKey: toBase64(sshKeys.private),
+        pushUser: 'u',
+        pushFolder: '/out',
+        pullUser: 'u',
+        pullFolder: '/in'
+      },
+      pgp: {
+        nrfPrivateKey: anyBase64,
+        ssclEncryptionPublicKey: anyBase64,
+        ssclSigningPublicKey: anyBase64,
+        ...pgp
+      }
+    }
+  })
+
+/**
+ * Loads config for MOVEit with every key real and usable.
+ * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys }} params
+ */
+export const loadUsableMoveitTestConfig = ({ keys }) =>
+  loadMoveitTestConfig({
+    pgp: {
+      nrfPrivateKey: toBase64(keys.nrf.privateKey),
+      nrfPassphrase: keys.nrf.passphrase,
+      ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
+      ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
+    }
+  })
 
 /**
  * Wraps base64 over several lines, as it is in many key files.
