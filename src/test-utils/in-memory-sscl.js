@@ -1,4 +1,5 @@
 import {
+  sftpNoSuchFile,
   ssclError,
   ssclErrorCodes
 } from '../common/helpers/sscl/sscl-errors.js'
@@ -27,9 +28,6 @@ const listing = (folder) =>
       modifyTime
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
-
-// SSH_FX_NO_SUCH_FILE, as a real SFTP server reports a missing file
-const sftpNoSuchFile = 2
 
 /**
  * @param {Map<string, StoredFile>} folder
@@ -67,7 +65,7 @@ const createPullSession = (folder) => ({
  * An in-memory stand-in for MOVEit's push and pull folders, for unit tests
  * that need exact faults. Refuses unsafe names and reports a missing file as
  * the SFTP transport does. Starts with one reply from the fake SSCL in the pull
- * folder. Tests of real SFTP use the sscl-sftp container instead.
+ * folder. Tests over real SFTP use the SFTP fault server instead.
  * @param {{ limits?: Partial<typeof ssclTestLimits> }} [options]
  */
 export async function createInMemorySsclClient({ limits } = {}) {
@@ -84,13 +82,18 @@ export async function createInMemorySsclClient({ limits } = {}) {
     folder.set(filename, { data, modifyTime })
 
   const fakeSsclKeys = fakeSsclKeysFor(pgp)
-  const reply = await buildReply({
-    about: 'startup',
-    time: fakeSsclReplyTime,
-    keys: fakeSsclKeys,
-    maxFileBytes: ssclTestLimits.maxFileBytes
-  })
-  putFile({ folder: pullFolder, ...reply })
+
+  const dropReply = async (about) => {
+    const reply = await buildReply({
+      about,
+      time: fakeSsclReplyTime,
+      keys: fakeSsclKeys,
+      maxFileBytes: ssclTestLimits.maxFileBytes
+    })
+    putFile({ folder: pullFolder, ...reply })
+    return reply.filename
+  }
+  await dropReply('startup')
 
   /** @type {SsclTransport} */
   const transport = {
@@ -130,7 +133,16 @@ export async function createInMemorySsclClient({ limits } = {}) {
        * @param {SsclFile & { modifyTime?: number }} file
        */
       dropInPullFolder: ({ filename, data, modifyTime }) =>
-        putFile({ folder: pullFolder, filename, data, modifyTime })
+        putFile({ folder: pullFolder, filename, data, modifyTime }),
+      /**
+       * Puts a second good reply in the pull folder.
+       * @returns {Promise<{ filename: string, names: string[] }>} the reply's
+       * name, and the names now in the pull folder in the order they are listed
+       */
+      async dropSecondReply() {
+        const filename = await dropReply('second')
+        return { filename, names: listing(pullFolder).map((file) => file.name) }
+      }
     }
   }
 }

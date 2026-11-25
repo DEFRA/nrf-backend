@@ -98,4 +98,19 @@ describe('pull folder helpers', () => {
       fakeSsclStartupReplyFilename
     ])
   })
+
+  it('overridePullSession gives back a way to undo the override', async () => {
+    const restorePullSession = overridePullSession({
+      transport,
+      overrides: { list: async () => [] }
+    })
+    const overridden = await pullFolderNames(transport)
+
+    restorePullSession()
+
+    expect(overridden).toEqual([])
+    expect(await pullFolderNames(transport)).toEqual([
+      fakeSsclStartupReplyFilename
+    ])
+  })
 })

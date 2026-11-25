@@ -35,11 +35,15 @@ export const pullFolderNames = async (transport) =>
  * Replaces some of a transport's pull session operations, e.g. to make a
  * download fail.
  * @param {{ transport: import('../services/sftp/sftp-transport.js').SsclTransport, overrides: Partial<import('../services/sftp/sftp-transport.js').PullSession> }} params
+ * @returns {() => void} puts the pull session back as it was before
  */
 export const overridePullSession = ({ transport, overrides }) => {
   const original = transport.withPullSession
   transport.withPullSession = (work) =>
     original((session) => work({ ...session, ...overrides }))
+  return function restorePullSession() {
+    transport.withPullSession = original
+  }
 }
 
 /**

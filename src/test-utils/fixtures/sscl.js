@@ -7,6 +7,16 @@ export const pgpTestErrors = {
   notSigned: 'Message is not signed',
   unknownSigner: /Could not find signing key/
 }
+const notPgp = Buffer.from('not pgp')
+/** A file NRF cannot verify. */
+export const ssclTestGarbageFile = { filename: 'unsigned.pgp', data: notPgp }
+/** Sorts before the startup reply, so it takes the first slot of a pull. */
+export const ssclTestGarbageFirstFile = {
+  filename: 'a_garbage.pgp',
+  data: notPgp
+}
+export const fakeSsclSecondReplyFilename =
+  'fake_sscl_reply_second_20261118143005.txt.pgp'
 export const fakeSsclReplyTime = new Date('2026-11-18T14:30:05Z')
 export const fakeSsclStartupReplyFilename =
   'fake_sscl_reply_startup_20261118143005.txt.pgp'
