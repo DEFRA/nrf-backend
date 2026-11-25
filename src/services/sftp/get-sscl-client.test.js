@@ -11,10 +11,14 @@ import {
   wrapBase64
 } from '../../test-utils/sscl-test-helpers.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
+import { startSftpFaultServer } from '../../test-utils/sftp-fault-server.js'
 import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
 import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
 
 const testEnabledKey = 'sscl.testEnabled'
+// Long enough for the SSH handshake, which it limits too, and far short of
+// the default, so only the configured value can end the stalled request.
+const stallTimeoutMs = 1000
 
 const requiredKeys = [
   'sscl.sftp.host',
@@ -68,6 +72,37 @@ describe('getSsclClient', () => {
         data: Buffer.from('more than ten bytes once encrypted')
       })
     ).rejects.toMatchObject({ code: ssclErrorCodes.pushTooLarge })
+  })
+
+  it('gives the SFTP client its time limit from config', async () => {
+    const server = await startSftpFaultServer({ folders: ['/out'] })
+    try {
+      const { host, port, hostKey, privateKey } = server.settings()
+      loadUsableMoveitTestConfig({ keys })
+      config.load({
+        sscl: {
+          sftp: {
+            host,
+            port,
+            hostKey: toBase64(hostKey),
+            privateKey: toBase64(privateKey),
+            timeoutMs: stallTimeoutMs
+          }
+        }
+      })
+      server.setFault(({ operation }) =>
+        operation === 'readdir' ? { stall: true } : undefined
+      )
+
+      const client = await getSsclClient()
+
+      await expect(client.listPushFolder()).rejects.toMatchObject({
+        code: ssclErrorCodes.timeout,
+        message: `SFTP list timed out after ${stallTimeoutMs}ms`
+      })
+    } finally {
+      await server.close()
+    }
   })
 
   it('refuses the test route in prod, even without the plugin', async () => {
