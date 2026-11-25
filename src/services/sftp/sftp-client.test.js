@@ -520,6 +520,26 @@ describe('withSftpSession', () => {
     })
   })
 
+  it('fails with a timeout and closes the connection when the server never starts the SFTP session', async () => {
+    await withFakeTimers(async () => {
+      SftpClient.prototype.connect.mockImplementation(never)
+      const session = inSession((s) => s.list(folder))
+      const outcome = expect(session).rejects.toMatchObject({
+        code: ssclErrorCodes.timeout,
+        message: `SFTP session start timed out after ${timeoutMs}ms`
+      })
+      await vi.waitFor(() =>
+        expect(firstInstance().connect).toHaveBeenCalledTimes(1)
+      )
+
+      await vi.advanceTimersByTimeAsync(timeoutMs)
+
+      await outcome
+      expect(connectOptions().sock.destroyed).toBe(true)
+      expect(firstInstance().end).not.toHaveBeenCalled()
+    })
+  })
+
   it('disconnects and rethrows without logging when the connection fails', async () => {
     SftpClient.prototype.connect.mockRejectedValue(new Error('auth failed'))
 

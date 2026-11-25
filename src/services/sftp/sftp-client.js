@@ -476,7 +476,15 @@ async function runSession({ settings, work, onSocket = () => {} }) {
     const socket = await openSocket(settings)
     onSocket(socket)
     connection = trackConnection({ client, socket })
-    await client.connect(connectOptions({ settings, hostVerifier, socket }))
+    // ssh2's readyTimeout stops at sign-in. Opening the SFTP session after
+    // that has no limit of its own.
+    await timedOperation({
+      name: 'session start',
+      timeoutMs: settings.timeoutMs,
+      operation: () =>
+        client.connect(connectOptions({ settings, hostVerifier, socket })),
+      onTimeout: () => socket.destroy()
+    })
     logger.info(context, 'SFTP connected')
     return await work(
       createSession({ connection, timeoutMs: settings.timeoutMs, leftovers })
