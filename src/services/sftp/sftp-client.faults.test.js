@@ -104,6 +104,30 @@ describe(
       expect(server.namesIn(folder)).toEqual([])
     })
 
+    it('downloads an empty file as an empty Buffer', async () => {
+      server.putFile({ folder, filename, data: Buffer.alloc(0) })
+
+      const downloaded = await inSession((session) =>
+        session.download({ folder, filename, maxBytes: 100 })
+      )
+
+      expect(Buffer.isBuffer(downloaded)).toBe(true)
+      expect(downloaded).toHaveLength(0)
+    })
+
+    it('reports a file as not there when it goes between being found and being looked at', async () => {
+      server.putFile({ folder, filename, data })
+      server.setFault(({ operation }) =>
+        operation === 'stat' ? { status: STATUS_CODE.NO_SUCH_FILE } : undefined
+      )
+
+      const stat = await inSession((session) =>
+        session.stat({ folder, filename })
+      )
+
+      expect(stat).toBeUndefined()
+    })
+
     it('closes the connection as soon as a stalled download times out', async () => {
       server.putFile({ folder, filename, data })
       server.setFault(({ operation }) =>

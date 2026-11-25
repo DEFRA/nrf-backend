@@ -28,6 +28,12 @@ export const cleanupLimitMs = 10000
 const ignoreError = () => {}
 
 /**
+ * The code ssh2-sftp-client puts on its error when stat finds no file, in
+ * place of the numeric SFTP status.
+ */
+const libraryNoSuchFile = 'ENOENT'
+
+/**
  * The slowest transfer rate allowed before an upload or download times out,
  * on top of timeoutMs. At 100 KB/s a 20 MB file has about 200 extra seconds.
  */
@@ -279,9 +285,11 @@ const uploadWithoutOverwriting = async ({
  */
 const downloadUpTo = async ({ client, file }) => {
   // end is inclusive, so this reads at most maxBytes + 1 bytes
-  const data = await client.get(filePath(file), undefined, {
+  const downloaded = await client.get(filePath(file), undefined, {
     readStreamOptions: { end: file.maxBytes }
   })
+  // ssh2-sftp-client gives an empty array, not a Buffer, for an empty file
+  const data = Buffer.isBuffer(downloaded) ? downloaded : Buffer.alloc(0)
   if (data.length > file.maxBytes) {
     throw ssclError({
       code: ssclErrorCodes.fileTooLarge,
@@ -300,8 +308,16 @@ const statFile = async ({ client, ref }) => {
   if ((await client.exists(remotePath)) !== '-') {
     return undefined
   }
-  const { size, modifyTime } = await client.stat(remotePath)
-  return { name: ref.filename, size, modifyTime }
+  try {
+    const { size, modifyTime } = await client.stat(remotePath)
+    return { name: ref.filename, size, modifyTime }
+  } catch (error) {
+    // The file went after the check above
+    if (error.code === libraryNoSuchFile) {
+      return undefined
+    }
+    throw error
+  }
 }
 
 /**

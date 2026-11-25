@@ -245,6 +245,16 @@ describe('withSftpSession', () => {
     expect(downloaded.toString()).toBe('content')
   })
 
+  it('downloads an empty file as an empty Buffer, which the library gives as an empty array', async () => {
+    SftpClient.prototype.get.mockResolvedValue([])
+
+    const downloaded = await inSession((session) =>
+      session.download({ folder, filename, maxBytes: 100 })
+    )
+
+    expect(downloaded).toEqual(Buffer.alloc(0))
+  })
+
   it('rejects a download over the limit', async () => {
     await expect(
       inSession((session) =>
@@ -271,6 +281,30 @@ describe('withSftpSession', () => {
     )
 
     expect(stat).toEqual(expected)
+  })
+
+  it('stats nothing when the file goes between being found and being looked at', async () => {
+    SftpClient.prototype.exists.mockResolvedValue('-')
+    SftpClient.prototype.stat.mockRejectedValue(
+      Object.assign(new Error('No such file'), { code: 'ENOENT' })
+    )
+
+    const stat = await inSession((session) =>
+      session.stat({ folder, filename })
+    )
+
+    expect(stat).toBeUndefined()
+  })
+
+  it('passes on any other failure to stat a file', async () => {
+    SftpClient.prototype.exists.mockResolvedValue('-')
+    SftpClient.prototype.stat.mockRejectedValue(
+      Object.assign(new Error('Permission denied'), { code: 3 })
+    )
+
+    await expect(
+      inSession((session) => session.stat({ folder, filename }))
+    ).rejects.toMatchObject({ code: 3 })
   })
 
   it.each([['../etc/passwd'], ['a/b.pgp'], [''], ['..']])(
