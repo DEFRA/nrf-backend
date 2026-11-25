@@ -3,26 +3,19 @@ import * as openpgp from 'openpgp'
 
 import { decryptAndVerify, encryptAndSign } from '../common/helpers/sscl/pgp.js'
 
-/**
- * Plays SSCL's side of the file exchange, for tests and the local fake-sscl
- * container. Each rule here is something SSCL or MOVEit has told us, or that
- * we expect of them; add to it as SSCL answers questions.
- */
-
 /** Agreed with SSCL on 18 Nov 2026. */
 export const ssclPushFilenamePattern = /^rainv_NRL(INV|CUST)_\d{14}\.dat\.pgp$/
 
-/** Reply faults fake-sscl can be asked to produce. */
 export const fakeSsclReplyFaults = {
   unsigned: 'unsigned-reply',
   wrongKey: 'wrong-key-reply',
   oversized: 'oversized-reply',
-  /** A good reply under a name with spaces, which NRF refuses to read. */
+  /** Spaces in the name, which NRF refuses to read. */
   oddName: 'odd-name-reply'
 }
 
 /**
- * SSCL's private keys and NRF's public key, ASCII-armoured.
+ * Keys are ASCII-armoured.
  * @typedef {{
  *   encryptionPrivateKey: string,
  *   encryptionPassphrase: string,
@@ -33,13 +26,11 @@ export const fakeSsclReplyFaults = {
  */
 
 /**
- * @typedef {{ filename: string, data: Buffer }} FakeSsclFile
+ * @typedef {import('../services/sftp/sftp-transport.js').SsclFile} SsclFile
  * @typedef {{ accepted: boolean, problems: string[], contents?: Buffer }} FakeSsclReceipt
  */
 
 /**
- * The problems with a pushed file's name: not the agreed pattern, or the same
- * as a file already received.
  * @param {{ filename: string, archivedNames: Set<string> }} params
  * @returns {string[]}
  */
@@ -55,9 +46,7 @@ export function checkPushedFilename({ filename, archivedNames }) {
 }
 
 /**
- * Checks a file NRF pushed as SSCL would: the agreed name, not a duplicate,
- * not empty, encrypted to SSCL and signed by NRF.
- * @param {FakeSsclFile & { keys: FakeSsclKeys, maxFileBytes: number, archivedNames: Set<string> }} params
+ * @param {SsclFile & { keys: FakeSsclKeys, maxFileBytes: number, archivedNames: Set<string> }} params
  * @returns {Promise<FakeSsclReceipt>}
  */
 export async function receivePushedFile({
@@ -97,8 +86,7 @@ export async function receivePushedFile({
 const timestamp = (time) => time.toISOString().replace(/\D/g, '').slice(0, 14)
 
 /**
- * The name of a reply in the pull folder. SSCL's own names are not agreed
- * yet, so NRF must not rely on this pattern.
+ * SSCL's own names are not agreed yet, so NRF must not rely on this pattern.
  * @param {{ about: string, time: Date }} params
  */
 export const fakeSsclReplyFilename = ({ about, time }) =>
@@ -129,10 +117,8 @@ const encryptUnsigned = async ({ text, nrfPublicKey }) => {
 }
 
 /**
- * Builds a file for the pull folder as SSCL would send it: encrypted to NRF
- * and signed by SSCL, unless a fault is asked for.
  * @param {{ about: string, time: Date, keys: FakeSsclKeys, maxFileBytes: number, fault?: string }} params
- * @returns {Promise<FakeSsclFile>}
+ * @returns {Promise<SsclFile>}
  */
 export async function buildReply({ about, time, keys, maxFileBytes, fault }) {
   const filename =
@@ -169,7 +155,6 @@ export async function buildReply({ about, time, keys, maxFileBytes, fault }) {
 }
 
 /**
- * The fake SSCL's keys for a set of PGP test keys.
  * @param {Awaited<ReturnType<typeof import('./pgp-test-keys.js').generatePgpTestKeys>>} keys
  * @returns {FakeSsclKeys}
  */

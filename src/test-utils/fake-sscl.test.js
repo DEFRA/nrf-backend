@@ -1,15 +1,23 @@
 import {
   buildReply,
   fakeSsclKeysFor,
-  fakeSsclReplyFaults,
-  receivePushedFile
+  fakeSsclReplyFaults
 } from './fake-sscl.js'
+import {
+  fakeSsclTestMaxFileBytes as maxFileBytes,
+  pushedByNrf,
+  readAsNrf,
+  receiveAsFakeSscl
+} from './fake-sscl-test-helpers.js'
 import { generatePgpTestKeys } from './pgp-test-keys.js'
 import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
-import { decryptAndVerify, encryptAndSign } from '../common/helpers/sscl/pgp.js'
 
-const maxFileBytes = 1024
-const time = new Date('2026-11-18T14:30:05Z')
+const text = 'invoices'
+const startupReply = {
+  about: 'startup',
+  time: new Date('2026-11-18T14:30:05Z'),
+  maxFileBytes
+}
 
 describe('fake SSCL', { timeout: 20000 }, () => {
   let pgp
@@ -20,20 +28,6 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     keys = fakeSsclKeysFor(pgp)
   })
 
-  const sentByNrf = (text, { encryptionKey } = {}) =>
-    encryptAndSign({
-      data: Buffer.from(text),
-      encryptionKey: encryptionKey ?? pgp.ssclEncryption.publicKey,
-      signingKey: pgp.nrf.privateKey,
-      passphrase: pgp.nrf.passphrase
-    })
-
-  const receive = ({
-    filename = ssclTestInvoiceFilename,
-    data,
-    archivedNames = new Set()
-  }) => receivePushedFile({ filename, data, keys, maxFileBytes, archivedNames })
-
   describe('receivePushedFile', () => {
     it.each([
       ['an invoice file', 'rainv_NRLINV_20261118143005.dat.pgp'],
@@ -41,15 +35,16 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     ])(
       'accepts %s encrypted to SSCL and signed by NRF',
       async (_case, filename) => {
-        const receipt = await receive({
+        const receipt = await receiveAsFakeSscl({
           filename,
-          data: await sentByNrf('data')
+          data: await pushedByNrf({ text, pgp }),
+          keys
         })
 
         expect(receipt).toEqual({
           accepted: true,
           problems: [],
-          contents: Buffer.from('data')
+          contents: Buffer.from(text)
         })
       }
     )
@@ -59,7 +54,11 @@ describe('fake SSCL', { timeout: 20000 }, () => {
       ['a timestamp without seconds', 'rainv_NRLINV_202611181430.dat.pgp'],
       ['an unknown file type', 'rainv_NRLXXX_20261118143005.dat.pgp']
     ])('rejects %s', async (_case, filename) => {
-      const receipt = await receive({ filename, data: await sentByNrf('data') })
+      const receipt = await receiveAsFakeSscl({
+        filename,
+        data: await pushedByNrf({ text, pgp }),
+        keys
+      })
 
       expect(receipt.accepted).toBe(false)
       expect(receipt.problems).toEqual([
@@ -68,8 +67,9 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     })
 
     it('rejects a name it has already received', async () => {
-      const receipt = await receive({
-        data: await sentByNrf('data'),
+      const receipt = await receiveAsFakeSscl({
+        data: await pushedByNrf({ text, pgp }),
+        keys,
         archivedNames: new Set([ssclTestInvoiceFilename])
       })
 
@@ -79,13 +79,16 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     })
 
     it('rejects an empty file', async () => {
-      const receipt = await receive({ data: Buffer.alloc(0) })
+      const receipt = await receiveAsFakeSscl({ data: Buffer.alloc(0), keys })
 
       expect(receipt).toEqual({ accepted: false, problems: ['File is empty'] })
     })
 
     it('rejects a file whose decrypted contents are empty', async () => {
-      const receipt = await receive({ data: await sentByNrf('') })
+      const receipt = await receiveAsFakeSscl({
+        data: await pushedByNrf({ text: '', pgp }),
+        keys
+      })
 
       expect(receipt.problems).toEqual(['Decrypted contents are empty'])
     })
@@ -94,20 +97,14 @@ describe('fake SSCL', { timeout: 20000 }, () => {
       ['not PGP', async () => Buffer.from('plain')],
       [
         'encrypted to someone else',
-        () => sentByNrf('data', { encryptionKey: pgp.stranger.publicKey })
+        () => pushedByNrf({ text, pgp, encryptionKey: pgp.stranger.publicKey })
       ],
       [
         'signed by someone else',
-        () =>
-          encryptAndSign({
-            data: Buffer.from('data'),
-            encryptionKey: pgp.ssclEncryption.publicKey,
-            signingKey: pgp.stranger.privateKey,
-            passphrase: pgp.stranger.passphrase
-          })
+        () => pushedByNrf({ text, pgp, signer: pgp.stranger })
       ]
     ])('rejects a file that is %s', async (_case, build) => {
-      const receipt = await receive({ data: await build() })
+      const receipt = await receiveAsFakeSscl({ data: await build(), keys })
 
       expect(receipt.accepted).toBe(false)
       expect(receipt.problems).toEqual([
@@ -117,23 +114,11 @@ describe('fake SSCL', { timeout: 20000 }, () => {
   })
 
   describe('buildReply', () => {
-    const reply = (fault) =>
-      buildReply({ about: 'startup', time, keys, maxFileBytes, fault })
-
-    const readAsNrf = (data) =>
-      decryptAndVerify({
-        data,
-        decryptionKey: pgp.nrf.privateKey,
-        passphrase: pgp.nrf.passphrase,
-        verificationKey: pgp.ssclSigning.publicKey,
-        maxDecompressedBytes: maxFileBytes
-      })
-
     it('builds a reply NRF can decrypt and verify as signed by SSCL', async () => {
-      const { filename, data } = await reply()
+      const { filename, data } = await buildReply({ ...startupReply, keys })
 
       expect(filename).toBe('fake_sscl_reply_startup_20261118143005.txt.pgp')
-      expect((await readAsNrf(data)).toString()).toBe(
+      expect((await readAsNrf({ data, pgp })).toString()).toBe(
         'Fake SSCL reply about startup at 2026-11-18T14:30:05.000Z\n'
       )
     })
@@ -141,14 +126,18 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     it.each([fakeSsclReplyFaults.unsigned, fakeSsclReplyFaults.wrongKey])(
       'builds a %s that NRF cannot verify',
       async (fault) => {
-        const { data } = await reply(fault)
+        const { data } = await buildReply({ ...startupReply, keys, fault })
 
-        await expect(readAsNrf(data)).rejects.toThrow()
+        await expect(readAsNrf({ data, pgp })).rejects.toThrow()
       }
     )
 
     it('builds an oversized reply bigger than the file size limit', async () => {
-      const { data } = await reply(fakeSsclReplyFaults.oversized)
+      const { data } = await buildReply({
+        ...startupReply,
+        keys,
+        fault: fakeSsclReplyFaults.oversized
+      })
 
       expect(data.length).toBe(maxFileBytes + 1)
     })
