@@ -404,7 +404,7 @@ describe(
       })
 
       expect(files).toEqual([
-        expect.objectContaining({ filename, status: 'changed' })
+        expect.objectContaining({ filename, status: 'replaced' })
       ])
       const left = await asUser({
         direction: 'pull',
