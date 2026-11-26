@@ -1,3 +1,4 @@
+import net from 'node:net'
 import { promisify } from 'node:util'
 import ssh2 from 'ssh2'
 import SftpClient from 'ssh2-sftp-client'
@@ -20,8 +21,11 @@ describe('startSftpFaultServer', () => {
   beforeEach(async () => {
     server = await startSftpFaultServer({ folders: [folder] })
     const { host, port, username, privateKey } = server.settings()
+    // As the fault server does: without this each test is some 300 ms slower
+    // on Linux.
+    const sock = net.connect(port, host).setNoDelay(true)
     client = new SftpClient()
-    await client.connect({ host, port, username, privateKey })
+    await client.connect({ sock, username, privateKey })
   })
 
   afterEach(async () => {
