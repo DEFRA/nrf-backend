@@ -1,4 +1,5 @@
 import {
+  fakeSsclReplyTime,
   ssclTestInvoiceFilename,
   ssclTestReplyFilename as replyFilename
 } from '../../test-utils/fixtures/sscl.js'
@@ -8,7 +9,7 @@ import {
 } from '../../test-utils/sftp-test-transport.js'
 
 const data = Buffer.from('hello')
-const modifyTime = Date.parse('2026-11-18T14:30:05Z')
+const modifyTime = fakeSsclReplyTime.getTime()
 
 describe('SFTP transport', { timeout: 15000 }, () => {
   let server

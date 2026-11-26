@@ -4,7 +4,7 @@ import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
 
 /**
  * @typedef {import('./pgp-test-keys.js').PgpTestKeys} PgpTestKeys
- * @typedef {{ privateKey: string, passphrase: string }} PgpTestSigner
+ * @typedef {import('./pgp-test-keys.js').PgpTestKeyPair} PgpTestKeyPair
  */
 
 export const fakeSsclTestMaxFileBytes = 1024
@@ -12,7 +12,7 @@ export const fakeSsclTestMaxFileBytes = 1024
 /**
  * Encrypted to SSCL and signed by NRF, unless given another recipient or
  * signer.
- * @param {{ text: string, pgp: PgpTestKeys, encryptionKey?: string, signer?: PgpTestSigner }} params
+ * @param {{ text: string, pgp: PgpTestKeys, encryptionKey?: string, signer?: PgpTestKeyPair }} params
  * @returns {Promise<Buffer>}
  */
 export const pushedByNrf = ({

@@ -6,6 +6,7 @@ import {
   encryptAndSign,
   pgpKeyFingerprint
 } from './pgp.js'
+import { pgpTestErrors } from '../../../test-utils/fixtures/sscl.js'
 import { generatePgpTestKeys } from '../../../test-utils/pgp-test-keys.js'
 
 const plaintextContent = 'NRF test file\n'
@@ -98,7 +99,7 @@ describe('pgp', () => {
     })
 
     await expect(readAsSscl(encrypted)).rejects.toThrow(
-      /Could not find signing key/
+      pgpTestErrors.unknownSigner
     )
   })
 
@@ -112,7 +113,7 @@ describe('pgp', () => {
     })
 
     await expect(readAsSscl(Buffer.from(unsigned))).rejects.toThrow(
-      'Message is not signed'
+      pgpTestErrors.notSigned
     )
   })
 

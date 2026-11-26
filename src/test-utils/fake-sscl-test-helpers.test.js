@@ -9,6 +9,7 @@ import {
 import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyText,
+  pgpTestErrors,
   ssclTestCustomerFilename as otherFilename,
   ssclTestInvoiceFilename,
   ssclTestInvoiceText as text
@@ -124,7 +125,9 @@ describe('fake SSCL test helpers', { timeout: 20000 }, () => {
         encryptionKey: pgp.nrf.publicKey
       })
 
-      await expect(readAsNrf({ data, pgp })).rejects.toThrow()
+      await expect(readAsNrf({ data, pgp })).rejects.toThrow(
+        pgpTestErrors.unknownSigner
+      )
     })
   })
 })

@@ -14,6 +14,7 @@ import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyFilename,
   fakeSsclStartupReplyText,
+  pgpTestErrors,
   ssclTestCustomerFilename,
   ssclTestInvoiceFilename,
   ssclTestInvoiceText as text
@@ -36,7 +37,7 @@ describe('fake SSCL', { timeout: 20000 }, () => {
 
   describe('receivePushedFile', () => {
     it.each([
-      ['an invoice file', 'rainv_NRLINV_20261118143005.dat.pgp'],
+      ['an invoice file', ssclTestInvoiceFilename],
       ['a customer file', ssclTestCustomerFilename]
     ])(
       'accepts %s encrypted to SSCL and signed by NRF',
@@ -129,14 +130,14 @@ describe('fake SSCL', { timeout: 20000 }, () => {
       )
     })
 
-    it.each([fakeSsclReplyFaults.unsigned, fakeSsclReplyFaults.wrongKey])(
-      'builds a %s that NRF cannot verify',
-      async (fault) => {
-        const { data } = await buildReply({ ...startupReply, keys, fault })
+    it.each([
+      [fakeSsclReplyFaults.unsigned, pgpTestErrors.notSigned],
+      [fakeSsclReplyFaults.wrongKey, pgpTestErrors.unknownSigner]
+    ])('builds a %s that NRF cannot verify', async (fault, error) => {
+      const { data } = await buildReply({ ...startupReply, keys, fault })
 
-        await expect(readAsNrf({ data, pgp })).rejects.toThrow()
-      }
-    )
+      await expect(readAsNrf({ data, pgp })).rejects.toThrow(error)
+    })
 
     it('builds an oversized reply bigger than the file size limit', async () => {
       const { data } = await buildReply({
