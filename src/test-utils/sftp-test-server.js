@@ -31,6 +31,7 @@ export const sftpFakeSsclTestFolders = {
 
 /**
  * @typedef {{ push: string, pull: string }} SftpTestFolders
+ * @typedef {'push' | 'pull'} SftpTestDirection
  */
 
 /**
@@ -98,7 +99,7 @@ export const clearSftpTestFolders = async ({
 /**
  * Runs work in an SFTP session as the push or pull user.
  * @template T
- * @param {{ direction: 'push' | 'pull', work: (session: import('../services/sftp/sftp-client.js').SftpSession) => Promise<T>, hostKey?: string, proxyUrl?: string }} params
+ * @param {{ direction: SftpTestDirection, work: (session: import('../services/sftp/sftp-client.js').SftpSession) => Promise<T>, hostKey?: string, proxyUrl?: string }} params
  * @returns {Promise<T>}
  */
 export const asSftpTestUser = ({ direction, work, ...overrides }) =>
@@ -111,7 +112,7 @@ export const asSftpTestUser = ({ direction, work, ...overrides }) =>
   })
 
 /**
- * @param {{ direction: 'push' | 'pull', filename: string, data: Buffer, folders?: SftpTestFolders }} params
+ * @param {{ direction: SftpTestDirection, filename: string, data: Buffer, folders?: SftpTestFolders }} params
  */
 export const putInSftpTestFolder = ({
   direction,
@@ -126,7 +127,7 @@ export const putInSftpTestFolder = ({
   })
 
 /**
- * @param {{ direction: 'push' | 'pull', folders?: SftpTestFolders }} params
+ * @param {{ direction: SftpTestDirection, folders?: SftpTestFolders }} params
  */
 export const namesInSftpTestFolder = async ({
   direction,

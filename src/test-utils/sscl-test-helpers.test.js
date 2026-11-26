@@ -21,7 +21,10 @@ import {
   pulledStatuses,
   pullFolderNames,
   refuseOn,
+  runBeforeEachDownload,
+  ssclTestLimits,
   toBase64,
+  uniqueTestFilename,
   withCode,
   wrapBase64
 } from './sscl-test-helpers.js'
@@ -236,6 +239,21 @@ describe('collectPulledFiles', () => {
   })
 })
 
+describe('uniqueTestFilename', () => {
+  it('gives a new name with the prefix each time', () => {
+    const names = [
+      uniqueTestFilename('SSCL_TEST'),
+      uniqueTestFilename('SSCL_TEST')
+    ]
+
+    expect(names[0]).not.toBe(names[1])
+    expect(names).toEqual([
+      expect.stringMatching(/^SSCL_TEST_[0-9a-f-]{36}\.pgp$/),
+      expect.stringMatching(/^SSCL_TEST_[0-9a-f-]{36}\.pgp$/)
+    ])
+  })
+})
+
 describe('pull folder helpers', () => {
   let transport
 
@@ -287,5 +305,39 @@ describe('pull folder helpers', () => {
     expect(await pullFolderNames(transport)).toEqual([
       fakeSsclStartupReplyFilename
     ])
+  })
+
+  it('runBeforeEachDownload does the given work on each file before it is downloaded', async () => {
+    runBeforeEachDownload({
+      transport,
+      beforeDownload: ({ session, filename }) => session.remove(filename)
+    })
+
+    await expect(
+      transport.withPullSession((session) =>
+        session.download({
+          filename: fakeSsclStartupReplyFilename,
+          maxBytes: 100
+        })
+      )
+    ).rejects.toThrow(`No such file: ${fakeSsclStartupReplyFilename}`)
+  })
+
+  it('runBeforeEachDownload gives back a way to undo it', async () => {
+    const beforeDownload = vi.fn()
+    const restorePullSession = runBeforeEachDownload({
+      transport,
+      beforeDownload
+    })
+
+    restorePullSession()
+    await transport.withPullSession((session) =>
+      session.download({
+        filename: fakeSsclStartupReplyFilename,
+        maxBytes: ssclTestLimits.maxFileBytes
+      })
+    )
+
+    expect(beforeDownload).not.toHaveBeenCalled()
   })
 })

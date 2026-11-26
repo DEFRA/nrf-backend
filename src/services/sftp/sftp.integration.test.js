@@ -1,13 +1,8 @@
-import { randomUUID } from 'node:crypto'
-
 import { config } from '../../config.js'
 import { createSsclClient } from './sscl-client.js'
 import { createSftpTransport } from './sftp-transport.js'
 import { getSsclClient, resetSsclClient } from './get-sscl-client.js'
-import {
-  decryptAndVerify,
-  encryptAndSign
-} from '../../common/helpers/sscl/pgp.js'
+import { decryptAndVerify } from '../../common/helpers/sscl/pgp.js'
 import {
   isNoSuchFileError,
   ssclErrorCodes
@@ -18,8 +13,12 @@ import { startTcpForwarder } from '../../test-utils/tcp-forwarder.js'
 import { withSftpSession } from './sftp-client.js'
 import {
   collectPulledFiles,
-  ssclTestLimits
+  nrfPgpKeysFor,
+  runBeforeEachDownload,
+  ssclTestLimits,
+  uniqueTestFilename
 } from '../../test-utils/sscl-test-helpers.js'
+import { sentBySscl } from '../../test-utils/fake-sscl-test-helpers.js'
 import {
   asSftpTestUser as asUser,
   clearSftpTestFolders,
@@ -35,9 +34,9 @@ import { generateSshTestKeyPair } from '../../test-utils/ssh-test-keys.js'
 
 // One file, so these run in sequence against the shared SFTP container folders.
 
-const uniqueName = () => `test-${randomUUID()}.txt`
 const maxBytes = 1024
 const fromSsclText = 'from SSCL'
+const notPgpFilename = 'NOT_PGP.txt'
 
 describe(
   'SFTP session against the local SFTP server',
@@ -53,7 +52,7 @@ describe(
         work: (session) =>
           session.download({
             folder: sftpTestFolders.pull,
-            filename: uniqueName(),
+            filename: uniqueTestFilename('TEST'),
             maxBytes
           })
       })
@@ -62,7 +61,7 @@ describe(
     })
 
     it('uploads a file, lists it, stats it and downloads it again in one session', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       const data = Buffer.from('hello SSCL')
       const folder = sftpTestFolders.push
 
@@ -89,7 +88,7 @@ describe(
     })
 
     it('refuses to upload over an existing file and leaves no partial file', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       await putInFolder({
         direction: 'push',
         filename,
@@ -107,7 +106,7 @@ describe(
     })
 
     it('lets only one of two uploads of the same name at once take the name, and leaves no partial file', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       const folder = sftpTestFolders.push
       const texts = ['first', 'second']
 
@@ -140,7 +139,7 @@ describe(
     })
 
     it('gives up on a download when the network stops answering, without waiting for a clean disconnect', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       await putInFolder({
         direction: 'pull',
         filename,
@@ -183,7 +182,7 @@ describe(
     })
 
     it('rejects a download over the size limit', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       await putInFolder({
         direction: 'pull',
         filename,
@@ -204,7 +203,7 @@ describe(
     })
 
     it('removes a file, and succeeds when it is already gone', async () => {
-      const filename = uniqueName()
+      const filename = uniqueTestFilename('TEST')
       const folder = sftpTestFolders.pull
       await putInFolder({ direction: 'pull', filename, data: Buffer.from('x') })
 
@@ -266,12 +265,7 @@ describe(
       keys = await generatePgpTestKeys()
       client = createSsclClient({
         transport,
-        keys: {
-          nrfPrivateKey: keys.nrf.privateKey,
-          nrfPassphrase: keys.nrf.passphrase,
-          ssclEncryptionPublicKey: keys.ssclEncryption.publicKey,
-          ssclSigningPublicKey: keys.ssclSigning.publicKey
-        },
+        keys: nrfPgpKeysFor(keys),
         limits: ssclTestLimits
       })
     })
@@ -280,16 +274,8 @@ describe(
       await clearSftpTestFolders()
     }, sftpTestHookTimeoutMs)
 
-    const signedBySscl = (text) =>
-      encryptAndSign({
-        data: Buffer.from(text),
-        encryptionKey: keys.nrf.publicKey,
-        signingKey: keys.ssclSigning.privateKey,
-        passphrase: keys.ssclSigning.passphrase
-      })
-
     it('pushes a file SSCL can decrypt and verify as signed by NRF', async () => {
-      const filename = `NRF_TEST_${randomUUID()}.pgp`
+      const filename = uniqueTestFilename('NRF_TEST')
 
       await client.pushFile({ filename, data: Buffer.from('to SSCL') })
 
@@ -316,8 +302,8 @@ describe(
     })
 
     it('pulls a file from SSCL, stores it, then removes it from the pull folder', async () => {
-      const filename = `SSCL_TEST_${randomUUID()}.pgp`
-      const fromSscl = await signedBySscl(fromSsclText)
+      const filename = uniqueTestFilename('SSCL_TEST')
+      const fromSscl = await sentBySscl({ text: fromSsclText, pgp: keys })
       await putInFolder({ direction: 'pull', filename, data: fromSscl })
       const { stored, onFile } = collectPulledFiles()
 
@@ -339,66 +325,45 @@ describe(
       expect(await namesInFolder({ direction: 'pull' })).toEqual([])
     })
 
-    /**
-     * Runs a pull with each download preceded by something done to the file.
-     */
-    const pullWithBeforeDownload = async ({ beforeDownload, onFile }) => {
-      const { withPullSession } = transport
-      transport.withPullSession = (work) =>
-        withPullSession((session) =>
-          work({
-            ...session,
-            download: async (file) => {
-              await beforeDownload(file.filename)
-              return session.download(file)
-            }
-          })
-        )
-      try {
-        return await client.pullFiles({
-          onFile: onFile ?? collectPulledFiles().onFile
-        })
-      } finally {
-        transport.withPullSession = withPullSession
-      }
-    }
-
-    const removeFromPullFolder = (filename) =>
-      asUser({
-        direction: 'pull',
-        work: (session) =>
-          session.remove({ folder: sftpTestFolders.pull, filename })
-      })
-
     it('counts a file removed between listing and download as gone', async () => {
-      const filename = `SSCL_TEST_${randomUUID()}.pgp`
+      const filename = uniqueTestFilename('SSCL_TEST')
       await putInFolder({
         direction: 'pull',
         filename,
-        data: await signedBySscl(fromSsclText)
+        data: await sentBySscl({ text: fromSsclText, pgp: keys })
       })
 
-      const { files } = await pullWithBeforeDownload({
-        beforeDownload: removeFromPullFolder
+      const restorePullSession = runBeforeEachDownload({
+        transport,
+        beforeDownload: ({ session, filename: downloading }) =>
+          session.remove(downloading)
       })
+      try {
+        const { files } = await client.pullFiles(collectPulledFiles())
 
-      expect(files).toEqual([
-        expect.objectContaining({ filename, status: 'gone' })
-      ])
+        expect(files).toEqual([
+          expect.objectContaining({ filename, status: 'gone' })
+        ])
+      } finally {
+        restorePullSession()
+      }
     })
 
     it('leaves a file that was replaced while it was being stored', async () => {
-      const filename = `SSCL_TEST_${randomUUID()}.pgp`
+      const filename = uniqueTestFilename('SSCL_TEST')
       await putInFolder({
         direction: 'pull',
         filename,
-        data: await signedBySscl('first')
+        data: await sentBySscl({ text: 'first', pgp: keys })
       })
-      const replacement = await signedBySscl('the replacement, longer')
+      const replacement = await sentBySscl({
+        text: 'the replacement, longer',
+        pgp: keys
+      })
 
       const { files } = await client.pullFiles({
         onFile: async () => {
-          await removeFromPullFolder(filename)
+          await transport.withPullSession((session) => session.remove(filename))
           await putInFolder({ direction: 'pull', filename, data: replacement })
         }
       })
@@ -419,11 +384,11 @@ describe(
     })
 
     it('leaves a file it could not store in the pull folder', async () => {
-      const filename = `SSCL_TEST_${randomUUID()}.pgp`
+      const filename = uniqueTestFilename('SSCL_TEST')
       await putInFolder({
         direction: 'pull',
         filename,
-        data: await signedBySscl(fromSsclText)
+        data: await sentBySscl({ text: fromSsclText, pgp: keys })
       })
 
       const { files } = await client.pullFiles({
@@ -439,7 +404,7 @@ describe(
     it('leaves a pulled file that fails verification in the pull folder', async () => {
       await putInFolder({
         direction: 'pull',
-        filename: 'NOT_PGP.txt',
+        filename: notPgpFilename,
         data: Buffer.from('plain')
       })
 
@@ -447,12 +412,12 @@ describe(
 
       expect(files).toEqual([
         expect.objectContaining({
-          filename: 'NOT_PGP.txt',
+          filename: notPgpFilename,
           status: 'unverified'
         })
       ])
       expect(await namesInFolder({ direction: 'pull' })).toEqual([
-        'NOT_PGP.txt'
+        notPgpFilename
       ])
     })
   }
@@ -478,12 +443,7 @@ describe(
     })
 
     it('pushes and pulls files using the base64 keys from config', async () => {
-      const fromSscl = await encryptAndSign({
-        data: Buffer.from(fromSsclText),
-        encryptionKey: keys.nrf.publicKey,
-        signingKey: keys.ssclSigning.privateKey,
-        passphrase: keys.ssclSigning.passphrase
-      })
+      const fromSscl = await sentBySscl({ text: fromSsclText, pgp: keys })
       await putInFolder({
         direction: 'pull',
         filename: 'SSCL_TEST.pgp',

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { config } from '../config.js'
 import { generateSshTestKeyPair } from './ssh-test-keys.js'
 
@@ -166,6 +168,36 @@ export const overridePullSession = ({ transport, overrides }) => {
     transport.withPullSession = original
   }
 }
+
+/**
+ * Does something to each file just before a pull downloads it, e.g. removes
+ * it, as if someone else got there first.
+ * @param {{ transport: SsclTransport, beforeDownload: (params: { session: PullSession, filename: string }) => Promise<void> }} params
+ * @returns {() => void} puts the pull session back as it was before
+ */
+export const runBeforeEachDownload = ({ transport, beforeDownload }) => {
+  const original = transport.withPullSession
+  transport.withPullSession = (work) =>
+    original((session) =>
+      work({
+        ...session,
+        download: async (file) => {
+          await beforeDownload({ session, filename: file.filename })
+          return session.download(file)
+        }
+      })
+    )
+  return function restorePullSession() {
+    transport.withPullSession = original
+  }
+}
+
+/**
+ * A file name no other test run uses, so tests on a shared SFTP server don't
+ * collide.
+ * @param {string} prefix
+ */
+export const uniqueTestFilename = (prefix) => `${prefix}_${randomUUID()}.pgp`
 
 /**
  * Makes a fault server answer one operation on one file with an SFTP status
