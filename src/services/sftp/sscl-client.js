@@ -44,8 +44,10 @@ const logger = createLogger()
  * What happened to a file in the pull folder. Only a `received` file has been
  * handed to onFile and removed from the pull folder; any other is left there,
  * except `gone`, which was no longer there to pull: the sender renamed it or
- * another pull took it, so nothing is lost.
- * @typedef {'received' | 'gone' | 'too-large' | 'download-failed' | 'changed' | 'unverified' | 'not-stored' | 'not-deleted'} PullStatus
+ * another pull took it, so nothing is lost. `changed` means the download did
+ * not match the listing, so the file was not stored; `replaced` means it was
+ * stored, then replaced before it could be removed.
+ * @typedef {'received' | 'gone' | 'too-large' | 'download-failed' | 'changed' | 'unverified' | 'not-stored' | 'replaced' | 'not-deleted'} PullStatus
  */
 
 /**
@@ -54,7 +56,7 @@ const logger = createLogger()
  */
 export const completedPullStatuses = new Set(['received', 'gone'])
 /** Handed to onFile and stored, but still in the pull folder. */
-const storedButLeftStatuses = new Set(['changed', 'not-deleted'])
+const storedButLeftStatuses = new Set(['replaced', 'not-deleted'])
 
 /**
  * @typedef {object} PulledFile
@@ -68,7 +70,7 @@ const storedButLeftStatuses = new Set(['changed', 'not-deleted'])
 /**
  * @typedef {object} PullResult
  * @property {PulledFile[]} files - in the order tried: files not seen failing
- *   before first, then those that failed on an earlier pull, each by name
+ *   before first, then those that failed on an earlier pull, least recently tried first
  * @property {number} notProcessed - files left for a later pull, because of
  *   maxFilesPerRun, stopAfterMs or a lost connection
  */
@@ -149,7 +151,7 @@ const removeIfUnchanged = async ({ session, file, pulled }) => {
       current &&
       (current.size !== file.size || current.modifyTime !== file.modifyTime)
     ) {
-      return report({ pulled: { ...pulled, status: 'changed' } })
+      return report({ pulled: { ...pulled, status: 'replaced' } })
     }
     await session.remove(file.name)
     return report({ pulled: { ...pulled, status: 'received' } })
@@ -262,20 +264,21 @@ const listingKey = ({ name, size, modifyTime }) =>
   `${name}|${size}|${modifyTime}`
 
 /**
- * Puts files that failed on an earlier pull after the others, so one bad file
- * cannot take every slot of every pull. Forgets files no longer listed.
+ * Puts files that failed on an earlier pull after the others, least recently
+ * tried first, so one bad file cannot take every slot of every pull, nor keep
+ * another failed file from its retry. Forgets files no longer listed.
  * @param {{ listed: SftpFile[], failing: Set<string> }} params
  */
 const newFilesFirst = ({ listed, failing }) => {
-  const keys = new Set(listed.map(listingKey))
+  const byKey = new Map(listed.map((file) => [listingKey(file), file]))
   for (const key of failing) {
-    if (!keys.has(key)) {
+    if (!byKey.has(key)) {
       failing.delete(key)
     }
   }
   return [
     ...listed.filter((file) => !failing.has(listingKey(file))),
-    ...listed.filter((file) => failing.has(listingKey(file)))
+    ...[...failing].map((key) => byKey.get(key))
   ]
 }
 
@@ -296,9 +299,9 @@ const recordOutcome = ({ tally, failing, file, pulled }) => {
     tally.retried++
   }
   tally.files.push(pulled)
-  if (completedPullStatuses.has(pulled.status)) {
-    failing.delete(key)
-  } else {
+  // Deleting first moves a failed file to the end, behind those tried longer ago.
+  failing.delete(key)
+  if (!completedPullStatuses.has(pulled.status)) {
     failing.add(key)
   }
 }
@@ -402,7 +405,10 @@ const assertWithinPushLimit = ({ filename, encrypted, limits }) => {
  */
 export function createSsclClient({ transport, keys, limits }) {
   let pulling = false
-  /** Listing keys of files that failed on an earlier pull. Kept in memory. */
+  /**
+   * Listing keys of files that failed on an earlier pull, least recently tried
+   * first. Kept in memory.
+   */
   const failing = new Set()
 
   return {
@@ -435,7 +441,7 @@ export function createSsclClient({ transport, keys, limits }) {
      * if any step fails, so a later pull can try again. One pull at a time per
      * backend instance. Starts no new file after stopAfterMs, if given; a
      * file already started can run past it. Files that failed before are
-     * tried after the others. A file whose onFile has not settled within
+     * tried after the others, least recently tried first. A file whose onFile has not settled within
      * storeTimeoutMs counts as not-stored. Fails with:
      * - ssclErrorCodes.pullInProgress when a pull is already running on this
      *   instance.

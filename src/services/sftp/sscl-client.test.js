@@ -130,14 +130,14 @@ describe('SSCL client', () => {
         sscl.dropInPullFolder({ filename, data: Buffer.from('a new file') })
     })
 
-    expect(files).toEqual([expect.objectContaining({ status: 'changed' })])
+    expect(files).toEqual([expect.objectContaining({ status: 'replaced' })])
     expect(await pullFolderNames(sscl.transport)).toEqual([replyFilename])
   })
 
   it.each([
     [
       'replaced after it was read',
-      'changed',
+      'replaced',
       () => ({
         onFile: async ({ filename }) =>
           sscl.dropInPullFolder({ filename, data: Buffer.from('a new file') })
@@ -185,7 +185,7 @@ describe('SSCL client', () => {
       }
     })
 
-    expect(files).toEqual([expect.objectContaining({ status: 'changed' })])
+    expect(files).toEqual([expect.objectContaining({ status: 'replaced' })])
     expect(await pullFolderNames(sscl.transport)).toEqual([replyFilename])
   })
 
@@ -201,6 +201,10 @@ describe('SSCL client', () => {
     expect(files).toEqual([expect.objectContaining({ status: 'changed' })])
     expect(stored).toEqual([])
     expect(await pullFolderNames(sscl.transport)).toEqual([replyFilename])
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      { sscl: expect.objectContaining({ filename: replyFilename }) },
+      'SSCL file not received: changed'
+    )
   })
 
   it('counts a file as received when another pull already removed it', async () => {
@@ -373,6 +377,25 @@ describe('SSCL client', () => {
     ])
     expect(pulledStatuses(second)).toEqual([[replyFilename, 'received']])
     expect(second.notProcessed).toBe(1)
+  })
+
+  it('takes turns between files that failed before, so a bad file cannot block a retry', async () => {
+    ;({ sscl, client } = await createInMemorySsclClient({
+      limits: { maxFilesPerRun: 1 }
+    }))
+    sscl.dropInPullFolder(garbageFirstFile)
+    await client.pullFiles(collectPulledFiles())
+    await client.pullFiles({
+      onFile: () => Promise.reject(new Error('database down'))
+    })
+
+    const third = await client.pullFiles(collectPulledFiles())
+    const fourth = await client.pullFiles(collectPulledFiles())
+
+    expect(pulledStatuses(third)).toEqual([
+      [garbageFirstFile.filename, 'unverified']
+    ])
+    expect(pulledStatuses(fourth)).toEqual([[replyFilename, 'received']])
   })
 
   it('warns when a pull only retried files that failed before', async () => {
