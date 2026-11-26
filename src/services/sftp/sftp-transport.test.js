@@ -1,10 +1,12 @@
-import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
+import {
+  ssclTestInvoiceFilename,
+  ssclTestReplyFilename as replyFilename
+} from '../../test-utils/fixtures/sscl.js'
 import {
   sftpTestFolders as folders,
   startSftpTestTransport
 } from '../../test-utils/sftp-test-transport.js'
 
-const replyFilename = 'SSCL_1.pgp'
 const data = Buffer.from('hello')
 const modifyTime = Date.parse('2026-11-18T14:30:05Z')
 

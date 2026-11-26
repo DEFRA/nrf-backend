@@ -6,11 +6,14 @@ import {
   readAsNrf,
   receiveAsFakeSscl
 } from './fake-sscl-test-helpers.js'
-import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
+import {
+  fakeSsclReplyTime,
+  fakeSsclStartupReplyText,
+  ssclTestCustomerFilename as otherFilename,
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText as text
+} from './fixtures/sscl.js'
 import { generatePgpTestKeys } from './pgp-test-keys.js'
-
-const text = 'invoices'
-const otherFilename = 'rainv_NRLCUST_20261118143005.dat.pgp'
 
 describe('fake SSCL test helpers', { timeout: 20000 }, () => {
   let pgp
@@ -104,16 +107,14 @@ describe('fake SSCL test helpers', { timeout: 20000 }, () => {
     it('reads a reply that is encrypted to NRF and signed by SSCL', async () => {
       const reply = await buildReply({
         about: 'startup',
-        time: new Date('2026-11-18T14:30:05Z'),
+        time: fakeSsclReplyTime,
         keys,
         maxFileBytes: fakeSsclTestMaxFileBytes
       })
 
       const contents = await readAsNrf({ data: reply.data, pgp })
 
-      expect(contents.toString()).toBe(
-        'Fake SSCL reply about startup at 2026-11-18T14:30:05.000Z\n'
-      )
+      expect(contents.toString()).toBe(fakeSsclStartupReplyText)
     })
 
     it('refuses a file that SSCL did not sign', async () => {

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import * as openpgp from 'openpgp'
 
 import { decryptAndVerify, encryptAndSign } from '../common/helpers/sscl/pgp.js'
+import { generatePgpTestKeyPair } from './pgp-test-keys.js'
 
 /** Agreed with SSCL on 18 Nov 2026. */
 export const ssclPushFilenamePattern = /^rainv_NRL(INV|CUST)_\d{14}\.dat\.pgp$/
@@ -92,18 +93,6 @@ const timestamp = (time) => time.toISOString().replace(/\D/g, '').slice(0, 14)
 export const fakeSsclReplyFilename = ({ about, time }) =>
   `fake_sscl_reply_${about}_${timestamp(time)}.txt.pgp`
 
-const generateStrangerKey = async () => {
-  const passphrase = 'throwaway-stranger-passphrase'
-  const { privateKey } = await openpgp.generateKey({
-    type: 'ecc',
-    curve: 'curve25519Legacy',
-    userIDs: [{ name: 'Not SSCL', email: 'throwaway@example.com' }],
-    passphrase,
-    format: 'armored'
-  })
-  return { privateKey, passphrase }
-}
-
 /**
  * @param {{ text: string, nrfPublicKey: string }} params
  */
@@ -138,7 +127,7 @@ export async function buildReply({ about, time, keys, maxFileBytes, fault }) {
   }
   const signer =
     fault === fakeSsclReplyFaults.wrongKey
-      ? await generateStrangerKey()
+      ? await generatePgpTestKeyPair('Not SSCL')
       : {
           privateKey: keys.signingPrivateKey,
           passphrase: keys.signingPassphrase
@@ -155,7 +144,7 @@ export async function buildReply({ about, time, keys, maxFileBytes, fault }) {
 }
 
 /**
- * @param {Awaited<ReturnType<typeof import('./pgp-test-keys.js').generatePgpTestKeys>>} keys
+ * @param {import('./pgp-test-keys.js').PgpTestKeys} keys
  * @returns {FakeSsclKeys}
  */
 export const fakeSsclKeysFor = (keys) => ({

@@ -1,13 +1,15 @@
 import ssh2 from 'ssh2'
 
-import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
+import {
+  ssclTestInvoiceFilename,
+  ssclTestReplyFilename as replyFilename
+} from './fixtures/sscl.js'
 import {
   sftpTestFolders,
   startSftpTestTransport
 } from './sftp-test-transport.js'
 
 const { STATUS_CODE } = ssh2.utils.sftp
-const replyFilename = 'SSCL_1.pgp'
 const data = Buffer.from('hello')
 
 describe('SFTP test transport', () => {

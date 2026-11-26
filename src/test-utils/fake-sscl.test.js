@@ -10,12 +10,18 @@ import {
   receiveAsFakeSscl
 } from './fake-sscl-test-helpers.js'
 import { generatePgpTestKeys } from './pgp-test-keys.js'
-import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
+import {
+  fakeSsclReplyTime,
+  fakeSsclStartupReplyFilename,
+  fakeSsclStartupReplyText,
+  ssclTestCustomerFilename,
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText as text
+} from './fixtures/sscl.js'
 
-const text = 'invoices'
 const startupReply = {
   about: 'startup',
-  time: new Date('2026-11-18T14:30:05Z'),
+  time: fakeSsclReplyTime,
   maxFileBytes
 }
 
@@ -31,7 +37,7 @@ describe('fake SSCL', { timeout: 20000 }, () => {
   describe('receivePushedFile', () => {
     it.each([
       ['an invoice file', 'rainv_NRLINV_20261118143005.dat.pgp'],
-      ['a customer file', 'rainv_NRLCUST_20261118143005.dat.pgp']
+      ['a customer file', ssclTestCustomerFilename]
     ])(
       'accepts %s encrypted to SSCL and signed by NRF',
       async (_case, filename) => {
@@ -117,9 +123,9 @@ describe('fake SSCL', { timeout: 20000 }, () => {
     it('builds a reply NRF can decrypt and verify as signed by SSCL', async () => {
       const { filename, data } = await buildReply({ ...startupReply, keys })
 
-      expect(filename).toBe('fake_sscl_reply_startup_20261118143005.txt.pgp')
+      expect(filename).toBe(fakeSsclStartupReplyFilename)
       expect((await readAsNrf({ data, pgp })).toString()).toBe(
-        'Fake SSCL reply about startup at 2026-11-18T14:30:05.000Z\n'
+        fakeSsclStartupReplyText
       )
     })
 

@@ -3,7 +3,7 @@ import { receivePushedFile } from './fake-sscl.js'
 import { ssclTestInvoiceFilename } from './fixtures/sscl.js'
 
 /**
- * @typedef {Awaited<ReturnType<typeof import('./pgp-test-keys.js').generatePgpTestKeys>>} PgpTestKeys
+ * @typedef {import('./pgp-test-keys.js').PgpTestKeys} PgpTestKeys
  * @typedef {{ privateKey: string, passphrase: string }} PgpTestSigner
  */
 
