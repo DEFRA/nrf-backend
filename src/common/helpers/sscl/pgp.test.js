@@ -7,6 +7,7 @@ import {
   pgpKeyFingerprint
 } from './pgp.js'
 import { generatePgpTestKeys } from '../../../test-utils/pgp-test-keys.js'
+import { compressedOnlyMessage } from '../../../test-utils/pgp-test-messages.js'
 
 const plaintextContent = 'NRF test file\n'
 const plaintext = Buffer.from(plaintextContent)
@@ -85,6 +86,17 @@ describe('pgp', () => {
 
     expect(bomb.length).toBeLessThan(maxDecompressedBytes)
     await expect(readAsSscl(Buffer.from(bomb))).rejects.toThrow(
+      /Maximum decompressed message size exceeded/
+    )
+  })
+
+  it('rejects a file compressed outside the encryption that decompresses to more than the limit', async () => {
+    const bomb = await compressedOnlyMessage(
+      Buffer.alloc(maxDecompressedBytes * 2)
+    )
+
+    expect(bomb.length).toBeLessThan(maxDecompressedBytes)
+    await expect(readAsSscl(bomb)).rejects.toThrow(
       /Maximum decompressed message size exceeded/
     )
   })
