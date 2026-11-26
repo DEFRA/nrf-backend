@@ -1,12 +1,17 @@
 import { ssclFilename } from './sscl-filename.js'
+import {
+  ssclTestCustomerFilename,
+  ssclTestInvoiceFilename
+} from '../../../test-utils/fixtures/sscl.js'
 
 describe('ssclFilename', () => {
   it.each([
-    ['NRLINV', 'rainv_NRLINV_20261109173005.dat.pgp'],
-    ['NRLCUST', 'rainv_NRLCUST_20261109173005.dat.pgp']
-  ])('names a %s file by its UTC time to the second', (fileType, expected) => {
-    const time = new Date('2026-11-09T17:30:05.987Z')
-
-    expect(ssclFilename({ fileType, time })).toBe(expected)
-  })
+    ['NRLINV', '2026-11-09T17:30:05.987Z', ssclTestInvoiceFilename],
+    ['NRLCUST', '2026-11-18T14:30:05.123Z', ssclTestCustomerFilename]
+  ])(
+    'names a %s file by its UTC time to the second',
+    (fileType, isoTime, expected) => {
+      expect(ssclFilename({ fileType, time: new Date(isoTime) })).toBe(expected)
+    }
+  )
 })

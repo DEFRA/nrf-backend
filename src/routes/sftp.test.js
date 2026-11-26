@@ -3,11 +3,8 @@ import { config } from '../config.js'
 import { resetSsclClient } from '../services/sftp/get-sscl-client.js'
 import { setupTestServer } from '../test-utils/setup-test-server.js'
 import { generatePgpTestKeys } from '../test-utils/pgp-test-keys.js'
-import {
-  buildReply,
-  fakeSsclKeysFor,
-  receivePushedFile
-} from '../test-utils/fake-sscl.js'
+import { buildReply, fakeSsclKeysFor } from '../test-utils/fake-sscl.js'
+import { receiveAsFakeSscl } from '../test-utils/fake-sscl-test-helpers.js'
 import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyFilename
@@ -25,6 +22,7 @@ import {
 } from '../test-utils/sftp-test-server.js'
 
 const testFilePath = '/sftp/test-file'
+const testEnabledSetting = 'sscl.testEnabled'
 
 describe('POST /sftp/test-file', { timeout: 30000 }, () => {
   const original = config.get('sscl')
@@ -33,7 +31,7 @@ describe('POST /sftp/test-file', { timeout: 30000 }, () => {
   beforeAll(async () => {
     keys = await generatePgpTestKeys()
     loadSftpTestServerConfig({ keys, folders })
-    config.set('sscl.testEnabled', true)
+    config.set(testEnabledSetting, true)
     resetSsclClient()
   })
 
@@ -114,12 +112,11 @@ describe('POST /sftp/test-file', { timeout: 30000 }, () => {
           maxBytes: ssclTestLimits.maxFileBytes
         })
     })
-    const receipt = await receivePushedFile({
+    const receipt = await receiveAsFakeSscl({
       filename: body.pushed.filename,
       data: pushed,
       keys: fakeSsclKeysFor(keys),
-      maxFileBytes: ssclTestLimits.maxFileBytes,
-      archivedNames: new Set()
+      maxFileBytes: ssclTestLimits.maxFileBytes
     })
     expect(receipt.problems).toEqual([])
   })
@@ -154,7 +151,7 @@ describe('POST /sftp/test-file', { timeout: 30000 }, () => {
       keys,
       folders: { push: '/Interfaces/DEF/Missing/NRLIn', pull: folders.pull }
     })
-    config.set('sscl.testEnabled', true)
+    config.set(testEnabledSetting, true)
     resetSsclClient()
     try {
       const response = await getServer().inject({
@@ -173,7 +170,7 @@ describe('POST /sftp/test-file', { timeout: 30000 }, () => {
       expect(response.payload).not.toMatch(/Missing|No such file|Error/i)
     } finally {
       loadSftpTestServerConfig({ keys, folders })
-      config.set('sscl.testEnabled', true)
+      config.set(testEnabledSetting, true)
       resetSsclClient()
     }
   })

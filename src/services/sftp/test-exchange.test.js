@@ -1,6 +1,12 @@
 import { runSsclTestExchange } from './test-exchange.js'
-import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
-import { overridePullSession } from '../../test-utils/sscl-test-helpers.js'
+import {
+  sftpNoSuchFile,
+  ssclErrorCodes
+} from '../../common/helpers/sscl/sscl-errors.js'
+import {
+  overridePullSession,
+  withCode
+} from '../../test-utils/sscl-test-helpers.js'
 import { createInMemorySsclClient } from '../../test-utils/in-memory-sscl.js'
 import {
   fakeSsclStartupReplyFilename as replyFilename,
@@ -144,8 +150,7 @@ describe('runSsclTestExchange', () => {
     overridePullSession({
       transport: sscl.transport,
       overrides: {
-        download: () =>
-          Promise.reject(Object.assign(new Error('No such file'), { code: 2 }))
+        download: () => Promise.reject(withCode(sftpNoSuchFile))
       }
     })
 
@@ -162,11 +167,7 @@ describe('runSsclTestExchange', () => {
 
   it('is not ok when another pull is already running', async () => {
     client.pullFiles = () =>
-      Promise.reject(
-        Object.assign(new Error('busy'), {
-          code: ssclErrorCodes.pullInProgress
-        })
-      )
+      Promise.reject(withCode(ssclErrorCodes.pullInProgress))
 
     const result = await runSsclTestExchange({ client, now })
 
