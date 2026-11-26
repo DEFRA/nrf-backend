@@ -5,6 +5,8 @@ import { generateSshTestKeyPair } from './ssh-test-keys.js'
  * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
  * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
  * @typedef {import('../services/sftp/sscl-client.js').PullResult} PullResult
+ * @typedef {import('../services/sftp/sscl-client.js').SsclPgpKeys} SsclPgpKeys
+ * @typedef {import('./pgp-test-keys.js').PgpTestKeys} PgpTestKeys
  * @typedef {Awaited<ReturnType<typeof import('./sftp-fault-server.js').startSftpFaultServer>>} SftpFaultServer
  * @typedef {import('./sftp-fault-server.js').SftpOperation} SftpOperation
  */
@@ -13,8 +15,8 @@ export const ssclTestLimits = { maxFileBytes: 1024 * 1024, maxFilesPerRun: 50 }
 
 /**
  * The keys the SSCL client holds, from the PGP test keys.
- * @param {import('./pgp-test-keys.js').PgpTestKeys} pgp
- * @returns {import('../services/sftp/sscl-client.js').SsclPgpKeys}
+ * @param {PgpTestKeys} pgp
+ * @returns {SsclPgpKeys}
  */
 export const nrfPgpKeysFor = (pgp) => ({
   nrfPrivateKey: pgp.nrf.privateKey,
@@ -28,13 +30,18 @@ export const nrfPgpKeysFor = (pgp) => ({
  */
 export const toBase64 = (text) => Buffer.from(text).toString('base64')
 
+/**
+ * @param {string} base64
+ */
+export const fromBase64 = (base64) => Buffer.from(base64, 'base64').toString()
+
 const anyBase64 = 'aA=='
 const sshKeys = generateSshTestKeyPair()
 
 /**
  * Loads config for MOVEit with every required setting present: real SSH keys,
  * placeholder PGP keys unless given (the client checks PGP keys when built).
- * @param {{ pgp?: object }} [overrides]
+ * @param {{ pgp?: Partial<SsclPgpKeys> }} [overrides] - PGP keys in base64, as config holds them
  */
 export const loadMoveitTestConfig = ({ pgp } = {}) =>
   config.load({
@@ -59,7 +66,7 @@ export const loadMoveitTestConfig = ({ pgp } = {}) =>
 
 /**
  * Loads config for MOVEit with every key real and usable.
- * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys }} params
+ * @param {{ keys: PgpTestKeys }} params
  */
 export const loadUsableMoveitTestConfig = ({ keys }) =>
   loadMoveitTestConfig({

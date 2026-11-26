@@ -16,21 +16,26 @@ import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
 import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
 
 const testEnabledKey = 'sscl.testEnabled'
+const environmentSetting = 'cdpEnvironment'
+const hostSetting = 'sscl.sftp.host'
+const hostKeySetting = 'sscl.sftp.hostKey'
+const encryptionKeySetting = 'sscl.pgp.ssclEncryptionPublicKey'
+const signingKeySetting = 'sscl.pgp.ssclSigningPublicKey'
 // Long enough for the SSH handshake, which it limits too, and far short of
 // the default, so only the configured value can end the stalled request.
 const stallTimeoutMs = 1000
 
 const requiredKeys = [
-  'sscl.sftp.host',
-  'sscl.sftp.hostKey',
+  hostSetting,
+  hostKeySetting,
   'sscl.sftp.privateKey',
   'sscl.sftp.pushUser',
   'sscl.sftp.pushFolder',
   'sscl.sftp.pullUser',
   'sscl.sftp.pullFolder',
   'sscl.pgp.nrfPrivateKey',
-  'sscl.pgp.ssclEncryptionPublicKey',
-  'sscl.pgp.ssclSigningPublicKey'
+  encryptionKeySetting,
+  signingKeySetting
 ]
 
 let keys
@@ -42,12 +47,12 @@ beforeAll(async () => {
 describe('getSsclClient', () => {
   const original = {
     sscl: config.get('sscl'),
-    environment: config.get('cdpEnvironment')
+    environment: config.get(environmentSetting)
   }
 
   afterEach(() => {
     config.load({ sscl: original.sscl })
-    config.set('cdpEnvironment', original.environment)
+    config.set(environmentSetting, original.environment)
     resetSsclClient()
   })
 
@@ -108,7 +113,7 @@ describe('getSsclClient', () => {
   it('refuses the test route in prod, even without the plugin', async () => {
     loadUsableMoveitTestConfig({ keys })
     config.set(testEnabledKey, true)
-    config.set('cdpEnvironment', 'prod')
+    config.set(environmentSetting, 'prod')
 
     await expect(getSsclClient()).rejects.toThrow(
       'SSCL_SFTP_TEST_ENABLED must not be true in prod'
@@ -127,29 +132,29 @@ describe('getSsclClient', () => {
 
   it('refuses a key that is not base64', async () => {
     loadMoveitTestConfig()
-    config.set('sscl.sftp.hostKey', 'ssh-ed25519 AAAA host')
+    config.set(hostKeySetting, 'ssh-ed25519 AAAA host')
 
     await expect(getSsclClient()).rejects.toThrow(
-      'sscl.sftp.hostKey is not valid base64'
+      `${hostKeySetting} is not valid base64`
     )
   })
 
-  it.each([
-    ['sscl.pgp.ssclSigningPublicKey'],
-    ['sscl.pgp.ssclEncryptionPublicKey']
-  ])("refuses %s set to NRF's own key", async (key) => {
-    loadUsableMoveitTestConfig({ keys })
-    config.set(key, toBase64(keys.nrf.publicKey))
+  it.each([[signingKeySetting], [encryptionKeySetting]])(
+    "refuses %s set to NRF's own key",
+    async (key) => {
+      loadUsableMoveitTestConfig({ keys })
+      config.set(key, toBase64(keys.nrf.publicKey))
 
-    await expect(getSsclClient()).rejects.toThrow(
-      "SSCL's PGP public keys must not be NRF's own key"
-    )
-  })
+      await expect(getSsclClient()).rejects.toThrow(
+        "SSCL's PGP public keys must not be NRF's own key"
+      )
+    }
+  )
 
   it('accepts base64 wrapped over several lines', async () => {
     loadUsableMoveitTestConfig({ keys })
     config.set(
-      'sscl.pgp.ssclSigningPublicKey',
+      signingKeySetting,
       wrapBase64({ base64: toBase64(keys.ssclSigning.publicKey) }).join('\n')
     )
 
@@ -158,10 +163,10 @@ describe('getSsclClient', () => {
 
   it('tries again after a build that failed, rather than keep the failure', async () => {
     loadUsableMoveitTestConfig({ keys })
-    config.set('sscl.sftp.host', '')
-    await expect(getSsclClient()).rejects.toThrow('sscl.sftp.host is not set')
+    config.set(hostSetting, '')
+    await expect(getSsclClient()).rejects.toThrow(`${hostSetting} is not set`)
 
-    config.set('sscl.sftp.host', 'moveit.example')
+    config.set(hostSetting, 'moveit.example')
 
     await expect(getSsclClient()).resolves.toBeDefined()
   })
@@ -194,11 +199,11 @@ describe('assertSsclConfig', () => {
   )
 
   it.each([
-    ['sscl.sftp.hostKey', 'SFTP host key'],
+    [hostKeySetting, 'SFTP host key'],
     ['sscl.sftp.privateKey', 'SSH private key'],
     ['sscl.pgp.nrfPrivateKey', 'PGP key'],
-    ['sscl.pgp.ssclEncryptionPublicKey', 'PGP key'],
-    ['sscl.pgp.ssclSigningPublicKey', 'PGP key']
+    [encryptionKeySetting, 'PGP key'],
+    [signingKeySetting, 'PGP key']
   ])(
     'fails at startup when %s cannot be read, without quoting it',
     async (key, what) => {
