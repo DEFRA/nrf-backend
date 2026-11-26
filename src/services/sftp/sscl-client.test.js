@@ -17,6 +17,7 @@ import { receiveAsFakeSscl } from '../../test-utils/fake-sscl-test-helpers.js'
 import {
   fakeSsclReplyTime,
   fakeSsclStartupReplyFilename as replyFilename,
+  fakeSsclStartupReplyText,
   ssclTestGarbageFile as garbageFile,
   ssclTestGarbageFirstFile as garbageFirstFile,
   ssclTestInvoiceFilename,
@@ -168,6 +169,12 @@ describe('SSCL client', () => {
       expect(logged).toEqual([
         expect.stringContaining(`stored but left in the pull folder: ${status}`)
       ])
+      expect(
+        JSON.stringify([
+          ...mockLogger.warn.mock.calls,
+          ...mockLogger.error.mock.calls
+        ])
+      ).not.toContain(fakeSsclStartupReplyText.trim())
     }
   )
 
@@ -251,6 +258,19 @@ describe('SSCL client', () => {
     })
   })
 
+  it('accepts the next pull after the connection was lost', async () => {
+    const restorePullSession = overridePullSession({
+      transport: sscl.transport,
+      overrides: { download: () => Promise.reject(new Error('ECONNRESET')) }
+    })
+    await client.pullFiles(collectPulledFiles())
+    restorePullSession()
+
+    const next = await client.pullFiles(collectPulledFiles())
+
+    expect(pulledStatuses(next)).toEqual([[replyFilename, 'received']])
+  })
+
   it('counts a file that vanished before it was downloaded as gone, and carries on', async () => {
     sscl.dropInPullFolder(garbageFile)
     const noSuchFile = withCode(STATUS_CODE.NO_SUCH_FILE)
@@ -286,6 +306,17 @@ describe('SSCL client', () => {
     const partial = `${garbageFile.filename}${partialSuffix}`
     sscl.dropInPullFolder({ filename: partial, data: Buffer.from('half') })
     const pulledFiles = collectPulledFiles()
+    const downloaded = []
+    const { withPullSession } = sscl.transport
+    overridePullSession({
+      transport: sscl.transport,
+      overrides: {
+        download: (params) => {
+          downloaded.push(params.filename)
+          return withPullSession((session) => session.download(params))
+        }
+      }
+    })
 
     const result = await client.pullFiles(pulledFiles)
 
@@ -295,6 +326,7 @@ describe('SSCL client', () => {
       replyFilename
     ])
     expect(await pullFolderNames(sscl.transport)).toContain(partial)
+    expect(downloaded).toEqual([replyFilename])
   })
 
   it('starts no new file once the time limit has passed', async () => {

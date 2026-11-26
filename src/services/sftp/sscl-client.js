@@ -83,7 +83,8 @@ export const defaultStoreTimeoutMs = 30000
  * this resolves. It must be idempotent, keyed on filename and sha256: a file
  * is handed over again if its removal fails, if two backend instances pull
  * it at once, or if this takes longer than the store time limit, after which
- * the pull carries on without it but this may still finish later.
+ * the pull carries on without it but this may still finish later. An error
+ * it throws is logged in full, so it must not include the file's contents.
  * @typedef {(file: SsclFile & { sha256: string }) => Promise<void>} OnPulledFile
  */
 
