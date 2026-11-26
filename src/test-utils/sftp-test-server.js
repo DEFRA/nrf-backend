@@ -142,7 +142,7 @@ export const namesInSftpTestFolder = async ({
 /**
  * Loads SSCL config pointing at the local SFTP server, with the given PGP test
  * keys, as the backend would read it from the environment.
- * @param {{ keys: Awaited<ReturnType<typeof import('./pgp-test-keys.js').generatePgpTestKeys>>, folders?: SftpTestFolders }} params
+ * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys, folders?: SftpTestFolders }} params
  */
 export const loadSftpTestServerConfig = ({
   keys,
