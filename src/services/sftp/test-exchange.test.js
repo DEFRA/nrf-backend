@@ -84,6 +84,7 @@ describe('runSsclTestExchange', () => {
     ['changed', false],
     ['unverified', false],
     ['not-stored', false],
+    ['replaced', false],
     ['not-deleted', false]
   ])('treats a pulled file that is %s as ok: %s', async (status, ok) => {
     client.pullFiles = async () => ({
