@@ -1,3 +1,11 @@
+/**
+ * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
+ * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
+ * @typedef {import('../services/sftp/sscl-client.js').PullResult} PullResult
+ * @typedef {Awaited<ReturnType<typeof import('./sftp-fault-server.js').startSftpFaultServer>>} SftpFaultServer
+ * @typedef {import('./sftp-fault-server.js').SftpOperation} SftpOperation
+ */
+
 export const ssclTestLimits = { maxFileBytes: 1024 * 1024, maxFilesPerRun: 50 }
 
 /**
@@ -29,14 +37,14 @@ export const withCode = (code) =>
 
 /**
  * Each pulled file's name and status, in order.
- * @param {{ files: Array<{ filename: string, status: string }> }} pulled
+ * @param {Pick<PullResult, 'files'>} pulled
  */
 export const pulledStatuses = ({ files }) =>
   files.map(({ filename, status }) => [filename, status])
 
 /**
  * The names of the files in a transport's pull folder.
- * @param {import('../services/sftp/sftp-transport.js').SsclTransport} transport
+ * @param {SsclTransport} transport
  */
 export const pullFolderNames = async (transport) =>
   (await transport.withPullSession((session) => session.list())).map(
@@ -46,7 +54,7 @@ export const pullFolderNames = async (transport) =>
 /**
  * Replaces some of a transport's pull session operations, e.g. to make a
  * download fail.
- * @param {{ transport: import('../services/sftp/sftp-transport.js').SsclTransport, overrides: Partial<import('../services/sftp/sftp-transport.js').PullSession> }} params
+ * @param {{ transport: SsclTransport, overrides: Partial<PullSession> }} params
  * @returns {() => void} puts the pull session back as it was before
  */
 export const overridePullSession = ({ transport, overrides }) => {
@@ -57,6 +65,18 @@ export const overridePullSession = ({ transport, overrides }) => {
     transport.withPullSession = original
   }
 }
+
+/**
+ * Makes a fault server answer one operation on one file with an SFTP status
+ * code, and every other request as normal.
+ * @param {{ server: Pick<SftpFaultServer, 'setFault'>, operation: SftpOperation, filename: string, status: number }} params
+ */
+export const refuseOn = ({ server, operation, filename, status }) =>
+  server.setFault((request) =>
+    request.operation === operation && request.path.endsWith(`/${filename}`)
+      ? { status }
+      : undefined
+  )
 
 /**
  * An onFile handler that keeps what it is given.

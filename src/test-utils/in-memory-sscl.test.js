@@ -17,10 +17,8 @@ describe('createInMemorySsclClient transport', () => {
     } = await createInMemorySsclClient())
   })
 
-  const inPullSession = (work) => transport.withPullSession(work)
-
   it('fails a download of a missing file with the SFTP no-such-file code', async () => {
-    const download = inPullSession((session) =>
+    const download = transport.withPullSession((session) =>
       session.download({ filename: 'missing.pgp', maxBytes: 100 })
     )
 
@@ -33,15 +31,21 @@ describe('createInMemorySsclClient transport', () => {
       'push',
       () => transport.pushFile({ filename: unsafe, data: Buffer.from('x') })
     ],
-    ['stat', () => inPullSession((session) => session.stat(unsafe))],
+    [
+      'stat',
+      () => transport.withPullSession((session) => session.stat(unsafe))
+    ],
     [
       'download',
       () =>
-        inPullSession((session) =>
+        transport.withPullSession((session) =>
           session.download({ filename: unsafe, maxBytes: 100 })
         )
     ],
-    ['remove', () => inPullSession((session) => session.remove(unsafe))]
+    [
+      'remove',
+      () => transport.withPullSession((session) => session.remove(unsafe))
+    ]
   ])(
     'refuses an unsafe name on %s, as the SFTP transport does',
     async (_operation, run) => {

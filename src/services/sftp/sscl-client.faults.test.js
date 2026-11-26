@@ -26,6 +26,7 @@ import {
   collectPulledFiles,
   nrfPgpKeysFor,
   pulledStatuses,
+  refuseOn,
   ssclTestLimits
 } from '../../test-utils/sscl-test-helpers.js'
 
@@ -62,18 +63,13 @@ describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
     await server.close()
   })
 
-  /**
-   * Answers one operation on the first file with an SFTP status code.
-   */
-  const refuseOnFirstFile = ({ operation, status }) =>
-    server.setFault((request) =>
-      request.operation === operation && request.path.endsWith(names[0])
-        ? { status }
-        : undefined
-    )
-
   it('carries on to the next file when the server refuses to delete one', async () => {
-    refuseOnFirstFile({ operation: 'remove', status: STATUS_CODE.FAILURE })
+    refuseOn({
+      server,
+      operation: 'remove',
+      filename: names[0],
+      status: STATUS_CODE.FAILURE
+    })
 
     const result = await client.pullFiles(collectPulledFiles())
 
@@ -85,8 +81,10 @@ describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
   })
 
   it('carries on to the next file when the server refuses to open one', async () => {
-    refuseOnFirstFile({
+    refuseOn({
+      server,
       operation: 'open',
+      filename: names[0],
       status: STATUS_CODE.PERMISSION_DENIED
     })
 
@@ -100,7 +98,12 @@ describe('SSCL client against a faulty SFTP server', { timeout: 20000 }, () => {
   })
 
   it('counts a file that is gone by the time it is opened as gone, and carries on', async () => {
-    refuseOnFirstFile({ operation: 'open', status: STATUS_CODE.NO_SUCH_FILE })
+    refuseOn({
+      server,
+      operation: 'open',
+      filename: names[0],
+      status: STATUS_CODE.NO_SUCH_FILE
+    })
 
     const result = await client.pullFiles(collectPulledFiles())
 

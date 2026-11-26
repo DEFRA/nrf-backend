@@ -348,6 +348,22 @@ describe('SSCL client', () => {
     }
   )
 
+  it('counts a stored file as not deleted when checking it fails, and carries on', async () => {
+    const { names } = await sscl.dropSecondReply()
+    overridePullSession({
+      transport: sscl.transport,
+      overrides: { stat: () => Promise.reject(withCode(STATUS_CODE.FAILURE)) }
+    })
+
+    const result = await client.pullFiles(collectPulledFiles())
+
+    expect(pulledStatuses(result)).toEqual(
+      names.map((name) => [name, 'not-deleted'])
+    )
+    expect(result.notProcessed).toBe(0)
+    expect(await pullFolderNames(sscl.transport)).toEqual(names)
+  })
+
   it('stops pulling when removing a stored file loses the connection', async () => {
     const {
       names: [first]

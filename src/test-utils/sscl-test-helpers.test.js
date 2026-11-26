@@ -1,11 +1,13 @@
 import { fakeSsclStartupReplyFilename } from './fixtures/sscl.js'
 import { createInMemorySsclClient } from './in-memory-sscl.js'
+import { sftpTestFolders } from './sftp-test-transport.js'
 import {
   collectPulledFiles,
   nrfPgpKeysFor,
   overridePullSession,
   pulledStatuses,
   pullFolderNames,
+  refuseOn,
   withCode,
   wrapBase64
 } from './sscl-test-helpers.js'
@@ -25,16 +27,27 @@ describe('wrapBase64', () => {
 
 describe('nrfPgpKeysFor', () => {
   it("gives the SSCL client NRF's private key and SSCL's public keys", () => {
-    const pair = (name) => ({
-      privateKey: `${name} private`,
-      publicKey: `${name} public`,
-      passphrase: `${name} passphrase`
-    })
     const pgp = {
-      nrf: pair('nrf'),
-      ssclEncryption: pair('encryption'),
-      ssclSigning: pair('signing'),
-      stranger: pair('stranger')
+      nrf: {
+        privateKey: 'nrf private',
+        publicKey: 'nrf public',
+        passphrase: 'nrf passphrase'
+      },
+      ssclEncryption: {
+        privateKey: 'encryption private',
+        publicKey: 'encryption public',
+        passphrase: 'encryption passphrase'
+      },
+      ssclSigning: {
+        privateKey: 'signing private',
+        publicKey: 'signing public',
+        passphrase: 'signing passphrase'
+      },
+      stranger: {
+        privateKey: 'stranger private',
+        publicKey: 'stranger public',
+        passphrase: 'stranger passphrase'
+      }
     }
 
     expect(nrfPgpKeysFor(pgp)).toEqual({
@@ -68,6 +81,23 @@ describe('pulledStatuses', () => {
       ['b.txt.pgp', 'received'],
       ['a.txt.pgp', 'gone']
     ])
+  })
+})
+
+describe('refuseOn', () => {
+  it('refuses only the given operation on the given file', () => {
+    const server = { setFault: vi.fn() }
+    const { pull } = sftpTestFolders
+
+    refuseOn({ server, operation: 'remove', filename: 'a.pgp', status: 4 })
+    const [[fault]] = server.setFault.mock.calls
+
+    expect([
+      fault({ operation: 'remove', path: `${pull}/a.pgp` }),
+      fault({ operation: 'open', path: `${pull}/a.pgp` }),
+      fault({ operation: 'remove', path: `${pull}/b.pgp` }),
+      fault({ operation: 'remove', path: `${pull}/ba.pgp` })
+    ]).toEqual([{ status: 4 }, undefined, undefined, undefined])
   })
 })
 
