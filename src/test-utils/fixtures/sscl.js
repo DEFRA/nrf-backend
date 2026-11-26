@@ -2,6 +2,7 @@ export const ssclTestInvoiceText = 'invoices'
 export const ssclTestCustomerFilename = 'rainv_NRLCUST_20261118143005.dat.pgp'
 /** A reply name as SSCL might send it; SSCL's names are not agreed yet. */
 export const ssclTestReplyFilename = 'SSCL_1.pgp'
+export const ssclTestSecondReplyFilename = 'SSCL_2.pgp'
 /** What openpgp says about a file with no signature, or someone else's. */
 export const pgpTestErrors = {
   notSigned: 'Message is not signed',

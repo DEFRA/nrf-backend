@@ -134,6 +134,43 @@ describe('SSCL client', () => {
     expect(await pullFolderNames(sscl.transport)).toEqual([replyFilename])
   })
 
+  it.each([
+    [
+      'replaced after it was read',
+      'changed',
+      () => ({
+        onFile: async ({ filename }) =>
+          sscl.dropInPullFolder({ filename, data: Buffer.from('a new file') })
+      })
+    ],
+    [
+      'could not be removed',
+      'not-deleted',
+      () => {
+        overridePullSession({
+          transport: sscl.transport,
+          overrides: {
+            remove: () => Promise.reject(withCode(STATUS_CODE.FAILURE))
+          }
+        })
+        return collectPulledFiles()
+      }
+    ]
+  ])(
+    'logs a stored file that was %s as left in the pull folder',
+    async (_case, status, pullOptions) => {
+      await client.pullFiles(pullOptions())
+
+      const logged = [
+        ...mockLogger.warn.mock.calls,
+        ...mockLogger.error.mock.calls
+      ].map((call) => call[1])
+      expect(logged).toEqual([
+        expect.stringContaining(`stored but left in the pull folder: ${status}`)
+      ])
+    }
+  )
+
   it('leaves a file replaced by one of the same size after it was read', async () => {
     const { files } = await client.pullFiles({
       onFile: async ({ filename }) => {
@@ -263,6 +300,20 @@ describe('SSCL client', () => {
     })
 
     expect(result).toEqual({ files: [], notProcessed: 1 })
+  })
+
+  it('starts no new file once the time limit passes during a pull', async () => {
+    await sscl.dropSecondReply()
+    const stopAfterMs = 50
+
+    const result = await client.pullFiles({
+      onFile: () =>
+        new Promise((resolve) => setTimeout(resolve, stopAfterMs * 2)),
+      stopAfterMs
+    })
+
+    expect(result.files.map((file) => file.status)).toEqual(['received'])
+    expect(result.notProcessed).toBe(1)
   })
 
   it.each([

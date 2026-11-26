@@ -53,6 +53,8 @@ const logger = createLogger()
  * could be pulled, which loses nothing.
  */
 export const completedPullStatuses = new Set(['received', 'gone'])
+/** Handed to onFile and stored, but still in the pull folder. */
+const storedButLeftStatuses = new Set(['changed', 'not-deleted'])
 
 /**
  * @typedef {object} PulledFile
@@ -98,6 +100,14 @@ export const defaultStoreTimeoutMs = 30000
  */
 
 /**
+ * @param {PulledFile} pulled
+ */
+const whatHappened = ({ status }) =>
+  storedButLeftStatuses.has(status)
+    ? `stored but left in the pull folder: ${status}`
+    : `not received: ${status}`
+
+/**
  * Logs what happened to a file. An SFTP error that isn't about the file
  * itself (see isFileLevelError: no SFTP status code, or a timeout) means the
  * connection is lost, so the rest of the pull should stop.
@@ -109,14 +119,14 @@ const report = ({ pulled, error, sftpError }) => {
   if (problem) {
     logger.error(
       problem,
-      `SSCL file ${pulled.filename} (${pulled.size} bytes) not received: ${pulled.status}`
+      `SSCL file ${pulled.filename} (${pulled.size} bytes) ${whatHappened(pulled)}`
     )
   } else if (pulled.status === 'received') {
     logger.info({ sscl: pulled }, 'SSCL file received')
   } else if (pulled.status === 'gone') {
     logger.info({ sscl: pulled }, 'SSCL file gone before it could be pulled')
   } else {
-    logger.warn({ sscl: pulled }, `SSCL file not received: ${pulled.status}`)
+    logger.warn({ sscl: pulled }, `SSCL file ${whatHappened(pulled)}`)
   }
   return {
     pulled,
@@ -127,6 +137,8 @@ const report = ({ pulled, error, sftpError }) => {
 /**
  * Removes a stored file from the pull folder, unless it has changed since it
  * was listed (SSCL may have replaced it with a file we haven't read).
+ * A failed stat counts as not-deleted too: the file is stored but left in
+ * place.
  * @param {PullContext & { file: SftpFile, pulled: PulledFile }} params
  * @returns {Promise<PullOutcome>}
  */
@@ -379,6 +391,8 @@ const assertWithinPushLimit = ({ filename, encrypted, limits }) => {
 }
 
 /**
+ * For callers in other modules; createSsclClient's own return type is
+ * inferred.
  * @typedef {ReturnType<typeof createSsclClient>} SsclClient
  */
 
@@ -422,7 +436,10 @@ export function createSsclClient({ transport, keys, limits }) {
      * backend instance. Starts no new file after stopAfterMs, if given; a
      * file already started can run past it. Files that failed before are
      * tried after the others. A file whose onFile has not settled within
-     * storeTimeoutMs counts as not-stored.
+     * storeTimeoutMs counts as not-stored. Fails with:
+     * - ssclErrorCodes.pullInProgress when a pull is already running on this
+     *   instance.
+     * - the transport's error when it cannot connect or list the pull folder.
      * @param {{ onFile: OnPulledFile, stopAfterMs?: number, storeTimeoutMs?: number }} params
      * @returns {Promise<PullResult>}
      */

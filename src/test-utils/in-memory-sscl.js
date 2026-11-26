@@ -8,7 +8,7 @@ import { createSsclClient } from '../services/sftp/sscl-client.js'
 import { buildReply, fakeSsclKeysFor } from './fake-sscl.js'
 import { fakeSsclReplyTime } from './fixtures/sscl.js'
 import { generatePgpTestKeys } from './pgp-test-keys.js'
-import { ssclTestLimits } from './sscl-test-helpers.js'
+import { nrfPgpKeysFor, ssclTestLimits } from './sscl-test-helpers.js'
 
 /**
  * @typedef {import('../services/sftp/sftp-transport.js').SsclFile} SsclFile
@@ -16,6 +16,12 @@ import { ssclTestLimits } from './sscl-test-helpers.js'
  * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
  * @typedef {{ data: Buffer, modifyTime: number }} StoredFile
  */
+
+/**
+ * @param {SsclFile & { folder: Map<string, StoredFile>, modifyTime?: number }} file
+ */
+const putFile = ({ folder, filename, data, modifyTime = Date.now() }) =>
+  folder.set(filename, { data, modifyTime })
 
 /**
  * @param {Map<string, StoredFile>} folder
@@ -62,6 +68,25 @@ const createPullSession = (folder) => ({
 })
 
 /**
+ * @param {{ pushFolder: Map<string, StoredFile>, pullFolder: Map<string, StoredFile> }} folders
+ * @returns {SsclTransport}
+ */
+const createInMemoryTransport = ({ pushFolder, pullFolder }) => ({
+  async pushFile({ filename, data }) {
+    assertSafeFilename(filename)
+    if (pushFolder.has(filename)) {
+      throw ssclError({
+        code: ssclErrorCodes.fileExists,
+        message: `In-memory SSCL file ${filename} already exists`
+      })
+    }
+    putFile({ folder: pushFolder, filename, data })
+  },
+  listPushFolder: async () => listing(pushFolder),
+  withPullSession: (work) => work(createPullSession(pullFolder))
+})
+
+/**
  * An in-memory stand-in for MOVEit's push and pull folders, for unit tests
  * that need exact faults. Refuses unsafe names and reports a missing file as
  * the SFTP transport does. Starts with one reply from the fake SSCL in the pull
@@ -74,12 +99,6 @@ export async function createInMemorySsclClient({ limits } = {}) {
   const pushFolder = new Map()
   /** @type {Map<string, StoredFile>} */
   const pullFolder = new Map()
-
-  /**
-   * @param {SsclFile & { folder: Map<string, StoredFile>, modifyTime?: number }} file
-   */
-  const putFile = ({ folder, filename, data, modifyTime = Date.now() }) =>
-    folder.set(filename, { data, modifyTime })
 
   const fakeSsclKeys = fakeSsclKeysFor(pgp)
 
@@ -95,30 +114,10 @@ export async function createInMemorySsclClient({ limits } = {}) {
   }
   await dropReply('startup')
 
-  /** @type {SsclTransport} */
-  const transport = {
-    async pushFile({ filename, data }) {
-      assertSafeFilename(filename)
-      if (pushFolder.has(filename)) {
-        throw ssclError({
-          code: ssclErrorCodes.fileExists,
-          message: `In-memory SSCL file ${filename} already exists`
-        })
-      }
-      putFile({ folder: pushFolder, filename, data })
-    },
-    listPushFolder: async () => listing(pushFolder),
-    withPullSession: (work) => work(createPullSession(pullFolder))
-  }
-
+  const transport = createInMemoryTransport({ pushFolder, pullFolder })
   const client = createSsclClient({
     transport,
-    keys: {
-      nrfPrivateKey: pgp.nrf.privateKey,
-      nrfPassphrase: pgp.nrf.passphrase,
-      ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
-      ssclSigningPublicKey: pgp.ssclSigning.publicKey
-    },
+    keys: nrfPgpKeysFor(pgp),
     limits: { ...ssclTestLimits, ...limits }
   })
 

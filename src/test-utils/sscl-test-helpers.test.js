@@ -2,6 +2,7 @@ import { fakeSsclStartupReplyFilename } from './fixtures/sscl.js'
 import { createInMemorySsclClient } from './in-memory-sscl.js'
 import {
   collectPulledFiles,
+  nrfPgpKeysFor,
   overridePullSession,
   pulledStatuses,
   pullFolderNames,
@@ -19,6 +20,29 @@ describe('wrapBase64', () => {
 
   it('splits at another width when given one', () => {
     expect(wrapBase64({ base64: 'abcde', width: 2 })).toEqual(['ab', 'cd', 'e'])
+  })
+})
+
+describe('nrfPgpKeysFor', () => {
+  it("gives the SSCL client NRF's private key and SSCL's public keys", () => {
+    const pair = (name) => ({
+      privateKey: `${name} private`,
+      publicKey: `${name} public`,
+      passphrase: `${name} passphrase`
+    })
+    const pgp = {
+      nrf: pair('nrf'),
+      ssclEncryption: pair('encryption'),
+      ssclSigning: pair('signing'),
+      stranger: pair('stranger')
+    }
+
+    expect(nrfPgpKeysFor(pgp)).toEqual({
+      nrfPrivateKey: 'nrf private',
+      nrfPassphrase: 'nrf passphrase',
+      ssclEncryptionPublicKey: 'encryption public',
+      ssclSigningPublicKey: 'signing public'
+    })
   })
 })
 

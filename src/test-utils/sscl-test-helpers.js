@@ -1,6 +1,18 @@
 export const ssclTestLimits = { maxFileBytes: 1024 * 1024, maxFilesPerRun: 50 }
 
 /**
+ * The keys the SSCL client holds, from the PGP test keys.
+ * @param {import('./pgp-test-keys.js').PgpTestKeys} pgp
+ * @returns {import('../services/sftp/sscl-client.js').SsclPgpKeys}
+ */
+export const nrfPgpKeysFor = (pgp) => ({
+  nrfPrivateKey: pgp.nrf.privateKey,
+  nrfPassphrase: pgp.nrf.passphrase,
+  ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
+  ssclSigningPublicKey: pgp.ssclSigning.publicKey
+})
+
+/**
  * Wraps base64 over several lines, as it is in many key files.
  * @param {{ base64: string, width?: number }} params
  * @returns {string[]}
