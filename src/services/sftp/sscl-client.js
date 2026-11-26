@@ -315,14 +315,15 @@ const pullAll = ({ transport, failing, ...context }) =>
       failing
     })
     const tally = { files: [], retried: 0 }
-    let connectionLost = false
-    for (const file of listed.slice(0, context.limits.maxFilesPerRun)) {
-      if (connectionLost || Date.now() >= context.stopAt) {
-        break
-      }
+    const files = listed.slice(0, context.limits.maxFilesPerRun)
+    const withinTimeLimit = () => Date.now() < context.stopAt
+    for (let next = 0; next < files.length && withinTimeLimit(); next++) {
+      const file = files[next]
       const outcome = await pullOne({ ...context, session, file })
       recordOutcome({ tally, failing, file, pulled: outcome.pulled })
-      connectionLost = Boolean(outcome.connectionLost)
+      if (outcome.connectionLost) {
+        break
+      }
     }
     warnIfOnlyRetried(tally)
     return {
