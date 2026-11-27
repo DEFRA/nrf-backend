@@ -27,7 +27,7 @@ const configKeys = {
  * @typedef {{ transport: SftpTransportSettings, keys: SsclPgpKeys }} MoveitSettings
  */
 
-let clientPromise
+let clientPromise = null
 
 const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/
 const base64GroupLength = 4
@@ -232,16 +232,16 @@ const buildCheckedMoveitClient = async () => {
 }
 
 /**
- * Forgets a failed build, so the next call tries again, unless a reset has
- * already replaced it.
+ * Gives a rejection handler that forgets a failed build, so the next call
+ * tries again, unless a reset has already replaced it.
  * @param {Promise<SsclClient>} building
  */
-const forgetIfFailed = (building) =>
-  building.catch(function forgetFailedBuild() {
+const forgetFailedBuild = (building) =>
+  function forgetIfStillCurrent() {
     if (clientPromise === building) {
-      clientPromise = undefined
+      clientPromise = null
     }
-  })
+  }
 
 /**
  * The SSCL client for this environment, talking to MOVEit over SFTP. Built
@@ -251,11 +251,11 @@ const forgetIfFailed = (building) =>
 export function getSsclClient() {
   if (!clientPromise) {
     clientPromise = buildCheckedMoveitClient()
-    forgetIfFailed(clientPromise)
+    clientPromise.catch(forgetFailedBuild(clientPromise))
   }
   return clientPromise
 }
 
 export function resetSsclClient() {
-  clientPromise = undefined
+  clientPromise = null
 }
