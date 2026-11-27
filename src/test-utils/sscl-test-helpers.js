@@ -35,6 +35,9 @@ export const toBase64 = (text) => Buffer.from(text).toString('base64')
  */
 export const fromBase64 = (base64) => Buffer.from(base64, 'base64').toString()
 
+/** Push and pull folders in the MOVEit test config. */
+export const moveitTestFolders = { push: '/out', pull: '/in' }
+
 const anyBase64 = 'aA=='
 const sshKeys = generateSshTestKeyPair()
 
@@ -51,9 +54,9 @@ export const loadMoveitTestConfig = ({ pgp } = {}) =>
         hostKey: toBase64(sshKeys.public),
         privateKey: toBase64(sshKeys.private),
         pushUser: 'u',
-        pushFolder: '/out',
+        pushFolder: moveitTestFolders.push,
         pullUser: 'u',
-        pullFolder: '/in'
+        pullFolder: moveitTestFolders.pull
       },
       pgp: {
         nrfPrivateKey: anyBase64,
@@ -65,18 +68,22 @@ export const loadMoveitTestConfig = ({ pgp } = {}) =>
   })
 
 /**
+ * The PGP test keys as SSCL config holds them: keys in base64.
+ * @param {PgpTestKeys} keys
+ */
+export const pgpConfigFor = (keys) => ({
+  nrfPrivateKey: toBase64(keys.nrf.privateKey),
+  nrfPassphrase: keys.nrf.passphrase,
+  ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
+  ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
+})
+
+/**
  * Loads config for MOVEit with every key real and usable.
  * @param {{ keys: PgpTestKeys }} params
  */
 export const loadUsableMoveitTestConfig = ({ keys }) =>
-  loadMoveitTestConfig({
-    pgp: {
-      nrfPrivateKey: toBase64(keys.nrf.privateKey),
-      nrfPassphrase: keys.nrf.passphrase,
-      ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
-      ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
-    }
-  })
+  loadMoveitTestConfig({ pgp: pgpConfigFor(keys) })
 
 /**
  * Wraps base64 over several lines, as it is in many key files.

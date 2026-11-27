@@ -4,7 +4,7 @@
  * live pull folder.
  * @param {{ testEnabled: boolean, environment: string }} params
  */
-export function assertSsclSwitchesAllowed({ testEnabled, environment }) {
+export function assertSsclTestRouteAllowed({ testEnabled, environment }) {
   if (testEnabled && environment === 'prod') {
     throw new Error('SSCL_SFTP_TEST_ENABLED must not be true in prod')
   }

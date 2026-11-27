@@ -9,8 +9,10 @@ import {
   fromBase64,
   loadMoveitTestConfig,
   loadUsableMoveitTestConfig,
+  moveitTestFolders,
   nrfPgpKeysFor,
   overridePullSession,
+  pgpConfigFor,
   pulledStatuses,
   pullFolderNames,
   refuseOn,
@@ -45,23 +47,23 @@ describe('fromBase64', () => {
   })
 })
 
-describe('MOVEit test config', () => {
-  const original = config.get('sscl')
+const originalSscl = config.get('sscl')
 
+describe('loadMoveitTestConfig', () => {
   afterEach(() => {
-    config.load({ sscl: original })
+    config.load({ sscl: originalSscl })
   })
 
-  it('loadMoveitTestConfig sets every MOVEit setting, with SSH keys that can be read', () => {
+  it('sets every MOVEit setting, with SSH keys that can be read', () => {
     loadMoveitTestConfig()
     const { sftp, pgp } = config.get('sscl')
 
     expect(sftp).toMatchObject({
       host: expect.any(String),
       pushUser: expect.any(String),
-      pushFolder: expect.any(String),
+      pushFolder: moveitTestFolders.push,
       pullUser: expect.any(String),
-      pullFolder: expect.any(String)
+      pullFolder: moveitTestFolders.pull
     })
     expect(ssh2.utils.parseKey(fromBase64(sftp.hostKey))).not.toBeInstanceOf(
       Error
@@ -76,23 +78,37 @@ describe('MOVEit test config', () => {
     ]).not.toContain('')
   })
 
-  it('loadMoveitTestConfig uses the PGP keys it is given', () => {
+  it('uses the PGP keys it is given', () => {
     loadMoveitTestConfig({ pgp: { nrfPrivateKey: toBase64('nrf private') } })
 
     expect(config.get('sscl.pgp.nrfPrivateKey')).toBe(toBase64('nrf private'))
   })
+})
 
-  it('loadUsableMoveitTestConfig loads the PGP test keys in base64', async () => {
+describe('pgpConfigFor', () => {
+  it('gives the PGP test keys in base64, with the passphrase as it is', async () => {
     const keys = await generatePgpTestKeys()
 
-    loadUsableMoveitTestConfig({ keys })
-
-    expect(config.get('sscl.pgp')).toMatchObject({
+    expect(pgpConfigFor(keys)).toEqual({
       nrfPrivateKey: toBase64(keys.nrf.privateKey),
       nrfPassphrase: keys.nrf.passphrase,
       ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
       ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
     })
+  })
+})
+
+describe('loadUsableMoveitTestConfig', () => {
+  afterEach(() => {
+    config.load({ sscl: originalSscl })
+  })
+
+  it('loads the PGP test keys as config holds them', async () => {
+    const keys = await generatePgpTestKeys()
+
+    loadUsableMoveitTestConfig({ keys })
+
+    expect(config.get('sscl.pgp')).toMatchObject(pgpConfigFor(keys))
   })
 })
 

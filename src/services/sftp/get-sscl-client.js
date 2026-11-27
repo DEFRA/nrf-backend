@@ -6,7 +6,7 @@ import {
   assertPgpPrivateKeyUnlocks,
   pgpKeyFingerprint
 } from '../../common/helpers/sscl/pgp.js'
-import { assertSsclSwitchesAllowed } from '../../common/helpers/sscl/sscl-guards.js'
+import { assertSsclTestRouteAllowed } from '../../common/helpers/sscl/sscl-guards.js'
 import { createSftpTransport } from './sftp-transport.js'
 import { createSsclClient } from './sscl-client.js'
 
@@ -28,27 +28,27 @@ const required = (key) => {
   return value
 }
 
-const decodeBase64 = (key) => {
+/**
+ * @param {{ key: string, value: string }} params
+ */
+const decodeBase64 = ({ key, value }) => {
   // Base64 copied from a file is often wrapped over several lines
-  const value = config.get(key).replaceAll(/\s/g, '')
-  if (!base64Pattern.test(value)) {
+  const unwrapped = value.replaceAll(/\s/g, '')
+  if (!base64Pattern.test(unwrapped)) {
     throw new Error(`${key} is not valid base64`)
   }
-  return Buffer.from(value, 'base64').toString('utf8')
+  return Buffer.from(unwrapped, 'base64').toString('utf8')
 }
 
-const requiredBase64 = (key) => {
-  required(key)
-  return decodeBase64(key)
-}
+const requiredBase64 = (key) => decodeBase64({ key, value: required(key) })
 
 const ssclLimits = () => ({
   maxFileBytes: config.get('sscl.maxFileBytes'),
   maxFilesPerRun: config.get('sscl.maxFilesPerRun')
 })
 
-const assertSwitchesAllowed = () =>
-  assertSsclSwitchesAllowed({
+const assertTestRouteAllowed = () =>
+  assertSsclTestRouteAllowed({
     testEnabled: config.get('sscl.testEnabled'),
     environment: config.get('cdpEnvironment')
   })
@@ -169,17 +169,33 @@ const buildMoveitClient = async () => {
 
 /**
  * Checks the SSCL config at startup, so a bad deploy fails then rather than
- * at the first exchange. The MOVEit settings are only required once something
- * uses them: today, the test route. The prod check relies on ENVIRONMENT
- * being set, as the rest of the service does; test and prod MOVEit share a
- * host name, so the host cannot be a second check.
+ * at the first exchange. The MOVEit settings are required only when the test
+ * route is on. The prod check relies on ENVIRONMENT being set; test and prod
+ * MOVEit share a host name, so the host cannot be a second check.
  */
 export async function assertSsclConfig() {
-  assertSwitchesAllowed()
+  assertTestRouteAllowed()
   if (config.get('sscl.testEnabled')) {
     await assertMoveitKeysUsable(readMoveitSettings())
   }
 }
+
+const buildCheckedMoveitClient = async () => {
+  assertTestRouteAllowed()
+  return buildMoveitClient()
+}
+
+/**
+ * Forgets a failed build, so the next call tries again, unless a reset has
+ * already replaced it.
+ * @param {Promise<SsclClient>} building
+ */
+const forgetIfFailed = (building) =>
+  building.catch(function forgetFailedBuild() {
+    if (clientPromise === building) {
+      clientPromise = undefined
+    }
+  })
 
 /**
  * The SSCL client for this environment, talking to MOVEit over SFTP. Built
@@ -188,16 +204,8 @@ export async function assertSsclConfig() {
  */
 export function getSsclClient() {
   if (!clientPromise) {
-    const building = (async () => {
-      assertSwitchesAllowed()
-      return buildMoveitClient()
-    })()
-    building.catch(() => {
-      if (clientPromise === building) {
-        clientPromise = undefined
-      }
-    })
-    clientPromise = building
+    clientPromise = buildCheckedMoveitClient()
+    forgetIfFailed(clientPromise)
   }
   return clientPromise
 }

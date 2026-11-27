@@ -1,9 +1,9 @@
-import { assertSsclSwitchesAllowed } from './sscl-guards.js'
+import { assertSsclTestRouteAllowed } from './sscl-guards.js'
 
-describe('assertSsclSwitchesAllowed', () => {
+describe('assertSsclTestRouteAllowed', () => {
   it('refuses the test route in prod', () => {
     expect(() =>
-      assertSsclSwitchesAllowed({ testEnabled: true, environment: 'prod' })
+      assertSsclTestRouteAllowed({ testEnabled: true, environment: 'prod' })
     ).toThrow('SSCL_SFTP_TEST_ENABLED must not be true in prod')
   })
 
@@ -14,7 +14,7 @@ describe('assertSsclSwitchesAllowed', () => {
     [false, 'prod']
   ])('allows testEnabled=%s in %s', (testEnabled, environment) => {
     expect(() =>
-      assertSsclSwitchesAllowed({ testEnabled, environment })
+      assertSsclTestRouteAllowed({ testEnabled, environment })
     ).not.toThrow()
   })
 })
