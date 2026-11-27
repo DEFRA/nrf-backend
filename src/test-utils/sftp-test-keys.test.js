@@ -1,4 +1,10 @@
-import { mkdtempSync, rmSync, statSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdtempSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -61,5 +67,15 @@ describe('ensureSftpTestKeys', () => {
     expect(
       readSftpTestKey({ keyFileName: sftpTestKeyFiles.hostPrivate, dir })
     ).toMatch(/PRIVATE KEY/)
+  })
+
+  it('makes a private key file left with loose permissions readable only by the owner again', () => {
+    const clientPrivate = path.join(dir, sftpTestKeyFiles.clientPrivate)
+    writeFileSync(clientPrivate, 'old key')
+    chmodSync(clientPrivate, 0o644)
+
+    ensureSftpTestKeys({ dir })
+
+    expect(statSync(clientPrivate).mode & 0o777).toBe(privateFileMode)
   })
 })

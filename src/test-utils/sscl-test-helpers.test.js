@@ -308,10 +308,10 @@ describe('pull folder helpers', () => {
   })
 
   it('runBeforeEachDownload does the given work on each file before it is downloaded', async () => {
-    runBeforeEachDownload({
-      transport,
-      beforeDownload: ({ session, filename }) => session.remove(filename)
-    })
+    const beforeDownload = vi.fn(({ session, filename }) =>
+      session.remove(filename)
+    )
+    runBeforeEachDownload({ transport, beforeDownload })
 
     await expect(
       transport.withPullSession((session) =>
@@ -321,6 +321,10 @@ describe('pull folder helpers', () => {
         })
       )
     ).rejects.toThrow(`No such file: ${fakeSsclStartupReplyFilename}`)
+    expect(beforeDownload).toHaveBeenCalledWith({
+      session: expect.anything(),
+      filename: fakeSsclStartupReplyFilename
+    })
   })
 
   it('runBeforeEachDownload gives back a way to undo it', async () => {

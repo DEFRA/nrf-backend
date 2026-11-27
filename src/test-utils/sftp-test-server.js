@@ -9,6 +9,7 @@ import { pgpConfigFor, toBase64 } from './sscl-test-helpers.js'
 /**
  * @typedef {import('../services/sftp/sftp-client.js').SftpConnectionSettings} SftpConnectionSettings
  * @typedef {import('../services/sftp/sftp-client.js').SftpSession} SftpSession
+ * @typedef {import('./pgp-test-keys.js').PgpTestKeys} PgpTestKeys
  * @typedef {{ push: string, pull: string }} SftpContainerFolders
  * @typedef {'push' | 'pull'} SftpTestDirection
  * @typedef {Partial<Pick<SftpConnectionSettings, 'hostKey' | 'proxyUrl'>>} SftpTestOverrides
@@ -93,8 +94,8 @@ export const asSftpTestUser = ({ direction, work, ...overrides }) =>
 export const clearSftpTestFolders = async ({
   folders = sftpContainerFolders
 } = {}) => {
+  const { host, port, privateKey, hostKey, timeoutMs } = sftpTestConnection()
   for (const direction of Object.values(sftpTestDirections)) {
-    const { host, port, privateKey, hostKey, timeoutMs } = sftpTestConnection()
     const client = new SftpClient()
     // The library closes a connection that fails to open, so only an open
     // one needs ending
@@ -168,7 +169,7 @@ export const namesInSftpTestFolder = async ({
 /**
  * Loads SSCL config pointing at the local SFTP server, with the given PGP test
  * keys, as the backend would read it from the environment.
- * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys, folders?: SftpContainerFolders }} params
+ * @param {{ keys: PgpTestKeys } & SftpContainerFoldersParam} params
  */
 export const loadSftpTestServerConfig = ({
   keys,

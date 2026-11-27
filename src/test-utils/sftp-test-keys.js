@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync
+} from 'node:fs'
 import path from 'node:path'
 
 import { generateSshTestKeyPair } from './ssh-test-keys.js'
@@ -33,29 +39,34 @@ export function ensureSftpTestKeys({ dir = sftpTestKeysDir } = {}) {
   mkdirSync(dir, { recursive: true })
   const host = generateSshTestKeyPair()
   const client = generateSshTestKeyPair({ comment: 'nrf-backend-test' })
-  /** @param {{ keyFileName: string, content: string, mode: number }} params */
-  const write = ({ keyFileName, content, mode }) =>
-    writeFileSync(path.join(dir, keyFileName), `${content}\n`, { mode })
-  write({
-    keyFileName: sftpTestKeyFiles.hostPrivate,
-    content: host.private,
-    mode: privateFileMode
-  })
-  write({
-    keyFileName: sftpTestKeyFiles.hostPublic,
-    content: host.public,
-    mode: publicFileMode
-  })
-  write({
-    keyFileName: sftpTestKeyFiles.clientPrivate,
-    content: client.private,
-    mode: privateFileMode
-  })
-  write({
-    keyFileName: sftpTestKeyFiles.clientPublic,
-    content: client.public,
-    mode: publicFileMode
-  })
+  const keyFiles = [
+    {
+      keyFileName: sftpTestKeyFiles.hostPrivate,
+      content: host.private,
+      mode: privateFileMode
+    },
+    {
+      keyFileName: sftpTestKeyFiles.hostPublic,
+      content: host.public,
+      mode: publicFileMode
+    },
+    {
+      keyFileName: sftpTestKeyFiles.clientPrivate,
+      content: client.private,
+      mode: privateFileMode
+    },
+    {
+      keyFileName: sftpTestKeyFiles.clientPublic,
+      content: client.public,
+      mode: publicFileMode
+    }
+  ]
+  for (const { keyFileName, content, mode } of keyFiles) {
+    const file = path.join(dir, keyFileName)
+    writeFileSync(file, `${content}\n`)
+    // The mode given to writeFileSync applies only to a new file
+    chmodSync(file, mode)
+  }
   return true
 }
 

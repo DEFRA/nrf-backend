@@ -71,7 +71,7 @@ describe(
 
       const result = await asUser({
         direction: push,
-        work: async (session) => {
+        work: async function uploadThenReadBack(session) {
           await session.upload({ folder, filename, data })
           return {
             files: await session.list(folder),
@@ -119,12 +119,13 @@ describe(
       // Either way, exactly one upload must take the name.
       const outcomes = await asUser({
         direction: push,
-        work: (session) =>
-          Promise.allSettled(
+        work: function uploadBothAtOnce(session) {
+          return Promise.allSettled(
             texts.map((text) =>
               session.upload({ folder, filename, data: Buffer.from(text) })
             )
           )
+        }
       })
 
       const winner = texts[outcomes.findIndex((o) => o.status === 'fulfilled')]
@@ -152,8 +153,10 @@ describe(
         targetHost: host,
         targetPort: port
       })
-      // Long enough for the SSH handshake while other test files run
-      const timeoutMs = 3000
+      // Also limits the SSH handshake through the forwarder, so long enough for
+      // that while other test files run, after the suite's first handshake has
+      // warmed up the container
+      const timeoutMs = 5000
       let started
       try {
         const download = withSftpSession({
@@ -162,7 +165,7 @@ describe(
             port: forwarder.port,
             timeoutMs
           },
-          work: (session) => {
+          work: function downloadAfterBlackhole(session) {
             started = Date.now()
             forwarder.blackholeOpenConnections()
             return session.download({
@@ -207,7 +210,7 @@ describe(
 
       await asUser({
         direction: pull,
-        work: async (session) => {
+        work: async function removeTwice(session) {
           await session.remove({ folder, filename })
           await session.remove({ folder, filename })
         }
@@ -228,6 +231,7 @@ describe(
 
     it('connects through an HTTP CONNECT proxy when one is configured', async () => {
       const proxy = await startConnectProxy()
+      const { host, port } = sftpTestConnection()
       try {
         await asUser({
           direction: push,
@@ -235,7 +239,7 @@ describe(
           work: (session) => session.list(sftpContainerFolders.push)
         })
 
-        expect(proxy.targets).toEqual(['127.0.0.1:2223'])
+        expect(proxy.targets).toEqual([`${host}:${port}`])
       } finally {
         await proxy.close()
       }
