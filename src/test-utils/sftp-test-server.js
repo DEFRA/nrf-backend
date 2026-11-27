@@ -47,14 +47,14 @@ export const sftpTestUsers = {
 }
 
 /**
- * Connection settings for the atmoz/sftp container in compose.test.yml, using
- * the throwaway keys written by the vitest global setup.
- * @param {{ username: string, hostKey?: string, proxyUrl?: string }} overrides
+ * Connection settings for the atmoz/sftp container in compose.test.yml without
+ * a username, for code that logs in as both the push and pull users. Uses the
+ * throwaway keys written by the vitest global setup.
+ * @param {{ hostKey?: string, proxyUrl?: string }} [overrides]
  */
-export const sftpTestSettings = ({ username, hostKey, proxyUrl }) => ({
+export const sftpTestConnection = ({ hostKey, proxyUrl } = {}) => ({
   host: '127.0.0.1',
   port: 2223,
-  username,
   privateKey: readKey('client'),
   hostKey: hostKey ?? readKey('ssh_host_ed25519_key.pub'),
   timeoutMs: 10000,
@@ -62,15 +62,13 @@ export const sftpTestSettings = ({ username, hostKey, proxyUrl }) => ({
 })
 
 /**
- * Connection settings for the local SFTP server without a username, for code
- * that logs in as both the push and pull users.
+ * Connection settings for the atmoz/sftp container, logging in as one user.
+ * @param {{ username: string, hostKey?: string, proxyUrl?: string }} overrides
  */
-export const sftpTestConnection = () => {
-  const { username: _username, ...connection } = sftpTestSettings({
-    username: ''
-  })
-  return connection
-}
+export const sftpTestSettings = ({ username, ...overrides }) => ({
+  ...sftpTestConnection(overrides),
+  username
+})
 
 /**
  * Empties the push and pull folders on the local SFTP server, so files left by
@@ -149,7 +147,7 @@ export const loadSftpTestServerConfig = ({
   keys,
   folders = sftpTestFolders
 }) => {
-  const { host, port, privateKey, hostKey } = sftpTestSettings({ username: '' })
+  const { host, port, privateKey, hostKey } = sftpTestConnection()
   config.load({
     sscl: {
       sftp: {

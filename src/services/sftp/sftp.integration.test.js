@@ -25,6 +25,7 @@ import {
   loadSftpTestServerConfig,
   namesInSftpTestFolder as namesInFolder,
   putInSftpTestFolder as putInFolder,
+  sftpTestConnection,
   sftpTestFolders,
   sftpTestHookTimeoutMs,
   sftpTestSettings,
@@ -245,9 +246,8 @@ describe(
   }
 )
 
-const { username: _unused, ...connection } = sftpTestSettings({ username: '' })
 const transport = createSftpTransport({
-  connection,
+  connection: sftpTestConnection(),
   pushUser: sftpTestUsers.push,
   pushFolder: sftpTestFolders.push,
   pullUser: sftpTestUsers.pull,
