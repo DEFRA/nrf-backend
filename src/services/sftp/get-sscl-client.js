@@ -15,7 +15,9 @@ const configKeys = {
   sshPrivateKey: 'sscl.sftp.privateKey',
   nrfPrivateKey: 'sscl.pgp.nrfPrivateKey',
   ssclEncryptionKey: 'sscl.pgp.ssclEncryptionPublicKey',
-  ssclSigningKey: 'sscl.pgp.ssclSigningPublicKey'
+  ssclSigningKey: 'sscl.pgp.ssclSigningPublicKey',
+  nrfPassphrase: 'sscl.pgp.nrfPassphrase',
+  testEnabled: 'sscl.testEnabled'
 }
 
 /**
@@ -28,6 +30,7 @@ const configKeys = {
 let clientPromise
 
 const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/
+const base64GroupLength = 4
 
 const required = (key) => {
   const value = config.get(key)
@@ -45,7 +48,10 @@ const decodeBase64 = ({ key, value }) => {
   const unwrapped = value.replaceAll(/\s/g, '')
   // A whole number of 4-character groups, so a value cut short by a bad copy
   // and paste is reported here rather than as an unreadable key
-  if (!base64Pattern.test(unwrapped) || unwrapped.length % 4 !== 0) {
+  if (
+    !base64Pattern.test(unwrapped) ||
+    unwrapped.length % base64GroupLength !== 0
+  ) {
     throw new Error(`${key} is not valid base64`)
   }
   return Buffer.from(unwrapped, 'base64').toString('utf8')
@@ -60,7 +66,7 @@ const ssclLimits = () => ({
 
 const assertTestRouteAllowed = () =>
   assertSsclTestRouteAllowed({
-    testEnabled: config.get('sscl.testEnabled'),
+    testEnabled: config.get(configKeys.testEnabled),
     environment: config.get('cdpEnvironment')
   })
 
@@ -86,7 +92,7 @@ const readMoveitSettings = () => ({
   },
   keys: {
     nrfPrivateKey: requiredBase64(configKeys.nrfPrivateKey),
-    nrfPassphrase: config.get('sscl.pgp.nrfPassphrase'),
+    nrfPassphrase: config.get(configKeys.nrfPassphrase),
     ssclEncryptionPublicKey: requiredBase64(configKeys.ssclEncryptionKey),
     ssclSigningPublicKey: requiredBase64(configKeys.ssclSigningKey)
   }
@@ -128,7 +134,7 @@ const readSshPrivateKey = (privateKey) => {
  * private key belongs and a private key where a public key belongs.
  * @param {{ key: string, armoredKey: string, isPrivate: boolean }} params
  */
-const pgpKeyFingerprint = ({ key, armoredKey, isPrivate }) =>
+const readPgpKeyFingerprint = ({ key, armoredKey, isPrivate }) =>
   parseConfigValue({
     key,
     what: isPrivate ? 'PGP private key' : 'PGP public key',
@@ -149,17 +155,17 @@ const pgpKeyFingerprint = ({ key, armoredKey, isPrivate }) =>
  * @param {SsclPgpKeys} keys
  */
 const assertPgpKeysUsable = async (keys) => {
-  const nrf = await pgpKeyFingerprint({
+  const nrf = await readPgpKeyFingerprint({
     key: configKeys.nrfPrivateKey,
     armoredKey: keys.nrfPrivateKey,
     isPrivate: true
   })
-  const encryption = await pgpKeyFingerprint({
+  const encryption = await readPgpKeyFingerprint({
     key: configKeys.ssclEncryptionKey,
     armoredKey: keys.ssclEncryptionPublicKey,
     isPrivate: false
   })
-  const signing = await pgpKeyFingerprint({
+  const signing = await readPgpKeyFingerprint({
     key: configKeys.ssclSigningKey,
     armoredKey: keys.ssclSigningPublicKey,
     isPrivate: false
@@ -187,7 +193,7 @@ const assertMoveitKeysUsable = async ({ transport, keys }) => {
   })
   await assertPgpKeysUsable(keys)
   await parseConfigValue({
-    key: 'sscl.pgp.nrfPassphrase',
+    key: configKeys.nrfPassphrase,
     what: `passphrase for ${configKeys.nrfPrivateKey}`,
     parse: () =>
       assertPgpPrivateKeyUnlocks({
@@ -215,7 +221,7 @@ const buildMoveitClient = async () => {
  */
 export async function assertSsclConfig() {
   assertTestRouteAllowed()
-  if (config.get('sscl.testEnabled')) {
+  if (config.get(configKeys.testEnabled)) {
     await assertMoveitKeysUsable(readMoveitSettings())
   }
 }

@@ -35,6 +35,7 @@ const encryptionKeySetting = 'sscl.pgp.ssclEncryptionPublicKey'
 const signingKeySetting = 'sscl.pgp.ssclSigningPublicKey'
 const privateKeySetting = 'sscl.sftp.privateKey'
 const nrfPrivateKeySetting = 'sscl.pgp.nrfPrivateKey'
+const httpProxySetting = 'httpProxy'
 const pgpPrivateKey = 'PGP private key'
 const pgpPublicKey = 'PGP public key'
 const { push: pushFolder, pull: pullFolder } = moveitTestFolders
@@ -72,13 +73,13 @@ beforeAll(async () => {
 const original = {
   sscl: config.get('sscl'),
   environment: config.get(environmentSetting),
-  httpProxy: config.get('httpProxy')
+  httpProxy: config.get(httpProxySetting)
 }
 
 afterEach(() => {
   config.load({ sscl: original.sscl })
   config.set(environmentSetting, original.environment)
-  config.set('httpProxy', original.httpProxy)
+  config.set(httpProxySetting, original.httpProxy)
   resetSsclClient()
 })
 
@@ -193,7 +194,7 @@ describe('getSsclClient', () => {
     const proxy = await startConnectProxy()
     try {
       const { host, port } = loadFaultServerMoveitTestConfig({ server, keys })
-      config.set('httpProxy', proxy.url)
+      config.set(httpProxySetting, proxy.url)
 
       const client = await getSsclClient()
       await client.listPushFolder()
@@ -362,6 +363,16 @@ describe('assertSsclConfig', () => {
       await expect(failure).rejects.not.toThrow(junk)
     }
   )
+
+  it('fails at startup when sscl.sftp.hostKey is two words that are not a key', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(testEnabledKey, true)
+    config.set(hostKeySetting, toBase64('hello world'))
+
+    await expect(assertSsclConfig()).rejects.toThrow(
+      `${hostKeySetting} is not a valid SFTP host key`
+    )
+  })
 
   it('fails at startup when sscl.sftp.privateKey holds a public key', async () => {
     loadUsableMoveitTestConfig({ keys })

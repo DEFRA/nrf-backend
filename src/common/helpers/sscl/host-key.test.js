@@ -52,7 +52,13 @@ describe('createHostVerifier', () => {
 
   it.each([
     ['a bare base64 key with no type', pinned.public.split(' ')[1]],
-    ['an RFC 4716 block with no key lines', '---- BEGIN ----\n---- END ----']
+    ['an RFC 4716 block with no key lines', '---- BEGIN ----\n---- END ----'],
+    ['two words that are not a key', 'hello world'],
+    [
+      'a key line whose type does not match its key',
+      `ssh-rsa ${pinned.public.split(' ')[1]}`
+    ],
+    ['a fingerprint of the wrong length', 'SHA256:x']
   ])('says what is wrong with %s', (_case, hostKey) => {
     expect(() => createHostVerifier(hostKey)).toThrow(
       'SFTP host key must be an OpenSSH public key line, an RFC 4716 block or a SHA256 fingerprint'

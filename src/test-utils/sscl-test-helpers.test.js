@@ -27,6 +27,8 @@ import {
 } from './sscl-test-helpers.js'
 import { generatePgpTestKeys } from './pgp-test-keys.js'
 
+const nrfPrivateText = 'nrf private'
+
 describe('wrapBase64', () => {
   it('splits base64 into lines of 64 characters', () => {
     expect(wrapBase64({ base64: 'a'.repeat(70) })).toEqual([
@@ -91,9 +93,11 @@ describe('MOVEit test config', () => {
     })
 
     it('uses the PGP keys it is given', () => {
-      loadMoveitTestConfig({ pgp: { nrfPrivateKey: toBase64('nrf private') } })
+      loadMoveitTestConfig({ pgp: { nrfPrivateKey: toBase64(nrfPrivateText) } })
 
-      expect(config.get('sscl.pgp.nrfPrivateKey')).toBe(toBase64('nrf private'))
+      expect(config.get('sscl.pgp.nrfPrivateKey')).toBe(
+        toBase64(nrfPrivateText)
+      )
     })
   })
 
@@ -122,12 +126,14 @@ describe('MOVEit test config', () => {
     it('points the MOVEit settings at the server, with its keys in base64, and says where it listens', () => {
       const listening = loadFaultServerMoveitTestConfig({ server, keys })
 
-      expect(listening).toEqual({ host: '127.0.0.1', port: 2222 })
+      const { host, port, hostKey, privateKey } = server.settings()
+
+      expect(listening).toEqual({ host, port })
       expect(config.get('sscl.sftp')).toMatchObject({
-        host: '127.0.0.1',
-        port: 2222,
-        hostKey: toBase64('host key'),
-        privateKey: toBase64('private key')
+        host,
+        port,
+        hostKey: toBase64(hostKey),
+        privateKey: toBase64(privateKey)
       })
       expect(config.get('sscl.pgp')).toMatchObject(pgpConfigFor(keys))
     })
@@ -144,7 +150,7 @@ describe('nrfPgpKeysFor', () => {
   it("gives the SSCL client NRF's private key and SSCL's public keys", () => {
     const pgp = {
       nrf: {
-        privateKey: 'nrf private',
+        privateKey: nrfPrivateText,
         publicKey: 'nrf public',
         passphrase: 'nrf passphrase'
       },
@@ -166,7 +172,7 @@ describe('nrfPgpKeysFor', () => {
     }
 
     expect(nrfPgpKeysFor(pgp)).toEqual({
-      nrfPrivateKey: 'nrf private',
+      nrfPrivateKey: nrfPrivateText,
       nrfPassphrase: 'nrf passphrase',
       ssclEncryptionPublicKey: 'encryption public',
       ssclSigningPublicKey: 'signing public'

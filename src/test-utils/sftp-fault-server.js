@@ -292,6 +292,7 @@ export async function startSftpFaultServer({
       client.setNoDelay(true)
       client.on('close', () => connections.delete(client))
       client.on('error', () => {})
+      /** @param {import('ssh2').AuthContext} ctx */
       client.on('authentication', function onAuthentication(ctx) {
         if (ctx.method !== 'publickey') {
           ctx.reject(['publickey'])
