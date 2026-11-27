@@ -106,7 +106,9 @@ services:
       - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLOut/.ssh/keys/client.pub:ro
       - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLIn/.ssh/keys/client.pub:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pgrep -x sshd']
+      # Looks for the listening port, not the process: sshd rewrites its process
+      # title, so `pgrep -x sshd` fails on a native amd64 host such as CI
+      test: ['CMD-SHELL', "netstat -ltn | grep -q ':22 '"]
       interval: 2s
       start_period: 5s
       retries: 30
