@@ -1,3 +1,5 @@
+import SftpClient from 'ssh2-sftp-client'
+
 import { config } from '../config.js'
 import { withSftpSession } from '../services/sftp/sftp-client.js'
 import { readSftpTestKey, sftpTestKeyFiles } from './sftp-test-keys.js'
@@ -82,22 +84,26 @@ export const asSftpTestUser = ({ direction, work, ...overrides }) =>
 
 /**
  * Empties the push and pull folders on the local SFTP server, so files left by
- * earlier runs don't build up.
+ * earlier runs don't build up. Uses the plain SFTP library rather than an SFTP
+ * session, which refuses the unsafe names some tests leave behind.
  * @param {{ folders?: SftpTestFolders }} [params]
  */
 export const clearSftpTestFolders = async ({
   folders = sftpTestFolders
 } = {}) => {
   for (const direction of Object.values(sftpTestDirections)) {
-    const folder = folders[direction]
-    await asSftpTestUser({
-      direction,
-      work: async (session) => {
-        for (const file of await session.list(folder)) {
-          await session.remove({ folder, filename: file.name })
-        }
+    const client = new SftpClient()
+    await client.connect(
+      sftpTestSettings({ username: sftpTestUsers[direction] })
+    )
+    try {
+      const folder = folders[direction]
+      for (const file of await client.list(folder)) {
+        await client.delete(`${folder}/${file.name}`)
       }
-    })
+    } finally {
+      await client.end()
+    }
   }
 }
 
