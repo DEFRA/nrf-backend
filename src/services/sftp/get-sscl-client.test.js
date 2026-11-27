@@ -4,19 +4,28 @@ import {
   getSsclClient,
   resetSsclClient
 } from './get-sscl-client.js'
+import { decryptAndVerify } from '../../common/helpers/sscl/pgp.js'
 import {
   collectPulledFiles,
+  loadFaultServerMoveitTestConfig,
   loadMoveitTestConfig,
   loadUsableMoveitTestConfig,
   moveitTestFolders,
+  moveitTestUsers,
+  ssclTestLimits,
   toBase64,
   wrapBase64
 } from '../../test-utils/sscl-test-helpers.js'
+import { sentBySscl } from '../../test-utils/fake-sscl-test-helpers.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
 import { startConnectProxy } from '../../test-utils/connect-proxy.js'
 import { startSftpFaultServer } from '../../test-utils/sftp-fault-server.js'
-import { ssclErrorCodes } from '../../common/helpers/sscl/sscl-errors.js'
-import { ssclTestInvoiceFilename } from '../../test-utils/fixtures/sscl.js'
+import {
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText,
+  ssclTestReplyFilename,
+  ssclTestSecondReplyFilename
+} from '../../test-utils/fixtures/sscl.js'
 
 const testEnabledKey = 'sscl.testEnabled'
 const environmentSetting = 'cdpEnvironment'
@@ -52,27 +61,6 @@ const base64Keys = [
   encryptionKeySetting,
   signingKeySetting
 ]
-
-/**
- * Points the MOVEit config at an in-process SFTP server, with usable keys.
- * @param {{ server: { settings: () => { host: string, port: number, hostKey: string, privateKey: string } }, sftp?: object }} params
- */
-const loadFaultServerConfig = ({ server, sftp = {} }) => {
-  const { host, port, hostKey, privateKey } = server.settings()
-  loadUsableMoveitTestConfig({ keys })
-  config.load({
-    sscl: {
-      sftp: {
-        host,
-        port,
-        hostKey: toBase64(hostKey),
-        privateKey: toBase64(privateKey),
-        ...sftp
-      }
-    }
-  })
-  return { host, port }
-}
 
 let keys
 
@@ -114,7 +102,7 @@ describe('getSsclClient', () => {
         filename: ssclTestInvoiceFilename,
         data: Buffer.from('more than ten bytes once encrypted')
       })
-    ).rejects.toMatchObject({ code: ssclErrorCodes.pushTooLarge })
+    ).rejects.toMatchObject({ code: 'SSCL_PUSH_TOO_LARGE' })
   })
 
   it('gives the client the number of files to pull in one run from config', async () => {
@@ -122,9 +110,12 @@ describe('getSsclClient', () => {
       folders: [pushFolder, pullFolder]
     })
     try {
-      loadFaultServerConfig({ server })
+      loadFaultServerMoveitTestConfig({ server, keys })
       config.set('sscl.maxFilesPerRun', 1)
-      for (const filename of ['FIRST.pgp', 'SECOND.pgp']) {
+      for (const filename of [
+        ssclTestReplyFilename,
+        ssclTestSecondReplyFilename
+      ]) {
         server.putFile({ folder: pullFolder, filename, data: Buffer.from('x') })
       }
 
@@ -138,11 +129,69 @@ describe('getSsclClient', () => {
     }
   })
 
+  it('logs in as the push user to push and as the pull user to pull', async () => {
+    const server = await startSftpFaultServer({
+      folders: [pushFolder, pullFolder]
+    })
+    try {
+      loadFaultServerMoveitTestConfig({ server, keys })
+
+      const client = await getSsclClient()
+      await client.listPushFolder()
+      await client.pullFiles(collectPulledFiles())
+
+      expect(server.logins()).toEqual([
+        moveitTestUsers.push,
+        moveitTestUsers.pull
+      ])
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("encrypts to SSCL's encryption key and checks SSCL's signing key, as config gives them", async () => {
+    const server = await startSftpFaultServer({
+      folders: [pushFolder, pullFolder]
+    })
+    try {
+      loadFaultServerMoveitTestConfig({ server, keys })
+      server.putFile({
+        folder: pullFolder,
+        filename: ssclTestReplyFilename,
+        data: await sentBySscl({ text: ssclTestInvoiceText, pgp: keys })
+      })
+
+      const client = await getSsclClient()
+      await client.pushFile({
+        filename: ssclTestInvoiceFilename,
+        data: Buffer.from(ssclTestInvoiceText)
+      })
+      const pulled = await client.pullFiles(collectPulledFiles())
+
+      const pushed = await decryptAndVerify({
+        data: server.files.get(`${pushFolder}/${ssclTestInvoiceFilename}`).data,
+        decryptionKey: keys.ssclEncryption.privateKey,
+        passphrase: keys.ssclEncryption.passphrase,
+        verificationKey: keys.nrf.publicKey,
+        maxDecompressedBytes: ssclTestLimits.maxFileBytes
+      })
+      expect(pushed.toString()).toBe(ssclTestInvoiceText)
+      expect(pulled.files).toEqual([
+        expect.objectContaining({
+          filename: ssclTestReplyFilename,
+          status: 'received'
+        })
+      ])
+    } finally {
+      await server.close()
+    }
+  })
+
   it('connects through the HTTP proxy from config', async () => {
     const server = await startSftpFaultServer({ folders: [pushFolder] })
     const proxy = await startConnectProxy()
     try {
-      const { host, port } = loadFaultServerConfig({ server })
+      const { host, port } = loadFaultServerMoveitTestConfig({ server, keys })
       config.set('httpProxy', proxy.url)
 
       const client = await getSsclClient()
@@ -158,7 +207,11 @@ describe('getSsclClient', () => {
   it('gives the SFTP client its time limit from config', async () => {
     const server = await startSftpFaultServer({ folders: [pushFolder] })
     try {
-      loadFaultServerConfig({ server, sftp: { timeoutMs: stallTimeoutMs } })
+      loadFaultServerMoveitTestConfig({
+        server,
+        keys,
+        timeoutMs: stallTimeoutMs
+      })
       server.setFault(({ operation }) =>
         operation === 'readdir' ? { stall: true } : undefined
       )
@@ -166,7 +219,7 @@ describe('getSsclClient', () => {
       const client = await getSsclClient()
 
       await expect(client.listPushFolder()).rejects.toMatchObject({
-        code: ssclErrorCodes.timeout,
+        code: 'SSCL_TIMEOUT',
         message: `SFTP list timed out after ${stallTimeoutMs}ms`
       })
     } finally {
@@ -201,6 +254,15 @@ describe('getSsclClient', () => {
     await expect(getSsclClient()).rejects.toThrow(`${key} is not valid base64`)
   })
 
+  it('refuses base64 that has been cut short', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(signingKeySetting, toBase64(keys.ssclSigning.publicKey).slice(1))
+
+    await expect(getSsclClient()).rejects.toThrow(
+      `${signingKeySetting} is not valid base64`
+    )
+  })
+
   it.each([[signingKeySetting], [encryptionKeySetting]])(
     "refuses %s set to NRF's own key",
     async (key) => {
@@ -221,6 +283,19 @@ describe('getSsclClient', () => {
     )
 
     await expect(getSsclClient()).resolves.toBeDefined()
+  })
+
+  it('keeps a build started after a reset when an earlier build fails', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(hostSetting, '')
+    const failing = getSsclClient()
+    resetSsclClient()
+    config.set(hostSetting, 'moveit.example')
+    const replacement = getSsclClient()
+
+    await expect(failing).rejects.toThrow(`${hostSetting} is not set`)
+
+    expect(getSsclClient()).toBe(replacement)
   })
 
   it('tries again after a build that failed, rather than keep the failure', async () => {

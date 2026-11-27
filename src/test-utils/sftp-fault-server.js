@@ -280,6 +280,7 @@ export async function startSftpFaultServer({
   const files = new Map()
   const knownFolders = new Set(folders)
   const connections = new Set()
+  const logins = []
   let currentFault = fault
 
   const server = new ssh2.Server(
@@ -291,9 +292,17 @@ export async function startSftpFaultServer({
       client.setNoDelay(true)
       client.on('close', () => connections.delete(client))
       client.on('error', () => {})
-      client.on('authentication', (ctx) =>
-        ctx.method === 'publickey' ? ctx.accept() : ctx.reject(['publickey'])
-      )
+      client.on('authentication', function onAuthentication(ctx) {
+        if (ctx.method !== 'publickey') {
+          ctx.reject(['publickey'])
+          return
+        }
+        // A client first asks whether the key would do, then signs with it
+        if (ctx.signature) {
+          logins.push(ctx.username)
+        }
+        ctx.accept()
+      })
       client.on('ready', function onReady() {
         client.on('session', function onSession(acceptSession) {
           acceptSession().on('sftp', function onSftp(acceptSftp) {
@@ -318,6 +327,8 @@ export async function startSftpFaultServer({
     files,
     /** The number of SSH connections still open on the server side. */
     openConnections: () => connections.size,
+    /** The username of each login the server accepted, in order. */
+    logins: () => [...logins],
     /**
      * @param {SftpFaultHook} next
      */

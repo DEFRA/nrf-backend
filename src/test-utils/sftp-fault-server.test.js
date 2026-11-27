@@ -42,6 +42,10 @@ describe('startSftpFaultServer', () => {
   const rawRequest = (operation, ...args) =>
     promisify(client.sftp[operation].bind(client.sftp))(...args)
 
+  it('records the username of each login it accepts', () => {
+    expect(server.logins()).toEqual([server.settings().username])
+  })
+
   it('uploads, lists, stats, downloads, renames and removes files as a real server would', async () => {
     await client.put(Buffer.from('hello'), remotePath)
     const listed = await client.list(folder)

@@ -7,9 +7,11 @@ import { sftpTestFolders } from './sftp-test-transport.js'
 import {
   collectPulledFiles,
   fromBase64,
+  loadFaultServerMoveitTestConfig,
   loadMoveitTestConfig,
   loadUsableMoveitTestConfig,
   moveitTestFolders,
+  moveitTestUsers,
   nrfPgpKeysFor,
   overridePullSession,
   pgpConfigFor,
@@ -47,68 +49,97 @@ describe('fromBase64', () => {
   })
 })
 
-const originalSscl = config.get('sscl')
+describe('MOVEit test config', () => {
+  const originalSscl = config.get('sscl')
+  let keys
 
-describe('loadMoveitTestConfig', () => {
+  beforeAll(async () => {
+    keys = await generatePgpTestKeys()
+  })
+
   afterEach(() => {
     config.load({ sscl: originalSscl })
   })
 
-  it('sets every MOVEit setting, with SSH keys that can be read', () => {
-    loadMoveitTestConfig()
-    const { sftp, pgp } = config.get('sscl')
+  describe('loadMoveitTestConfig', () => {
+    it('sets every MOVEit setting, with SSH keys that can be read', () => {
+      loadMoveitTestConfig()
+      const { sftp, pgp } = config.get('sscl')
 
-    expect(sftp).toMatchObject({
-      host: expect.any(String),
-      pushUser: expect.any(String),
-      pushFolder: moveitTestFolders.push,
-      pullUser: expect.any(String),
-      pullFolder: moveitTestFolders.pull
+      expect(sftp).toMatchObject({
+        host: expect.any(String),
+        pushUser: moveitTestUsers.push,
+        pushFolder: moveitTestFolders.push,
+        pullUser: moveitTestUsers.pull,
+        pullFolder: moveitTestFolders.pull
+      })
+      expect(ssh2.utils.parseKey(fromBase64(sftp.hostKey))).not.toBeInstanceOf(
+        Error
+      )
+      expect(
+        ssh2.utils.parseKey(fromBase64(sftp.privateKey))
+      ).not.toBeInstanceOf(Error)
+      expect([
+        pgp.nrfPrivateKey,
+        pgp.ssclEncryptionPublicKey,
+        pgp.ssclSigningPublicKey
+      ]).not.toContain('')
     })
-    expect(ssh2.utils.parseKey(fromBase64(sftp.hostKey))).not.toBeInstanceOf(
-      Error
-    )
-    expect(ssh2.utils.parseKey(fromBase64(sftp.privateKey))).not.toBeInstanceOf(
-      Error
-    )
-    expect([
-      pgp.nrfPrivateKey,
-      pgp.ssclEncryptionPublicKey,
-      pgp.ssclSigningPublicKey
-    ]).not.toContain('')
-  })
 
-  it('uses the PGP keys it is given', () => {
-    loadMoveitTestConfig({ pgp: { nrfPrivateKey: toBase64('nrf private') } })
+    it('uses the PGP keys it is given', () => {
+      loadMoveitTestConfig({ pgp: { nrfPrivateKey: toBase64('nrf private') } })
 
-    expect(config.get('sscl.pgp.nrfPrivateKey')).toBe(toBase64('nrf private'))
-  })
-})
-
-describe('pgpConfigFor', () => {
-  it('gives the PGP test keys in base64, with the passphrase as it is', async () => {
-    const keys = await generatePgpTestKeys()
-
-    expect(pgpConfigFor(keys)).toEqual({
-      nrfPrivateKey: toBase64(keys.nrf.privateKey),
-      nrfPassphrase: keys.nrf.passphrase,
-      ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
-      ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
+      expect(config.get('sscl.pgp.nrfPrivateKey')).toBe(toBase64('nrf private'))
     })
   })
-})
 
-describe('loadUsableMoveitTestConfig', () => {
-  afterEach(() => {
-    config.load({ sscl: originalSscl })
+  describe('pgpConfigFor', () => {
+    it('gives the PGP test keys in base64, with the passphrase as it is', () => {
+      expect(pgpConfigFor(keys)).toEqual({
+        nrfPrivateKey: toBase64(keys.nrf.privateKey),
+        nrfPassphrase: keys.nrf.passphrase,
+        ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
+        ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
+      })
+    })
   })
 
-  it('loads the PGP test keys as config holds them', async () => {
-    const keys = await generatePgpTestKeys()
+  describe('loadUsableMoveitTestConfig', () => {
+    it('loads the PGP test keys as config holds them', () => {
+      loadUsableMoveitTestConfig({ keys })
 
-    loadUsableMoveitTestConfig({ keys })
+      expect(config.get('sscl.pgp')).toMatchObject(pgpConfigFor(keys))
+    })
+  })
 
-    expect(config.get('sscl.pgp')).toMatchObject(pgpConfigFor(keys))
+  describe('loadFaultServerMoveitTestConfig', () => {
+    const server = {
+      settings: () => ({
+        host: '127.0.0.1',
+        port: 2222,
+        hostKey: 'host key',
+        privateKey: 'private key'
+      })
+    }
+
+    it('points the MOVEit settings at the server, with its keys in base64, and says where it listens', () => {
+      const listening = loadFaultServerMoveitTestConfig({ server, keys })
+
+      expect(listening).toEqual({ host: '127.0.0.1', port: 2222 })
+      expect(config.get('sscl.sftp')).toMatchObject({
+        host: '127.0.0.1',
+        port: 2222,
+        hostKey: toBase64('host key'),
+        privateKey: toBase64('private key')
+      })
+      expect(config.get('sscl.pgp')).toMatchObject(pgpConfigFor(keys))
+    })
+
+    it('sets the SFTP time limit when given one', () => {
+      loadFaultServerMoveitTestConfig({ server, keys, timeoutMs: 1234 })
+
+      expect(config.get('sscl.sftp.timeoutMs')).toBe(1234)
+    })
   })
 })
 

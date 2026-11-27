@@ -14,6 +14,9 @@ const nrfPrivateKeyName = 'sscl.pgp.nrfPrivateKey'
 
 /**
  * @typedef {import('./sscl-client.js').SsclClient} SsclClient
+ * @typedef {import('./sscl-client.js').SsclPgpKeys} SsclPgpKeys
+ * @typedef {import('./sftp-transport.js').SftpTransportSettings} SftpTransportSettings
+ * @typedef {{ transport: SftpTransportSettings, keys: SsclPgpKeys }} MoveitSettings
  */
 
 let clientPromise
@@ -34,7 +37,9 @@ const required = (key) => {
 const decodeBase64 = ({ key, value }) => {
   // Base64 copied from a file is often wrapped over several lines
   const unwrapped = value.replaceAll(/\s/g, '')
-  if (!base64Pattern.test(unwrapped)) {
+  // A whole number of 4-character groups, so a value cut short by a bad copy
+  // and paste is reported here rather than as an unreadable key
+  if (!base64Pattern.test(unwrapped) || unwrapped.length % 4 !== 0) {
     throw new Error(`${key} is not valid base64`)
   }
   return Buffer.from(unwrapped, 'base64').toString('utf8')
@@ -56,6 +61,7 @@ const assertTestRouteAllowed = () =>
 /**
  * The MOVEit connection settings and PGP keys from config. Throws naming the
  * first one that is missing or not base64.
+ * @returns {MoveitSettings}
  */
 const readMoveitSettings = () => ({
   transport: {
@@ -132,7 +138,7 @@ const assertSsclKeysAreNotNrfs = async (keys) => {
 /**
  * Checks that the keys in the MOVEit settings can be read, so a bad deploy
  * fails at startup rather than at the first exchange.
- * @param {ReturnType<typeof readMoveitSettings>} settings
+ * @param {MoveitSettings} settings
  */
 const assertMoveitKeysUsable = async ({ transport, keys }) => {
   await parsed({

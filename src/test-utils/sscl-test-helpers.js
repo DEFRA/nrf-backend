@@ -38,8 +38,17 @@ export const fromBase64 = (base64) => Buffer.from(base64, 'base64').toString()
 /** Push and pull folders in the MOVEit test config. */
 export const moveitTestFolders = { push: '/out', pull: '/in' }
 
+/** Push and pull users in the MOVEit test config. */
+export const moveitTestUsers = { push: 'push-user', pull: 'pull-user' }
+
 const anyBase64 = 'aA=='
-const sshKeys = generateSshTestKeyPair()
+let sshKeys
+
+/** One SSH key pair for every MOVEit test config, made when first needed. */
+const moveitSshKeys = () => {
+  sshKeys ??= generateSshTestKeyPair()
+  return sshKeys
+}
 
 /**
  * Loads config for MOVEit with every required setting present: real SSH keys,
@@ -51,11 +60,11 @@ export const loadMoveitTestConfig = ({ pgp } = {}) =>
     sscl: {
       sftp: {
         host: 'h',
-        hostKey: toBase64(sshKeys.public),
-        privateKey: toBase64(sshKeys.private),
-        pushUser: 'u',
+        hostKey: toBase64(moveitSshKeys().public),
+        privateKey: toBase64(moveitSshKeys().private),
+        pushUser: moveitTestUsers.push,
         pushFolder: moveitTestFolders.push,
-        pullUser: 'u',
+        pullUser: moveitTestUsers.pull,
         pullFolder: moveitTestFolders.pull
       },
       pgp: {
@@ -84,6 +93,33 @@ export const pgpConfigFor = (keys) => ({
  */
 export const loadUsableMoveitTestConfig = ({ keys }) =>
   loadMoveitTestConfig({ pgp: pgpConfigFor(keys) })
+
+/**
+ * Loads config for MOVEit with every key real and usable, pointing at an
+ * in-process SFTP fault server.
+ * @param {{ server: Pick<SftpFaultServer, 'settings'>, keys: PgpTestKeys, timeoutMs?: number }} params
+ * @returns {{ host: string, port: number }} where the server listens
+ */
+export const loadFaultServerMoveitTestConfig = ({
+  server,
+  keys,
+  timeoutMs
+}) => {
+  const { host, port, hostKey, privateKey } = server.settings()
+  loadUsableMoveitTestConfig({ keys })
+  config.load({
+    sscl: {
+      sftp: {
+        host,
+        port,
+        hostKey: toBase64(hostKey),
+        privateKey: toBase64(privateKey),
+        ...(timeoutMs && { timeoutMs })
+      }
+    }
+  })
+  return { host, port }
+}
 
 /**
  * Wraps base64 over several lines, as it is in many key files.
