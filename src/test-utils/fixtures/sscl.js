@@ -26,3 +26,12 @@ export const fakeSsclStartupReplyText =
 /** The name of the test invoice file without its .dat.pgp extension. */
 export const ssclTestInvoiceStem = 'rainv_NRLINV_20261109173005'
 export const ssclTestInvoiceFilename = `${ssclTestInvoiceStem}.dat.pgp`
+/** Stands in for an SFTP fault server where only its settings are read. */
+export const ssclTestFaultServerStub = {
+  settings: () => ({
+    host: '127.0.0.1',
+    port: 2222,
+    hostKey: 'host key',
+    privateKey: 'private key'
+  })
+}
