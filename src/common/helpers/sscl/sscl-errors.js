@@ -18,7 +18,7 @@ export const ssclError = ({ code, message }) =>
   Object.assign(new Error(message), { code })
 
 // SFTP status codes that ssh2 passes through on its errors.
-const sftpNoSuchFile = 2
+export const sftpNoSuchFile = 2
 // SSH_FX_NO_CONNECTION and SSH_FX_CONNECTION_LOST: numeric, but about the
 // connection, not the request.
 const sftpNoConnection = 6

@@ -1,0 +1,149 @@
+import { decryptAndVerify } from '../common/helpers/sscl/pgp.js'
+import { buildReply, fakeSsclKeysFor } from './fake-sscl.js'
+import {
+  fakeSsclTestMaxFileBytes,
+  pushedByNrf,
+  readAsNrf,
+  receiveAsFakeSscl,
+  sentBySscl
+} from './fake-sscl-test-helpers.js'
+import {
+  fakeSsclReplyTime,
+  fakeSsclStartupReplyText,
+  pgpTestErrors,
+  ssclTestCustomerFilename as otherFilename,
+  ssclTestInvoiceFilename,
+  ssclTestInvoiceText as text
+} from './fixtures/sscl.js'
+import { generatePgpTestKeys } from './pgp-test-keys.js'
+
+describe('fake SSCL test helpers', { timeout: 20000 }, () => {
+  let pgp
+  let keys
+
+  beforeAll(async () => {
+    pgp = await generatePgpTestKeys()
+    keys = fakeSsclKeysFor(pgp)
+  })
+
+  describe('pushedByNrf', () => {
+    it.each([
+      [
+        'to SSCL as NRF unless told otherwise',
+        () => ({
+          options: {},
+          recipient: pgp.ssclEncryption,
+          signer: pgp.nrf
+        })
+      ],
+      [
+        'to another recipient when given one',
+        () => ({
+          options: { encryptionKey: pgp.stranger.publicKey },
+          recipient: pgp.stranger,
+          signer: pgp.nrf
+        })
+      ],
+      [
+        'as another signer when given one',
+        () => ({
+          options: { signer: pgp.stranger },
+          recipient: pgp.ssclEncryption,
+          signer: pgp.stranger
+        })
+      ]
+    ])('encrypts and signs %s', async (_case, expected) => {
+      const { options, recipient, signer } = expected()
+
+      const data = await pushedByNrf({ text, pgp, ...options })
+
+      const contents = await decryptAndVerify({
+        data,
+        decryptionKey: recipient.privateKey,
+        passphrase: recipient.passphrase,
+        verificationKey: signer.publicKey,
+        maxDecompressedBytes: fakeSsclTestMaxFileBytes
+      })
+      expect(contents.toString()).toBe(text)
+    })
+  })
+
+  describe('sentBySscl', () => {
+    it('encrypts to NRF and signs as SSCL', async () => {
+      const data = await sentBySscl({ text, pgp })
+
+      const contents = await decryptAndVerify({
+        data,
+        decryptionKey: pgp.nrf.privateKey,
+        passphrase: pgp.nrf.passphrase,
+        verificationKey: pgp.ssclSigning.publicKey,
+        maxDecompressedBytes: fakeSsclTestMaxFileBytes
+      })
+      expect(contents.toString()).toBe(text)
+    })
+  })
+
+  describe('receiveAsFakeSscl', () => {
+    it('receives a file as the fake SSCL holding the given keys', async () => {
+      const receipt = await receiveAsFakeSscl({
+        data: await pushedByNrf({ text, pgp }),
+        keys
+      })
+
+      expect(receipt).toEqual({
+        accepted: true,
+        problems: [],
+        contents: Buffer.from(text)
+      })
+    })
+
+    it('receives under the test invoice name unless given another', async () => {
+      const archivedNames = new Set([ssclTestInvoiceFilename])
+      const data = await pushedByNrf({ text, pgp })
+
+      const underDefaultName = await receiveAsFakeSscl({
+        data,
+        keys,
+        archivedNames
+      })
+      const underOtherName = await receiveAsFakeSscl({
+        data,
+        keys,
+        archivedNames,
+        filename: otherFilename
+      })
+
+      expect(underDefaultName.problems).toEqual([
+        'A file with this name was already received'
+      ])
+      expect(underOtherName.problems).toEqual([])
+    })
+  })
+
+  describe('readAsNrf', () => {
+    it('reads a reply that is encrypted to NRF and signed by SSCL', async () => {
+      const reply = await buildReply({
+        about: 'startup',
+        time: fakeSsclReplyTime,
+        keys,
+        maxFileBytes: fakeSsclTestMaxFileBytes
+      })
+
+      const contents = await readAsNrf({ data: reply.data, pgp })
+
+      expect(contents.toString()).toBe(fakeSsclStartupReplyText)
+    })
+
+    it('refuses a file that SSCL did not sign', async () => {
+      const data = await pushedByNrf({
+        text,
+        pgp,
+        encryptionKey: pgp.nrf.publicKey
+      })
+
+      await expect(readAsNrf({ data, pgp })).rejects.toThrow(
+        pgpTestErrors.unknownSigner
+      )
+    })
+  })
+})
