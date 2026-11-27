@@ -1,7 +1,10 @@
 import ssh2 from 'ssh2'
 
 import { config } from '../config.js'
-import { fakeSsclStartupReplyFilename } from './fixtures/sscl.js'
+import {
+  fakeSsclStartupReplyFilename,
+  ssclTestFaultServerStub
+} from './fixtures/sscl.js'
 import { createInMemorySsclClient } from './in-memory-sscl.js'
 import { sftpTestFolders } from './sftp-test-transport.js'
 import {
@@ -79,11 +82,12 @@ describe('MOVEit test config', () => {
       expect(
         ssh2.utils.parseKey(fromBase64(sftp.privateKey))
       ).not.toBeInstanceOf(Error)
-      expect([
-        pgp.nrfPrivateKey,
-        pgp.ssclEncryptionPublicKey,
-        pgp.ssclSigningPublicKey
-      ]).not.toContain('')
+      const someBase64 = expect.stringMatching(/^[A-Za-z0-9+/]+={0,2}$/)
+      expect(pgp).toMatchObject({
+        nrfPrivateKey: someBase64,
+        ssclEncryptionPublicKey: someBase64,
+        ssclSigningPublicKey: someBase64
+      })
     })
 
     it('uses the PGP keys it is given', () => {
@@ -113,14 +117,7 @@ describe('MOVEit test config', () => {
   })
 
   describe('loadFaultServerMoveitTestConfig', () => {
-    const server = {
-      settings: () => ({
-        host: '127.0.0.1',
-        port: 2222,
-        hostKey: 'host key',
-        privateKey: 'private key'
-      })
-    }
+    const server = ssclTestFaultServerStub
 
     it('points the MOVEit settings at the server, with its keys in base64, and says where it listens', () => {
       const listening = loadFaultServerMoveitTestConfig({ server, keys })

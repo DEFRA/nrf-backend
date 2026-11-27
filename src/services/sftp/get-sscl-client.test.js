@@ -35,7 +35,8 @@ const encryptionKeySetting = 'sscl.pgp.ssclEncryptionPublicKey'
 const signingKeySetting = 'sscl.pgp.ssclSigningPublicKey'
 const privateKeySetting = 'sscl.sftp.privateKey'
 const nrfPrivateKeySetting = 'sscl.pgp.nrfPrivateKey'
-const pgpKey = 'PGP key'
+const pgpPrivateKey = 'PGP private key'
+const pgpPublicKey = 'PGP public key'
 const { push: pushFolder, pull: pullFolder } = moveitTestFolders
 // Long enough for the SSH handshake, which it limits too, and far short of
 // the default, so only the configured value can end the stalled request.
@@ -296,6 +297,7 @@ describe('getSsclClient', () => {
     await expect(failing).rejects.toThrow(`${hostSetting} is not set`)
 
     expect(getSsclClient()).toBe(replacement)
+    await expect(replacement).resolves.toBeDefined()
   })
 
   it('tries again after a build that failed, rather than keep the failure', async () => {
@@ -343,9 +345,9 @@ describe('assertSsclConfig', () => {
   it.each([
     [hostKeySetting, 'SFTP host key'],
     [privateKeySetting, 'SSH private key'],
-    [nrfPrivateKeySetting, pgpKey],
-    [encryptionKeySetting, pgpKey],
-    [signingKeySetting, pgpKey]
+    [nrfPrivateKeySetting, pgpPrivateKey],
+    [encryptionKeySetting, pgpPublicKey],
+    [signingKeySetting, pgpPublicKey]
   ])(
     'fails at startup when %s cannot be read, without quoting it',
     async (key, what) => {
@@ -360,6 +362,56 @@ describe('assertSsclConfig', () => {
       await expect(failure).rejects.not.toThrow(junk)
     }
   )
+
+  it('fails at startup when sscl.sftp.privateKey holds a public key', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(testEnabledKey, true)
+    config.set(privateKeySetting, config.get(hostKeySetting))
+
+    await expect(assertSsclConfig()).rejects.toThrow(
+      `${privateKeySetting} is not a valid SSH private key`
+    )
+  })
+
+  it("fails at startup when sscl.pgp.nrfPrivateKey holds NRF's public key, rather than blame the passphrase", async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(testEnabledKey, true)
+    config.set(nrfPrivateKeySetting, toBase64(keys.nrf.publicKey))
+
+    await expect(assertSsclConfig()).rejects.toThrow(
+      `${nrfPrivateKeySetting} is not a valid ${pgpPrivateKey}`
+    )
+  })
+
+  it.each([
+    [encryptionKeySetting, 'ssclEncryption'],
+    [signingKeySetting, 'ssclSigning']
+  ])(
+    'fails at startup when %s holds a private key, without quoting it',
+    async (key, keyName) => {
+      loadUsableMoveitTestConfig({ keys })
+      config.set(testEnabledKey, true)
+      config.set(key, toBase64(keys[keyName].privateKey))
+
+      const failure = assertSsclConfig()
+
+      await expect(failure).rejects.toThrow(
+        `${key} is not a valid ${pgpPublicKey}`
+      )
+      await expect(failure).rejects.not.toThrow('PRIVATE KEY')
+    }
+  )
+
+  it('names the first PGP key in config order when more than one cannot be read', async () => {
+    loadUsableMoveitTestConfig({ keys })
+    config.set(testEnabledKey, true)
+    config.set(encryptionKeySetting, junk)
+    config.set(signingKeySetting, junk)
+
+    await expect(assertSsclConfig()).rejects.toThrow(
+      `${encryptionKeySetting} is not a valid ${pgpPublicKey}`
+    )
+  })
 
   it("fails at startup when the passphrase does not open NRF's private key, without quoting it", async () => {
     loadUsableMoveitTestConfig({ keys })

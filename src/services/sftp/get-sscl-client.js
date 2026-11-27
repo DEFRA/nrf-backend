@@ -4,13 +4,19 @@ import { config } from '../../config.js'
 import { createHostVerifier } from '../../common/helpers/sscl/host-key.js'
 import {
   assertPgpPrivateKeyUnlocks,
-  pgpKeyFingerprint
+  pgpKeyDetails
 } from '../../common/helpers/sscl/pgp.js'
 import { assertSsclTestRouteAllowed } from '../../common/helpers/sscl/sscl-guards.js'
 import { createSftpTransport } from './sftp-transport.js'
 import { createSsclClient } from './sscl-client.js'
 
-const nrfPrivateKeyName = 'sscl.pgp.nrfPrivateKey'
+const configKeys = {
+  hostKey: 'sscl.sftp.hostKey',
+  sshPrivateKey: 'sscl.sftp.privateKey',
+  nrfPrivateKey: 'sscl.pgp.nrfPrivateKey',
+  ssclEncryptionKey: 'sscl.pgp.ssclEncryptionPublicKey',
+  ssclSigningKey: 'sscl.pgp.ssclSigningPublicKey'
+}
 
 /**
  * @typedef {import('./sscl-client.js').SsclClient} SsclClient
@@ -68,8 +74,8 @@ const readMoveitSettings = () => ({
     connection: {
       host: required('sscl.sftp.host'),
       port: config.get('sscl.sftp.port'),
-      hostKey: requiredBase64('sscl.sftp.hostKey'),
-      privateKey: requiredBase64('sscl.sftp.privateKey'),
+      hostKey: requiredBase64(configKeys.hostKey),
+      privateKey: requiredBase64(configKeys.sshPrivateKey),
       timeoutMs: config.get('sscl.sftp.timeoutMs'),
       proxyUrl: config.get('httpProxy') ?? undefined
     },
@@ -79,10 +85,10 @@ const readMoveitSettings = () => ({
     pullFolder: required('sscl.sftp.pullFolder')
   },
   keys: {
-    nrfPrivateKey: requiredBase64(nrfPrivateKeyName),
+    nrfPrivateKey: requiredBase64(configKeys.nrfPrivateKey),
     nrfPassphrase: config.get('sscl.pgp.nrfPassphrase'),
-    ssclEncryptionPublicKey: requiredBase64('sscl.pgp.ssclEncryptionPublicKey'),
-    ssclSigningPublicKey: requiredBase64('sscl.pgp.ssclSigningPublicKey')
+    ssclEncryptionPublicKey: requiredBase64(configKeys.ssclEncryptionKey),
+    ssclSigningPublicKey: requiredBase64(configKeys.ssclSigningKey)
   }
 })
 
@@ -93,7 +99,7 @@ const readMoveitSettings = () => ({
  * @param {{ key: string, what: string, parse: () => T | Promise<T> }} params
  * @returns {Promise<T>}
  */
-const parsed = async ({ key, what, parse }) => {
+const parseConfigValue = async ({ key, what, parse }) => {
   try {
     const result = await parse()
     if (result instanceof Error) {
@@ -106,30 +112,58 @@ const parsed = async ({ key, what, parse }) => {
 }
 
 /**
- * Catches SSCL's key config being set to NRF's own key by mistake, which would
- * let NRF's key stand in for SSCL's signature. Compares primary key
- * fingerprints only: a subkey shared between keys is not looked for.
- * @param {import('./sscl-client.js').SsclPgpKeys} keys
+ * Reads an SSH private key, refusing a public key, which ssh2 also reads.
+ * @param {string} privateKey
  */
-const assertSsclKeysAreNotNrfs = async (keys) => {
-  /** @param {{ key: string, armoredKey: string }} params */
-  const fingerprint = ({ key, armoredKey }) =>
-    parsed({
-      key,
-      what: 'PGP key',
-      parse: () => pgpKeyFingerprint(armoredKey)
-    })
-  const [nrf, encryption, signing] = await Promise.all([
-    fingerprint({ key: nrfPrivateKeyName, armoredKey: keys.nrfPrivateKey }),
-    fingerprint({
-      key: 'sscl.pgp.ssclEncryptionPublicKey',
-      armoredKey: keys.ssclEncryptionPublicKey
-    }),
-    fingerprint({
-      key: 'sscl.pgp.ssclSigningPublicKey',
-      armoredKey: keys.ssclSigningPublicKey
-    })
-  ])
+const readSshPrivateKey = (privateKey) => {
+  const key = ssh2.utils.parseKey(privateKey)
+  if (key instanceof Error || !key.isPrivateKey()) {
+    throw new Error('not an SSH private key')
+  }
+  return key
+}
+
+/**
+ * The fingerprint of a PGP key from config, refusing a public key where a
+ * private key belongs and a private key where a public key belongs.
+ * @param {{ key: string, armoredKey: string, isPrivate: boolean }} params
+ */
+const pgpKeyFingerprint = ({ key, armoredKey, isPrivate }) =>
+  parseConfigValue({
+    key,
+    what: isPrivate ? 'PGP private key' : 'PGP public key',
+    parse: async function readFingerprint() {
+      const details = await pgpKeyDetails(armoredKey)
+      if (details.isPrivate !== isPrivate) {
+        throw new Error('wrong kind of PGP key')
+      }
+      return details.fingerprint
+    }
+  })
+
+/**
+ * Checks each PGP key in config is the kind it should be, in config order,
+ * and catches SSCL's key config being set to NRF's own key by mistake, which
+ * would let NRF's key stand in for SSCL's signature. Compares primary key
+ * fingerprints only: a subkey shared between keys is not looked for.
+ * @param {SsclPgpKeys} keys
+ */
+const assertPgpKeysUsable = async (keys) => {
+  const nrf = await pgpKeyFingerprint({
+    key: configKeys.nrfPrivateKey,
+    armoredKey: keys.nrfPrivateKey,
+    isPrivate: true
+  })
+  const encryption = await pgpKeyFingerprint({
+    key: configKeys.ssclEncryptionKey,
+    armoredKey: keys.ssclEncryptionPublicKey,
+    isPrivate: false
+  })
+  const signing = await pgpKeyFingerprint({
+    key: configKeys.ssclSigningKey,
+    armoredKey: keys.ssclSigningPublicKey,
+    isPrivate: false
+  })
   if (nrf === encryption || nrf === signing) {
     throw new Error("SSCL's PGP public keys must not be NRF's own key")
   }
@@ -141,20 +175,20 @@ const assertSsclKeysAreNotNrfs = async (keys) => {
  * @param {MoveitSettings} settings
  */
 const assertMoveitKeysUsable = async ({ transport, keys }) => {
-  await parsed({
-    key: 'sscl.sftp.hostKey',
+  await parseConfigValue({
+    key: configKeys.hostKey,
     what: 'SFTP host key',
     parse: () => createHostVerifier(transport.connection.hostKey)
   })
-  await parsed({
-    key: 'sscl.sftp.privateKey',
+  await parseConfigValue({
+    key: configKeys.sshPrivateKey,
     what: 'SSH private key',
-    parse: () => ssh2.utils.parseKey(transport.connection.privateKey)
+    parse: () => readSshPrivateKey(transport.connection.privateKey)
   })
-  await assertSsclKeysAreNotNrfs(keys)
-  await parsed({
+  await assertPgpKeysUsable(keys)
+  await parseConfigValue({
     key: 'sscl.pgp.nrfPassphrase',
-    what: `passphrase for ${nrfPrivateKeyName}`,
+    what: `passphrase for ${configKeys.nrfPrivateKey}`,
     parse: () =>
       assertPgpPrivateKeyUnlocks({
         privateKey: keys.nrfPrivateKey,

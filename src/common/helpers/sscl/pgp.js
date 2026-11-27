@@ -19,12 +19,14 @@ export async function assertPgpPrivateKeyUnlocks({ privateKey, passphrase }) {
 }
 
 /**
- * The fingerprint of an ASCII-armoured public or private key.
+ * The fingerprint of an ASCII-armoured public or private key, and whether it
+ * is a private key.
  * @param {string} armoredKey
+ * @returns {Promise<{ fingerprint: string, isPrivate: boolean }>}
  */
-export async function pgpKeyFingerprint(armoredKey) {
+export async function pgpKeyDetails(armoredKey) {
   const key = await openpgp.readKey({ armoredKey })
-  return key.getFingerprint()
+  return { fingerprint: key.getFingerprint(), isPrivate: key.isPrivate() }
 }
 
 /**

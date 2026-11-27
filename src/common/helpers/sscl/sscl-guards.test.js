@@ -12,7 +12,7 @@ describe('assertSsclTestRouteAllowed', () => {
     [true, 'dev'],
     [true, 'test'],
     [false, 'prod']
-  ])('allows testEnabled=%s in %s', (testEnabled, environment) => {
+  ])('allows the test route set to %s in %s', (testEnabled, environment) => {
     expect(() =>
       assertSsclTestRouteAllowed({ testEnabled, environment })
     ).not.toThrow()
