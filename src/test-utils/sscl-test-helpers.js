@@ -156,9 +156,9 @@ export const pullFolderNames = async (transport) =>
 
 /**
  * Replaces some of a transport's pull session operations, e.g. to make a
- * download fail. The overrides can be built from the real session. Only one
- * override may be active on a transport at a time: each restore puts back the
- * session it replaced.
+ * download fail. The overrides can be built from the real session. Each
+ * restore puts back the session it replaced, so overrides on the same
+ * transport must be restored in the reverse order they were made.
  * @param {{ transport: SsclTransport, overrides: Partial<PullSession> | ((session: PullSession) => Partial<PullSession>) }} params
  * @returns {() => void} puts the pull session back as it was before
  */

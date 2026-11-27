@@ -1,5 +1,6 @@
 import {
   chmodSync,
+  mkdirSync,
   mkdtempSync,
   rmSync,
   statSync,
@@ -69,7 +70,24 @@ describe('ensureSftpTestKeys', () => {
     ).toMatch(/PRIVATE KEY/)
   })
 
-  it('makes a private key file left with loose permissions readable only by the owner again', () => {
+  it('makes the private keys readable only by the owner when it keeps the keys it wrote before', () => {
+    ensureSftpTestKeys({ dir })
+    const clientPrivate = path.join(dir, sftpTestKeyFiles.clientPrivate)
+    chmodSync(clientPrivate, 0o644)
+
+    expect(ensureSftpTestKeys({ dir })).toBe(false)
+    expect(statSync(clientPrivate).mode & 0o777).toBe(privateFileMode)
+  })
+
+  it('refuses a folder where a key file should be, saying what to do', () => {
+    mkdirSync(path.join(dir, sftpTestKeyFiles.hostPrivate))
+
+    expect(() => ensureSftpTestKeys({ dir })).toThrow(
+      'is a folder, not a key file. Delete the folder and run the tests again'
+    )
+  })
+
+  it('writes over a private key file left with loose permissions, making it readable only by the owner', () => {
     const clientPrivate = path.join(dir, sftpTestKeyFiles.clientPrivate)
     writeFileSync(clientPrivate, 'old key')
     chmodSync(clientPrivate, 0o644)

@@ -32,13 +32,13 @@ import {
   sftpTestUsers
 } from '../../test-utils/sftp-test-server.js'
 import { generateSshTestKeyPair } from '../../test-utils/ssh-test-keys.js'
+import { ssclTestGarbageFile } from '../../test-utils/fixtures/sscl.js'
 
 // One file, so these run in sequence against the shared SFTP container folders.
 
 const { push, pull } = sftpTestDirections
 const maxBytes = 1024
 const fromSsclText = 'from SSCL'
-const notPgpFilename = 'NOT_PGP.txt'
 const testPrefix = 'TEST'
 const ssclTestPrefix = 'SSCL_TEST'
 const nrfTestPrefix = 'NRF_TEST'
@@ -353,6 +353,8 @@ describe(
         filename,
         data: await sentBySscl({ text: firstText, pgp: keys })
       })
+      // Longer than the first, so the size shows the change even when both
+      // files have the same time to the second
       const replacement = await sentBySscl({
         text: 'the replacement, longer',
         pgp: keys
@@ -395,21 +397,19 @@ describe(
     })
 
     it('leaves a pulled file that fails verification in the pull folder', async () => {
-      await putInFolder({
-        direction: pull,
-        filename: notPgpFilename,
-        data: Buffer.from('plain')
-      })
+      await putInFolder({ direction: pull, ...ssclTestGarbageFile })
 
       const { files } = await client.pullFiles(collectPulledFiles())
 
       expect(files).toEqual([
         expect.objectContaining({
-          filename: notPgpFilename,
+          filename: ssclTestGarbageFile.filename,
           status: 'unverified'
         })
       ])
-      expect(await namesInFolder({ direction: pull })).toEqual([notPgpFilename])
+      expect(await namesInFolder({ direction: pull })).toEqual([
+        ssclTestGarbageFile.filename
+      ])
     })
   }
 )
