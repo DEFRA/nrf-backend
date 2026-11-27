@@ -103,7 +103,7 @@ describe('runSsclTestExchange', () => {
     expect(result.ok).toBe(ok)
   })
 
-  it('stops starting new files in the pull after 60 seconds', async () => {
+  it('gives the pull a 60 second limit', async () => {
     const pullFiles = vi.spyOn(client, 'pullFiles')
 
     await runSsclTestExchange({ client, now })
@@ -136,6 +136,24 @@ describe('runSsclTestExchange', () => {
     expect(mockLogger.error).toHaveBeenCalledWith(
       error,
       'SSCL test exchange push step failed'
+    )
+  })
+
+  it('carries on with the other steps when listing the push folder fails', async () => {
+    const error = new Error('Permission denied')
+    sscl.transport.listPushFolder = () => Promise.reject(error)
+
+    const result = await runSsclTestExchange({ client, now })
+
+    expect(result).toMatchObject({
+      ok: false,
+      pushed: { ok: true },
+      pushFolder: { ok: false },
+      pulled: { ok: true }
+    })
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      error,
+      'SSCL test exchange list step failed'
     )
   })
 

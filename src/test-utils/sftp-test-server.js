@@ -211,7 +211,8 @@ export const sftpRouteTestTimeoutMs = 30000
 
 /**
  * A request to the SSCL test route, for `server.inject`.
- * @param {object} [options] - other inject options, such as headers or payload
+ * @param {Partial<import('@hapi/hapi').ServerInjectOptions>} [options] - other
+ *   inject options, such as headers or payload
  */
 export const sftpTestFileRequest = (options) => ({
   method: 'POST',

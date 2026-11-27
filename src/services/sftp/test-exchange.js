@@ -11,6 +11,7 @@ const pullTimeLimitMs = 60000
 
 /**
  * @typedef {import('./sscl-client.js').SsclClient} SsclClient
+ * @typedef {import('./sscl-client.js').OnPulledFile} OnPulledFile
  * @typedef {{ client: SsclClient, now: Date }} TestExchangeParams
  */
 
@@ -62,7 +63,7 @@ const pushTestFile = async ({ client, now }) => {
 const pullTestFiles = async ({ client }) => {
   const { files, notProcessed } = await client.pullFiles({
     stopAfterMs: pullTimeLimitMs,
-    /** @param {{ filename: string, data: Buffer, sha256: string }} file */
+    /** @type {OnPulledFile} */
     async onFile({ filename, data, sha256 }) {
       logger.info(
         { sscl: { filename, decryptedSize: data.length, sha256 } },

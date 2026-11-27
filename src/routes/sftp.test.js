@@ -52,7 +52,6 @@ describe('POST /sftp/test-file', { timeout: sftpRouteTestTimeoutMs }, () => {
     const connectedAs = info.mock.calls
       .filter(([, message]) => message === 'SFTP connected')
       .map(([context]) => context.sftp.username)
-    // The push and list steps run before the pull
     expect(connectedAs.at(0)).toBe(sftpTestUsers.push)
     expect(connectedAs.at(-1)).toBe(sftpTestUsers.pull)
     expect(new Set(connectedAs)).toEqual(
@@ -178,7 +177,7 @@ describe('POST /sftp/test-file', { timeout: sftpRouteTestTimeoutMs }, () => {
       loadSftpRouteTestConfig({ keys, folders })
     })
 
-    it('fails with a 500 that does not name the missing setting', async () => {
+    it('fails with a plain 500 that does not name the missing setting', async () => {
       const response = await getServer().inject(sftpTestFileRequest())
 
       expect(response.statusCode).toBe(500)
