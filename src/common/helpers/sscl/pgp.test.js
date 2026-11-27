@@ -4,7 +4,7 @@ import {
   assertPgpPrivateKeyUnlocks,
   decryptAndVerify,
   encryptAndSign,
-  pgpKeyFingerprint
+  pgpKeyDetails
 } from './pgp.js'
 import { pgpTestErrors } from '../../../test-utils/fixtures/sscl.js'
 import { generatePgpTestKeys } from '../../../test-utils/pgp-test-keys.js'
@@ -186,11 +186,20 @@ describe('pgp', () => {
   })
 
   it('gives a private key and its public key the same fingerprint', async () => {
-    const fromPrivate = await pgpKeyFingerprint(keys.nrf.privateKey)
-    const fromPublic = await pgpKeyFingerprint(keys.nrf.publicKey)
-    const other = await pgpKeyFingerprint(keys.stranger.publicKey)
+    const fromPrivate = await pgpKeyDetails(keys.nrf.privateKey)
+    const fromPublic = await pgpKeyDetails(keys.nrf.publicKey)
+    const other = await pgpKeyDetails(keys.stranger.publicKey)
 
-    expect(fromPrivate).toBe(fromPublic)
-    expect(fromPrivate).not.toBe(other)
+    expect(fromPrivate.fingerprint).toBe(fromPublic.fingerprint)
+    expect(fromPrivate.fingerprint).not.toBe(other.fingerprint)
+  })
+
+  it('says whether a key is a private key', async () => {
+    await expect(pgpKeyDetails(keys.nrf.privateKey)).resolves.toMatchObject({
+      isPrivate: true
+    })
+    await expect(pgpKeyDetails(keys.nrf.publicKey)).resolves.toMatchObject({
+      isPrivate: false
+    })
   })
 })

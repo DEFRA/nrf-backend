@@ -1,7 +1,12 @@
+import { config } from '../config.js'
+import { generateSshTestKeyPair } from './ssh-test-keys.js'
+
 /**
  * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
  * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
  * @typedef {import('../services/sftp/sscl-client.js').PullResult} PullResult
+ * @typedef {import('../services/sftp/sscl-client.js').SsclPgpKeys} SsclPgpKeys
+ * @typedef {import('./pgp-test-keys.js').PgpTestKeys} PgpTestKeys
  * @typedef {Awaited<ReturnType<typeof import('./sftp-fault-server.js').startSftpFaultServer>>} SftpFaultServer
  * @typedef {import('./sftp-fault-server.js').SftpOperation} SftpOperation
  */
@@ -10,8 +15,8 @@ export const ssclTestLimits = { maxFileBytes: 1024 * 1024, maxFilesPerRun: 50 }
 
 /**
  * The keys the SSCL client holds, from the PGP test keys.
- * @param {import('./pgp-test-keys.js').PgpTestKeys} pgp
- * @returns {import('../services/sftp/sscl-client.js').SsclPgpKeys}
+ * @param {PgpTestKeys} pgp
+ * @returns {SsclPgpKeys}
  */
 export const nrfPgpKeysFor = (pgp) => ({
   nrfPrivateKey: pgp.nrf.privateKey,
@@ -19,6 +24,102 @@ export const nrfPgpKeysFor = (pgp) => ({
   ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
   ssclSigningPublicKey: pgp.ssclSigning.publicKey
 })
+
+/**
+ * @param {string} text
+ */
+export const toBase64 = (text) => Buffer.from(text).toString('base64')
+
+/**
+ * @param {string} base64
+ */
+export const fromBase64 = (base64) => Buffer.from(base64, 'base64').toString()
+
+/** Push and pull folders in the MOVEit test config. */
+export const moveitTestFolders = { push: '/out', pull: '/in' }
+
+/** Push and pull users in the MOVEit test config. */
+export const moveitTestUsers = { push: 'push-user', pull: 'pull-user' }
+
+const anyBase64 = 'aA=='
+let sshKeys
+
+/** One SSH key pair for every MOVEit test config, made when first needed. */
+const moveitSshKeys = () => {
+  sshKeys ??= generateSshTestKeyPair()
+  return sshKeys
+}
+
+/**
+ * Loads config for MOVEit with every required setting present: real SSH keys,
+ * placeholder PGP keys unless given (the client checks PGP keys when built).
+ * @param {{ pgp?: Partial<SsclPgpKeys> }} [overrides] - PGP keys in base64, as config holds them
+ */
+export const loadMoveitTestConfig = ({ pgp } = {}) =>
+  config.load({
+    sscl: {
+      sftp: {
+        host: 'h',
+        hostKey: toBase64(moveitSshKeys().public),
+        privateKey: toBase64(moveitSshKeys().private),
+        pushUser: moveitTestUsers.push,
+        pushFolder: moveitTestFolders.push,
+        pullUser: moveitTestUsers.pull,
+        pullFolder: moveitTestFolders.pull
+      },
+      pgp: {
+        nrfPrivateKey: anyBase64,
+        ssclEncryptionPublicKey: anyBase64,
+        ssclSigningPublicKey: anyBase64,
+        ...pgp
+      }
+    }
+  })
+
+/**
+ * The PGP test keys as SSCL config holds them: keys in base64.
+ * @param {PgpTestKeys} keys
+ */
+export const pgpConfigFor = (keys) => ({
+  nrfPrivateKey: toBase64(keys.nrf.privateKey),
+  nrfPassphrase: keys.nrf.passphrase,
+  ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
+  ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
+})
+
+/**
+ * Loads config for MOVEit with every key real and usable.
+ * @param {{ keys: PgpTestKeys }} params
+ */
+export const loadUsableMoveitTestConfig = ({ keys }) =>
+  loadMoveitTestConfig({ pgp: pgpConfigFor(keys) })
+
+/**
+ * Loads config for MOVEit with every key real and usable, pointing at an
+ * in-process SFTP fault server.
+ * @param {{ server: Pick<SftpFaultServer, 'settings'>, keys: PgpTestKeys, timeoutMs?: number }} params
+ * @returns {{ host: string, port: number }} where the server listens
+ */
+export const loadFaultServerMoveitTestConfig = ({
+  server,
+  keys,
+  timeoutMs
+}) => {
+  const { host, port, hostKey, privateKey } = server.settings()
+  loadUsableMoveitTestConfig({ keys })
+  config.load({
+    sscl: {
+      sftp: {
+        host,
+        port,
+        hostKey: toBase64(hostKey),
+        privateKey: toBase64(privateKey),
+        ...(timeoutMs && { timeoutMs })
+      }
+    }
+  })
+  return { host, port }
+}
 
 /**
  * Wraps base64 over several lines, as it is in many key files.
