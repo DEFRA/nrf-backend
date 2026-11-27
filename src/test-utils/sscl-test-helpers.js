@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { config } from '../config.js'
 import { generateSshTestKeyPair } from './ssh-test-keys.js'
 
@@ -154,18 +156,53 @@ export const pullFolderNames = async (transport) =>
 
 /**
  * Replaces some of a transport's pull session operations, e.g. to make a
- * download fail.
- * @param {{ transport: SsclTransport, overrides: Partial<PullSession> }} params
+ * download fail. The overrides can be built from the real session. Each
+ * restore puts back the session it replaced, so overrides on the same
+ * transport must be restored in the reverse order they were made.
+ * @param {{ transport: SsclTransport, overrides: Partial<PullSession> | ((session: PullSession) => Partial<PullSession>) }} params
  * @returns {() => void} puts the pull session back as it was before
  */
 export const overridePullSession = ({ transport, overrides }) => {
   const original = transport.withPullSession
-  transport.withPullSession = (work) =>
-    original((session) => work({ ...session, ...overrides }))
+  /** @param {PullSession} session */
+  const overridesFor = (session) =>
+    typeof overrides === 'function' ? overrides(session) : overrides
+  /**
+   * @template T
+   * @param {(session: PullSession) => Promise<T>} work
+   */
+  transport.withPullSession = function withOverriddenPullSession(work) {
+    return original((session) => work({ ...session, ...overridesFor(session) }))
+  }
   return function restorePullSession() {
     transport.withPullSession = original
   }
 }
+
+/**
+ * Does something to each file just before a pull downloads it, e.g. removes
+ * it, as if someone else got there first.
+ * @param {{ transport: SsclTransport, beforeDownload: (params: { session: PullSession, filename: string }) => Promise<void> }} params
+ * @returns {() => void} puts the pull session back as it was before
+ */
+export const runBeforeEachDownload = ({ transport, beforeDownload }) =>
+  overridePullSession({
+    transport,
+    overrides: (session) => ({
+      /** @param {Parameters<PullSession['download']>[0]} file */
+      async download(file) {
+        await beforeDownload({ session, filename: file.filename })
+        return session.download(file)
+      }
+    })
+  })
+
+/**
+ * A file name no other test uses, so a test on a shared SFTP server can tell
+ * its own files from those left by other tests or earlier runs.
+ * @param {string} prefix
+ */
+export const uniqueTestFilename = (prefix) => `${prefix}_${randomUUID()}.pgp`
 
 /**
  * Makes a fault server answer one operation on one file with an SFTP status

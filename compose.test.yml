@@ -92,6 +92,29 @@ services:
     networks:
       - cdp-tenant
 
+  sscl-sftp:
+    # Local stand-in for SSCL's MOVEit SFTP server. Keys are throwaway, generated
+    # by the vitest global setup into .sftp-test-keys (gitignored). Every checkout
+    # shares this container, so don't run the tests from two checkouts at once.
+    image: atmoz/sftp:alpine@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372
+    platform: linux/amd64
+    ports:
+      - '127.0.0.1:2223:22'
+    command: CDDEFTNRLOut::::Interfaces/DEF/Test/NRLOut CDDEFTNRLIn::::Interfaces/DEF/Test/NRLIn
+    volumes:
+      - ./.sftp-test-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+      - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLOut/.ssh/keys/client.pub:ro
+      - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLIn/.ssh/keys/client.pub:ro
+    healthcheck:
+      # Looks for the listening port, not the process: sshd rewrites its process
+      # title, so `pgrep -x sshd` fails on a native amd64 host such as CI
+      test: ['CMD-SHELL', "netstat -ltn | grep -q ':22 '"]
+      interval: 2s
+      start_period: 5s
+      retries: 30
+    networks:
+      - cdp-tenant
+
 volumes:
   postgres-test-data:
 

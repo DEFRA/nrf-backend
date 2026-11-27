@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process'
 
+import { ensureSftpTestKeys } from '../src/test-utils/sftp-test-keys.js'
+
 const COMPOSE = 'docker compose -f compose.test.yml -p nrf-backend-test'
 
 function isServiceRunning(service) {
@@ -44,4 +46,9 @@ export default async function setup() {
   if (!isServiceRunning('cdp-uploader')) {
     execSync(`${COMPOSE} up -d cdp-uploader --wait`, { stdio: 'inherit' })
   }
+
+  // Always brought up, so compose recreates a container another checkout
+  // started with its own keys. New keys need a recreate even then.
+  const recreate = ensureSftpTestKeys() ? '--force-recreate ' : ''
+  execSync(`${COMPOSE} up -d ${recreate}sscl-sftp --wait`, { stdio: 'inherit' })
 }
