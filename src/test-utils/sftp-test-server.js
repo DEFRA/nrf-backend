@@ -1,7 +1,7 @@
 import { config } from '../config.js'
 import { withSftpSession } from '../services/sftp/sftp-client.js'
 import { readSftpTestKey, sftpTestKeyFiles } from './sftp-test-keys.js'
-import { toBase64 } from './sscl-test-helpers.js'
+import { pgpConfigFor, toBase64 } from './sscl-test-helpers.js'
 
 /**
  * @typedef {import('../services/sftp/sftp-client.js').SftpConnectionSettings} SftpConnectionSettings
@@ -168,12 +168,7 @@ export const loadSftpTestServerConfig = ({
         pullUser: sftpTestUsers.pull,
         pullFolder: folders.pull
       },
-      pgp: {
-        nrfPrivateKey: toBase64(keys.nrf.privateKey),
-        nrfPassphrase: keys.nrf.passphrase,
-        ssclEncryptionPublicKey: toBase64(keys.ssclEncryption.publicKey),
-        ssclSigningPublicKey: toBase64(keys.ssclSigning.publicKey)
-      }
+      pgp: pgpConfigFor(keys)
     }
   })
 }
