@@ -62,7 +62,9 @@ describe('ssclSftp plugin', () => {
     config.set(environmentSetting, 'prod')
     config.load({ sscl: { testEnabled: false } })
 
-    await expect(registerOnTestServer(ssclSftp)).resolves.toBeDefined()
+    const server = await registerOnTestServer(ssclSftp)
+
+    expect(server.table()).toEqual([])
   })
 
   it.each([

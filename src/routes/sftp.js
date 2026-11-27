@@ -22,15 +22,19 @@ import { runSsclTestExchange } from '../services/sftp/test-exchange.js'
  *     responses:
  *       200:
  *         description: The outcome of each step; ok is false if any step failed
+ *       400:
+ *         description: The request has a body
  *       401:
  *         description: Missing or invalid x-api-key
+ *       500:
+ *         description: The SSCL client could not be built from config
  */
 const sftpTestFile = {
   method: 'POST',
   path: '/sftp/test-file',
   options: {
     validate: {
-      payload: Joi.object({}).allow(null)
+      payload: Joi.valid(null)
     }
   },
   async handler(_request, h) {

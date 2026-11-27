@@ -9,6 +9,8 @@ const logger = createLogger()
  * SSCL file exchange over SFTP to MOVEit. Refuses to register (so the server
  * won't start) if the SSCL switch or MOVEit settings are wrong for this
  * environment, and only exposes the test route when SSCL_SFTP_TEST_ENABLED is on.
+ * The route is registered here, not by the router plugin, so it doesn't exist
+ * at all when switched off.
  */
 const ssclSftp = {
   plugin: {

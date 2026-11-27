@@ -5,11 +5,13 @@ import { completedPullStatuses } from './sscl-client.js'
 
 const logger = createLogger()
 const oneSecondMs = 1000
-// Keeps the exchange inside the admin-frontend's wait for it.
+// No new file is started after this, so a full pull folder can't hold the
+// request open. It is well inside the admin-frontend's 5 minute wait.
 const pullTimeLimitMs = 60000
 
 /**
  * @typedef {import('./sscl-client.js').SsclClient} SsclClient
+ * @typedef {{ client: SsclClient, now: Date }} TestExchangeParams
  */
 
 /**
@@ -32,7 +34,7 @@ const runStep = async ({ step, work }) => {
 /**
  * Pushes the test file under SSCL's invoice file name. If a file of that name
  * is already there (two pushes in the same second), tries the next second.
- * @param {{ client: SsclClient, now: Date }} params
+ * @param {TestExchangeParams} params
  */
 const pushTestFile = async ({ client, now }) => {
   const data = Buffer.from(
@@ -54,7 +56,7 @@ const pushTestFile = async ({ client, now }) => {
 }
 
 /**
- * @param {{ client: SsclClient }} params
+ * @param {Pick<TestExchangeParams, 'client'>} params
  */
 const pullTestFiles = async ({ client }) => {
   const { files, notProcessed } = await client.pullFiles({
@@ -79,7 +81,7 @@ const pullTestFiles = async ({ client }) => {
  * verifies, logs and discards it, then removes it from the pull folder). Each
  * step runs even if an earlier one fails, so the result shows what works.
  * Never runs in prod: the route is refused there at startup.
- * @param {{ client: SsclClient, now: Date }} params
+ * @param {TestExchangeParams} params
  */
 export async function runSsclTestExchange({ client, now }) {
   const pushed = await runStep({

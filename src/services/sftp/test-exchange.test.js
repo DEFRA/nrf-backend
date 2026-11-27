@@ -92,9 +92,9 @@ describe('runSsclTestExchange', () => {
     ['not-stored', false],
     ['replaced', false],
     ['not-deleted', false]
-  ])('treats a pulled file that is %s as ok: %s', async (status, ok) => {
+  ])('treats a pulled file that is %s as ok: %s', async (pullStatus, ok) => {
     client.pullFiles = async () => ({
-      files: [{ filename: replyFilename, size: 1, status }],
+      files: [{ filename: replyFilename, size: 1, status: pullStatus }],
       notProcessed: 0
     })
 
