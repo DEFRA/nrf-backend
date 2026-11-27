@@ -57,17 +57,22 @@ export async function encryptAndSign({
 
 const armourHeader = '-----BEGIN PGP MESSAGE-----'
 
-/** @param {Buffer} data */
-const readBinaryOrArmoured = (data) =>
+/**
+ * Reading a message decompresses any compressed data outside the encryption,
+ * so it needs the same limit as decrypting.
+ * @param {{ data: Buffer, config: { maxDecompressedMessageSize: number } }} params
+ */
+const readBinaryOrArmoured = ({ data, config }) =>
   data.subarray(0, armourHeader.length).toString('latin1') === armourHeader
-    ? openpgp.readMessage({ armoredMessage: data.toString('latin1') })
-    : openpgp.readMessage({ binaryMessage: data })
+    ? openpgp.readMessage({ armoredMessage: data.toString('latin1'), config })
+    : openpgp.readMessage({ binaryMessage: data, config })
 
 /**
  * Decrypts an OpenPGP message, binary or ASCII-armoured, with our private key
  * and verifies it was signed by the expected key. Throws if decryption fails,
  * the message has no valid signature from that key, or it decompresses to more
- * than maxDecompressedBytes (decompression happens before the signature check).
+ * than maxDecompressedBytes, whether the compression is inside or outside the
+ * encryption (decompression happens before the signature check).
  * @param {{ data: Buffer, decryptionKey: string, passphrase: string, verificationKey: string, maxDecompressedBytes: number }} params
  *   keys are ASCII-armoured
  * @returns {Promise<Buffer>} the decrypted data
@@ -79,8 +84,9 @@ export async function decryptAndVerify({
   verificationKey,
   maxDecompressedBytes
 }) {
+  const config = { maxDecompressedMessageSize: maxDecompressedBytes }
   const [message, decryptionKeys, verificationKeys] = await Promise.all([
-    readBinaryOrArmoured(data),
+    readBinaryOrArmoured({ data, config }),
     unlockPrivateKey({ privateKey: decryptionKey, passphrase }),
     openpgp.readKey({ armoredKey: verificationKey })
   ])
@@ -90,7 +96,7 @@ export async function decryptAndVerify({
     verificationKeys,
     expectSigned: true,
     format: 'binary',
-    config: { maxDecompressedMessageSize: maxDecompressedBytes }
+    config
   })
   return Buffer.from(decrypted)
 }
