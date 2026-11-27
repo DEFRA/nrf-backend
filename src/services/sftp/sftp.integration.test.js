@@ -22,52 +22,58 @@ import { sentBySscl } from '../../test-utils/fake-sscl-test-helpers.js'
 import {
   asSftpTestUser as asUser,
   clearSftpTestFolders,
+  getFromSftpTestFolder as getFromFolder,
   loadSftpTestServerConfig,
   namesInSftpTestFolder as namesInFolder,
   putInSftpTestFolder as putInFolder,
   sftpTestConnection,
+  sftpTestDirections,
   sftpTestFolders,
   sftpTestHookTimeoutMs,
   sftpTestSettings,
+  sftpTestTimeoutMs,
   sftpTestUsers
 } from '../../test-utils/sftp-test-server.js'
 import { generateSshTestKeyPair } from '../../test-utils/ssh-test-keys.js'
 
 // One file, so these run in sequence against the shared SFTP container folders.
 
+const { push, pull } = sftpTestDirections
 const maxBytes = 1024
 const fromSsclText = 'from SSCL'
 const notPgpFilename = 'NOT_PGP.txt'
+const testPrefix = 'TEST'
+const ssclTestPrefix = 'SSCL_TEST'
+const nrfTestPrefix = 'NRF_TEST'
+const firstText = 'first'
+const secondText = 'second'
+const oneByte = Buffer.from('x')
 
 describe(
   'SFTP session against the local SFTP server',
-  { timeout: 20000 },
+  { timeout: sftpTestTimeoutMs },
   () => {
     beforeEach(async () => {
       await clearSftpTestFolders()
     }, sftpTestHookTimeoutMs)
 
     it('fails a download of a missing file with the no-such-file error the pull relies on', async () => {
-      const download = asUser({
-        direction: 'pull',
-        work: (session) =>
-          session.download({
-            folder: sftpTestFolders.pull,
-            filename: uniqueTestFilename('TEST'),
-            maxBytes
-          })
+      const download = getFromFolder({
+        direction: pull,
+        filename: uniqueTestFilename(testPrefix),
+        maxBytes
       })
 
       await expect(download).rejects.toSatisfy(isNoSuchFileError)
     })
 
     it('uploads a file, lists it, stats it and downloads it again in one session', async () => {
-      const filename = uniqueTestFilename('TEST')
+      const filename = uniqueTestFilename(testPrefix)
       const data = Buffer.from('hello SSCL')
       const folder = sftpTestFolders.push
 
       const result = await asUser({
-        direction: 'push',
+        direction: push,
         work: async (session) => {
           await session.upload({ folder, filename, data })
           return {
@@ -85,36 +91,36 @@ describe(
       }
       expect(result.files).toEqual([file])
       expect(result.stat).toEqual(file)
-      expect(result.downloaded.toString()).toBe('hello SSCL')
+      expect(result.downloaded).toEqual(data)
     })
 
     it('refuses to upload over an existing file and leaves no partial file', async () => {
-      const filename = uniqueTestFilename('TEST')
+      const filename = uniqueTestFilename(testPrefix)
       await putInFolder({
-        direction: 'push',
+        direction: push,
         filename,
-        data: Buffer.from('first')
+        data: Buffer.from(firstText)
       })
 
       await expect(
         putInFolder({
-          direction: 'push',
+          direction: push,
           filename,
-          data: Buffer.from('second')
+          data: Buffer.from(secondText)
         })
       ).rejects.toMatchObject({ code: ssclErrorCodes.fileExists })
-      expect(await namesInFolder({ direction: 'push' })).toEqual([filename])
+      expect(await namesInFolder({ direction: push })).toEqual([filename])
     })
 
     it('lets only one of two uploads of the same name at once take the name, and leaves no partial file', async () => {
-      const filename = uniqueTestFilename('TEST')
+      const filename = uniqueTestFilename(testPrefix)
       const folder = sftpTestFolders.push
-      const texts = ['first', 'second']
+      const texts = [firstText, secondText]
 
       // In one session, so both existence checks are answered before either
       // upload is renamed and the server's refusal to rename decides.
       const outcomes = await asUser({
-        direction: 'push',
+        direction: push,
         work: (session) =>
           Promise.allSettled(
             texts.map((text) =>
@@ -131,24 +137,22 @@ describe(
       expect(
         outcomes.find((o) => o.status === 'rejected').reason
       ).toMatchObject({ code: ssclErrorCodes.fileExists })
-      expect(await namesInFolder({ direction: 'push' })).toEqual([filename])
-      const stored = await asUser({
-        direction: 'push',
-        work: (session) => session.download({ folder, filename, maxBytes })
+      expect(await namesInFolder({ direction: push })).toEqual([filename])
+      const stored = await getFromFolder({
+        direction: push,
+        filename,
+        maxBytes
       })
       expect(stored.toString()).toBe(winner)
     })
 
     it('gives up on a download when the network stops answering, without waiting for a clean disconnect', async () => {
-      const filename = uniqueTestFilename('TEST')
-      await putInFolder({
-        direction: 'pull',
-        filename,
-        data: Buffer.from('x')
-      })
+      const filename = uniqueTestFilename(testPrefix)
+      await putInFolder({ direction: pull, filename, data: oneByte })
+      const { host, port } = sftpTestConnection()
       const forwarder = await startTcpForwarder({
-        targetHost: '127.0.0.1',
-        targetPort: 2223
+        targetHost: host,
+        targetPort: port
       })
       // Long enough for the SSH handshake while other test files run
       const timeoutMs = 3000
@@ -167,7 +171,7 @@ describe(
               folder: sftpTestFolders.pull,
               filename,
               maxBytes,
-              size: 1
+              size: oneByte.length
             })
           }
         })
@@ -176,53 +180,48 @@ describe(
           code: ssclErrorCodes.timeout
         })
         // The download's own timeout, then a disconnect that does not wait
-        expect(Date.now() - started).toBeLessThan(timeoutMs + 2000)
+        // for the server. Twice the timeout leaves room for a slow runner
+        // while still failing if the disconnect waits for its own timeout.
+        expect(started).toEqual(expect.any(Number))
+        expect(Date.now() - started).toBeLessThan(timeoutMs * 2)
       } finally {
         await forwarder.close()
       }
     })
 
     it('rejects a download over the size limit', async () => {
-      const filename = uniqueTestFilename('TEST')
+      const filename = uniqueTestFilename(testPrefix)
       await putInFolder({
-        direction: 'pull',
+        direction: pull,
         filename,
         data: Buffer.alloc(maxBytes + 1)
       })
 
       await expect(
-        asUser({
-          direction: 'pull',
-          work: (session) =>
-            session.download({
-              folder: sftpTestFolders.pull,
-              filename,
-              maxBytes
-            })
-        })
+        getFromFolder({ direction: pull, filename, maxBytes })
       ).rejects.toMatchObject({ code: ssclErrorCodes.fileTooLarge })
     })
 
     it('removes a file, and succeeds when it is already gone', async () => {
-      const filename = uniqueTestFilename('TEST')
+      const filename = uniqueTestFilename(testPrefix)
       const folder = sftpTestFolders.pull
-      await putInFolder({ direction: 'pull', filename, data: Buffer.from('x') })
+      await putInFolder({ direction: pull, filename, data: oneByte })
 
       await asUser({
-        direction: 'pull',
+        direction: pull,
         work: async (session) => {
           await session.remove({ folder, filename })
           await session.remove({ folder, filename })
         }
       })
 
-      expect(await namesInFolder({ direction: 'pull' })).toEqual([])
+      expect(await namesInFolder({ direction: pull })).toEqual([])
     })
 
     it('rejects a server whose host key does not match the pinned key', async () => {
       await expect(
         asUser({
-          direction: 'push',
+          direction: push,
           hostKey: generateSshTestKeyPair().public,
           work: (session) => session.list(sftpTestFolders.push)
         })
@@ -233,7 +232,7 @@ describe(
       const proxy = await startConnectProxy()
       try {
         await asUser({
-          direction: 'push',
+          direction: push,
           proxyUrl: proxy.url,
           work: (session) => session.list(sftpTestFolders.push)
         })
@@ -246,23 +245,23 @@ describe(
   }
 )
 
-const transport = createSftpTransport({
-  connection: sftpTestConnection(),
-  pushUser: sftpTestUsers.push,
-  pushFolder: sftpTestFolders.push,
-  pullUser: sftpTestUsers.pull,
-  pullFolder: sftpTestFolders.pull
-})
-
 describe(
   'SSCL client over SFTP against the local SFTP server',
-  { timeout: 20000 },
+  { timeout: sftpTestTimeoutMs },
   () => {
     let keys
+    let transport
     let client
 
     beforeAll(async () => {
       keys = await generatePgpTestKeys()
+      transport = createSftpTransport({
+        connection: sftpTestConnection(),
+        pushUser: sftpTestUsers.push,
+        pushFolder: sftpTestFolders.push,
+        pullUser: sftpTestUsers.pull,
+        pullFolder: sftpTestFolders.pull
+      })
       client = createSsclClient({
         transport,
         keys: nrfPgpKeysFor(keys),
@@ -275,18 +274,14 @@ describe(
     }, sftpTestHookTimeoutMs)
 
     it('pushes a file SSCL can decrypt and verify as signed by NRF', async () => {
-      const filename = uniqueTestFilename('NRF_TEST')
+      const filename = uniqueTestFilename(nrfTestPrefix)
 
       await client.pushFile({ filename, data: Buffer.from('to SSCL') })
 
-      const pushed = await asUser({
-        direction: 'push',
-        work: (session) =>
-          session.download({
-            folder: sftpTestFolders.push,
-            filename,
-            maxBytes: ssclTestLimits.maxFileBytes
-          })
+      const pushed = await getFromFolder({
+        direction: push,
+        filename,
+        maxBytes: ssclTestLimits.maxFileBytes
       })
       const data = await decryptAndVerify({
         data: pushed,
@@ -302,9 +297,9 @@ describe(
     })
 
     it('pulls a file from SSCL, stores it, then removes it from the pull folder', async () => {
-      const filename = uniqueTestFilename('SSCL_TEST')
+      const filename = uniqueTestFilename(ssclTestPrefix)
       const fromSscl = await sentBySscl({ text: fromSsclText, pgp: keys })
-      await putInFolder({ direction: 'pull', filename, data: fromSscl })
+      await putInFolder({ direction: pull, filename, data: fromSscl })
       const { stored, onFile } = collectPulledFiles()
 
       const result = await client.pullFiles({ onFile })
@@ -322,13 +317,13 @@ describe(
         notProcessed: 0
       })
       expect(stored.map((file) => file.data.toString())).toEqual([fromSsclText])
-      expect(await namesInFolder({ direction: 'pull' })).toEqual([])
+      expect(await namesInFolder({ direction: pull })).toEqual([])
     })
 
     it('counts a file removed between listing and download as gone', async () => {
-      const filename = uniqueTestFilename('SSCL_TEST')
+      const filename = uniqueTestFilename(ssclTestPrefix)
       await putInFolder({
-        direction: 'pull',
+        direction: pull,
         filename,
         data: await sentBySscl({ text: fromSsclText, pgp: keys })
       })
@@ -350,11 +345,11 @@ describe(
     })
 
     it('leaves a file that was replaced while it was being stored', async () => {
-      const filename = uniqueTestFilename('SSCL_TEST')
+      const filename = uniqueTestFilename(ssclTestPrefix)
       await putInFolder({
-        direction: 'pull',
+        direction: pull,
         filename,
-        data: await sentBySscl({ text: 'first', pgp: keys })
+        data: await sentBySscl({ text: firstText, pgp: keys })
       })
       const replacement = await sentBySscl({
         text: 'the replacement, longer',
@@ -364,29 +359,25 @@ describe(
       const { files } = await client.pullFiles({
         onFile: async () => {
           await transport.withPullSession((session) => session.remove(filename))
-          await putInFolder({ direction: 'pull', filename, data: replacement })
+          await putInFolder({ direction: pull, filename, data: replacement })
         }
       })
 
       expect(files).toEqual([
         expect.objectContaining({ filename, status: 'replaced' })
       ])
-      const left = await asUser({
-        direction: 'pull',
-        work: (session) =>
-          session.download({
-            folder: sftpTestFolders.pull,
-            filename,
-            maxBytes: ssclTestLimits.maxFileBytes
-          })
+      const left = await getFromFolder({
+        direction: pull,
+        filename,
+        maxBytes: ssclTestLimits.maxFileBytes
       })
       expect(left).toEqual(replacement)
     })
 
     it('leaves a file it could not store in the pull folder', async () => {
-      const filename = uniqueTestFilename('SSCL_TEST')
+      const filename = uniqueTestFilename(ssclTestPrefix)
       await putInFolder({
-        direction: 'pull',
+        direction: pull,
         filename,
         data: await sentBySscl({ text: fromSsclText, pgp: keys })
       })
@@ -398,12 +389,12 @@ describe(
       expect(files).toEqual([
         expect.objectContaining({ filename, status: 'not-stored' })
       ])
-      expect(await namesInFolder({ direction: 'pull' })).toEqual([filename])
+      expect(await namesInFolder({ direction: pull })).toEqual([filename])
     })
 
     it('leaves a pulled file that fails verification in the pull folder', async () => {
       await putInFolder({
-        direction: 'pull',
+        direction: pull,
         filename: notPgpFilename,
         data: Buffer.from('plain')
       })
@@ -416,16 +407,14 @@ describe(
           status: 'unverified'
         })
       ])
-      expect(await namesInFolder({ direction: 'pull' })).toEqual([
-        notPgpFilename
-      ])
+      expect(await namesInFolder({ direction: pull })).toEqual([notPgpFilename])
     })
   }
 )
 
 describe(
   'SSCL client configured for MOVEit, against the local SFTP server',
-  { timeout: 20000 },
+  { timeout: sftpTestTimeoutMs },
   () => {
     const original = config.get('sscl')
     let keys
@@ -443,28 +432,27 @@ describe(
     })
 
     it('pushes and pulls files using the base64 keys from config', async () => {
-      const fromSscl = await sentBySscl({ text: fromSsclText, pgp: keys })
+      const fromSsclFilename = uniqueTestFilename(ssclTestPrefix)
+      const toSsclFilename = uniqueTestFilename(nrfTestPrefix)
       await putInFolder({
-        direction: 'pull',
-        filename: 'SSCL_TEST.pgp',
-        data: fromSscl
+        direction: pull,
+        filename: fromSsclFilename,
+        data: await sentBySscl({ text: fromSsclText, pgp: keys })
       })
       const client = await getSsclClient()
 
-      await client.pushFile({
-        filename: 'NRF_TEST.pgp',
-        data: Buffer.from('x')
-      })
+      await client.pushFile({ filename: toSsclFilename, data: oneByte })
       const pushed = await client.listPushFolder()
       const { files } = await client.pullFiles(collectPulledFiles())
 
-      expect(pushed.map((file) => file.name)).toEqual(['NRF_TEST.pgp'])
+      expect(pushed.map((file) => file.name)).toEqual([toSsclFilename])
       expect(files).toEqual([
         expect.objectContaining({
-          filename: 'SSCL_TEST.pgp',
+          filename: fromSsclFilename,
           status: 'received'
         })
       ])
+      expect(await namesInFolder({ direction: pull })).toEqual([])
     })
   }
 )

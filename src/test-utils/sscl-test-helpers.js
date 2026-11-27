@@ -193,8 +193,8 @@ export const runBeforeEachDownload = ({ transport, beforeDownload }) => {
 }
 
 /**
- * A file name no other test run uses, so tests on a shared SFTP server don't
- * collide.
+ * A file name no other test uses, so a test on a shared SFTP server can tell
+ * its own files from those left by other tests or earlier runs.
  * @param {string} prefix
  */
 export const uniqueTestFilename = (prefix) => `${prefix}_${randomUUID()}.pgp`

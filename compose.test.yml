@@ -98,8 +98,8 @@ services:
     image: atmoz/sftp:alpine@sha256:c5fb9e4beb8b7054a4c0b65c5e11df47cc20da95ad6002e88aecff62bab06372
     platform: linux/amd64
     ports:
-      - '2223:22'
-    command: CDDEFTNRLOut::::Interfaces/DEF/Test/NRLOut,Interfaces/DEF/RouteTest/NRLOut,Interfaces/DEF/FakeSsclTest/NRLOut CDDEFTNRLIn::::Interfaces/DEF/Test/NRLIn,Interfaces/DEF/RouteTest/NRLIn,Interfaces/DEF/FakeSsclTest/NRLIn
+      - '127.0.0.1:2223:22'
+    command: CDDEFTNRLOut::::Interfaces/DEF/Test/NRLOut CDDEFTNRLIn::::Interfaces/DEF/Test/NRLIn
     volumes:
       - ./.sftp-test-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
       - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLOut/.ssh/keys/client.pub:ro

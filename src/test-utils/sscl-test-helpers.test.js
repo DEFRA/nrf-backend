@@ -317,7 +317,7 @@ describe('pull folder helpers', () => {
       transport.withPullSession((session) =>
         session.download({
           filename: fakeSsclStartupReplyFilename,
-          maxBytes: 100
+          maxBytes: ssclTestLimits.maxFileBytes
         })
       )
     ).rejects.toThrow(`No such file: ${fakeSsclStartupReplyFilename}`)

@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process'
 
-import { ensureSftpTestKeys } from './sftp-test-keys.js'
+import { ensureSftpTestKeys } from '../src/test-utils/sftp-test-keys.js'
 
 const COMPOSE = 'docker compose -f compose.test.yml -p nrf-backend-test'
 
