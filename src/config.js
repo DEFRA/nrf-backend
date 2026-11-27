@@ -365,7 +365,7 @@ const config = convict({
   },
   sscl: {
     testEnabled: {
-      doc: 'Enable the POST /sftp/test-file route that pushes and pulls SSCL test files. Needs the SSCL SFTP and PGP settings below',
+      doc: 'Enable the POST /sftp/test-file route that pushes and pulls SSCL test files. Needs the SSCL SFTP and PGP settings below, which are checked at startup. The route removes every file it pulls from the pull folder, so never point it at a folder holding real SSCL replies. The backend refuses to start in prod if true, which relies on ENVIRONMENT being set',
       format: Boolean,
       default: false,
       env: 'SSCL_SFTP_TEST_ENABLED'

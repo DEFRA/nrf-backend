@@ -20,6 +20,10 @@ vi.mock('./plugins/notify-worker.js', () => ({
   }
 }))
 
+vi.mock('./plugins/sscl-sftp.js', () => ({
+  ssclSftp: { plugin: { name: 'sscl-sftp', register: vi.fn() } }
+}))
+
 vi.mock('./common/helpers/logging/request-logger.js', () => ({
   requestLogger: { plugin: { name: 'requestLogger', register: vi.fn() } }
 }))
@@ -70,7 +74,8 @@ describe('#createServer', () => {
         'auth',
         'router',
         'postgres',
-        'notify-worker'
+        'notify-worker',
+        'sscl-sftp'
       ])
     )
 

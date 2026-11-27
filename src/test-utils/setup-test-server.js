@@ -12,6 +12,9 @@ const wrapServer = (server) =>
   Object.create(server, {
     inject: {
       value: (opts) => server.inject(withApiKey(opts))
+    },
+    injectWithoutApiKey: {
+      value: (opts) => server.inject(opts)
     }
   })
 
