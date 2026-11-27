@@ -1,6 +1,7 @@
 import SftpClient from 'ssh2-sftp-client'
 
 import { config } from '../config.js'
+import { createHostVerifier } from '../common/helpers/sscl/host-key.js'
 import { withSftpSession } from '../services/sftp/sftp-client.js'
 import { readSftpTestKey, sftpTestKeyFiles } from './sftp-test-keys.js'
 import { pgpConfigFor, toBase64 } from './sscl-test-helpers.js'
@@ -8,13 +9,14 @@ import { pgpConfigFor, toBase64 } from './sscl-test-helpers.js'
 /**
  * @typedef {import('../services/sftp/sftp-client.js').SftpConnectionSettings} SftpConnectionSettings
  * @typedef {import('../services/sftp/sftp-client.js').SftpSession} SftpSession
- * @typedef {{ push: string, pull: string }} SftpTestFolders
+ * @typedef {{ push: string, pull: string }} SftpContainerFolders
  * @typedef {'push' | 'pull'} SftpTestDirection
  * @typedef {Partial<Pick<SftpConnectionSettings, 'hostKey' | 'proxyUrl'>>} SftpTestOverrides
- * @typedef {{ direction: SftpTestDirection, folders?: SftpTestFolders }} SftpTestFolderParams
+ * @typedef {{ folders?: SftpContainerFolders }} SftpContainerFoldersParam
+ * @typedef {{ direction: SftpTestDirection } & SftpContainerFoldersParam} SftpContainerFolderParams
  */
 
-export const sftpTestFolders = {
+export const sftpContainerFolders = {
   push: '/Interfaces/DEF/Test/NRLIn',
   pull: '/Interfaces/DEF/Test/NRLOut'
 }
@@ -24,15 +26,14 @@ export const sftpTestDirections = { push: 'push', pull: 'pull' }
 
 /**
  * Time limit for test hooks that connect to the SFTP container: the first SSH
- * handshake can take over vitest's 10 second default while every test file
- * runs at once against the one container.
+ * handshake can take over vitest's 10 second default while other test files
+ * compete for the CPU, more so where the amd64-only image is emulated.
  */
 export const sftpTestHookTimeoutMs = 30000
 
 /**
  * Time limit for each test against the SFTP container: a test makes several
- * SSH connections, each of which can be slow while other files use the
- * container.
+ * SSH connections, each of which can be slow for the same reason.
  */
 export const sftpTestTimeoutMs = 20000
 
@@ -85,20 +86,32 @@ export const asSftpTestUser = ({ direction, work, ...overrides }) =>
 /**
  * Empties the push and pull folders on the local SFTP server, so files left by
  * earlier runs don't build up. Uses the plain SFTP library rather than an SFTP
- * session, which refuses the unsafe names some tests leave behind.
- * @param {{ folders?: SftpTestFolders }} [params]
+ * session, which refuses unsafe names such as the fake SSCL's reply with
+ * spaces in its name.
+ * @param {SftpContainerFoldersParam} [params]
  */
 export const clearSftpTestFolders = async ({
-  folders = sftpTestFolders
+  folders = sftpContainerFolders
 } = {}) => {
   for (const direction of Object.values(sftpTestDirections)) {
+    const { host, port, privateKey, hostKey, timeoutMs } = sftpTestConnection()
     const client = new SftpClient()
-    await client.connect(
-      sftpTestSettings({ username: sftpTestUsers[direction] })
-    )
+    // The library closes a connection that fails to open, so only an open
+    // one needs ending
+    await client.connect({
+      host,
+      port,
+      username: sftpTestUsers[direction],
+      privateKey,
+      hostVerifier: createHostVerifier(hostKey),
+      readyTimeout: timeoutMs
+    })
     try {
       const folder = folders[direction]
-      for (const file of await client.list(folder)) {
+      const files = (await client.list(folder)).filter(
+        (entry) => entry.type === '-'
+      )
+      for (const file of files) {
         await client.delete(`${folder}/${file.name}`)
       }
     } finally {
@@ -108,13 +121,13 @@ export const clearSftpTestFolders = async ({
 }
 
 /**
- * @param {SftpTestFolderParams & { filename: string, data: Buffer }} params
+ * @param {SftpContainerFolderParams & { filename: string, data: Buffer }} params
  */
 export const putInSftpTestFolder = ({
   direction,
   filename,
   data,
-  folders = sftpTestFolders
+  folders = sftpContainerFolders
 }) =>
   asSftpTestUser({
     direction,
@@ -123,14 +136,14 @@ export const putInSftpTestFolder = ({
   })
 
 /**
- * @param {SftpTestFolderParams & { filename: string, maxBytes: number }} params
+ * @param {SftpContainerFolderParams & { filename: string, maxBytes: number }} params
  * @returns {Promise<Buffer>}
  */
 export const getFromSftpTestFolder = ({
   direction,
   filename,
   maxBytes,
-  folders = sftpTestFolders
+  folders = sftpContainerFolders
 }) =>
   asSftpTestUser({
     direction,
@@ -139,11 +152,11 @@ export const getFromSftpTestFolder = ({
   })
 
 /**
- * @param {SftpTestFolderParams} params
+ * @param {SftpContainerFolderParams} params
  */
 export const namesInSftpTestFolder = async ({
   direction,
-  folders = sftpTestFolders
+  folders = sftpContainerFolders
 }) =>
   (
     await asSftpTestUser({
@@ -155,11 +168,11 @@ export const namesInSftpTestFolder = async ({
 /**
  * Loads SSCL config pointing at the local SFTP server, with the given PGP test
  * keys, as the backend would read it from the environment.
- * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys, folders?: SftpTestFolders }} params
+ * @param {{ keys: import('./pgp-test-keys.js').PgpTestKeys, folders?: SftpContainerFolders }} params
  */
 export const loadSftpTestServerConfig = ({
   keys,
-  folders = sftpTestFolders
+  folders = sftpContainerFolders
 }) => {
   const { host, port, privateKey, hostKey } = sftpTestConnection()
   config.load({

@@ -3,10 +3,7 @@ import { createSsclClient } from './sscl-client.js'
 import { createSftpTransport } from './sftp-transport.js'
 import { getSsclClient, resetSsclClient } from './get-sscl-client.js'
 import { decryptAndVerify } from '../../common/helpers/sscl/pgp.js'
-import {
-  isNoSuchFileError,
-  ssclErrorCodes
-} from '../../common/helpers/sscl/sscl-errors.js'
+import { isNoSuchFileError } from '../../common/helpers/sscl/sscl-errors.js'
 import { generatePgpTestKeys } from '../../test-utils/pgp-test-keys.js'
 import { startConnectProxy } from '../../test-utils/connect-proxy.js'
 import { startTcpForwarder } from '../../test-utils/tcp-forwarder.js'
@@ -28,7 +25,7 @@ import {
   putInSftpTestFolder as putInFolder,
   sftpTestConnection,
   sftpTestDirections,
-  sftpTestFolders,
+  sftpContainerFolders,
   sftpTestHookTimeoutMs,
   sftpTestSettings,
   sftpTestTimeoutMs,
@@ -70,7 +67,7 @@ describe(
     it('uploads a file, lists it, stats it and downloads it again in one session', async () => {
       const filename = uniqueTestFilename(testPrefix)
       const data = Buffer.from('hello SSCL')
-      const folder = sftpTestFolders.push
+      const folder = sftpContainerFolders.push
 
       const result = await asUser({
         direction: push,
@@ -108,17 +105,18 @@ describe(
           filename,
           data: Buffer.from(secondText)
         })
-      ).rejects.toMatchObject({ code: ssclErrorCodes.fileExists })
+      ).rejects.toMatchObject({ code: 'SSCL_FILE_EXISTS' })
       expect(await namesInFolder({ direction: push })).toEqual([filename])
     })
 
     it('lets only one of two uploads of the same name at once take the name, and leaves no partial file', async () => {
       const filename = uniqueTestFilename(testPrefix)
-      const folder = sftpTestFolders.push
+      const folder = sftpContainerFolders.push
       const texts = [firstText, secondText]
 
-      // In one session, so both existence checks are answered before either
-      // upload is renamed and the server's refusal to rename decides.
+      // In one session, so both existence checks are usually answered before
+      // either upload is renamed and the server's refusal to rename decides.
+      // Either way, exactly one upload must take the name.
       const outcomes = await asUser({
         direction: push,
         work: (session) =>
@@ -136,7 +134,7 @@ describe(
       ])
       expect(
         outcomes.find((o) => o.status === 'rejected').reason
-      ).toMatchObject({ code: ssclErrorCodes.fileExists })
+      ).toMatchObject({ code: 'SSCL_FILE_EXISTS' })
       expect(await namesInFolder({ direction: push })).toEqual([filename])
       const stored = await getFromFolder({
         direction: push,
@@ -168,7 +166,7 @@ describe(
             started = Date.now()
             forwarder.blackholeOpenConnections()
             return session.download({
-              folder: sftpTestFolders.pull,
+              folder: sftpContainerFolders.pull,
               filename,
               maxBytes,
               size: oneByte.length
@@ -177,7 +175,7 @@ describe(
         })
 
         await expect(download).rejects.toMatchObject({
-          code: ssclErrorCodes.timeout
+          code: 'SSCL_TIMEOUT'
         })
         // The download's own timeout, then a disconnect that does not wait
         // for the server. Twice the timeout leaves room for a slow runner
@@ -199,12 +197,12 @@ describe(
 
       await expect(
         getFromFolder({ direction: pull, filename, maxBytes })
-      ).rejects.toMatchObject({ code: ssclErrorCodes.fileTooLarge })
+      ).rejects.toMatchObject({ code: 'SSCL_FILE_TOO_LARGE' })
     })
 
     it('removes a file, and succeeds when it is already gone', async () => {
       const filename = uniqueTestFilename(testPrefix)
-      const folder = sftpTestFolders.pull
+      const folder = sftpContainerFolders.pull
       await putInFolder({ direction: pull, filename, data: oneByte })
 
       await asUser({
@@ -223,7 +221,7 @@ describe(
         asUser({
           direction: push,
           hostKey: generateSshTestKeyPair().public,
-          work: (session) => session.list(sftpTestFolders.push)
+          work: (session) => session.list(sftpContainerFolders.push)
         })
       ).rejects.toThrow('Host denied (verification failed)')
     })
@@ -234,7 +232,7 @@ describe(
         await asUser({
           direction: push,
           proxyUrl: proxy.url,
-          work: (session) => session.list(sftpTestFolders.push)
+          work: (session) => session.list(sftpContainerFolders.push)
         })
 
         expect(proxy.targets).toEqual(['127.0.0.1:2223'])
@@ -258,9 +256,9 @@ describe(
       transport = createSftpTransport({
         connection: sftpTestConnection(),
         pushUser: sftpTestUsers.push,
-        pushFolder: sftpTestFolders.push,
+        pushFolder: sftpContainerFolders.push,
         pullUser: sftpTestUsers.pull,
-        pullFolder: sftpTestFolders.pull
+        pullFolder: sftpContainerFolders.pull
       })
       client = createSsclClient({
         transport,
@@ -357,7 +355,7 @@ describe(
       })
 
       const { files } = await client.pullFiles({
-        onFile: async () => {
+        onFile: async function replaceWhileStoring() {
           await transport.withPullSession((session) => session.remove(filename))
           await putInFolder({ direction: pull, filename, data: replacement })
         }

@@ -156,14 +156,17 @@ export const pullFolderNames = async (transport) =>
 
 /**
  * Replaces some of a transport's pull session operations, e.g. to make a
- * download fail.
- * @param {{ transport: SsclTransport, overrides: Partial<PullSession> }} params
+ * download fail. The overrides can be built from the real session.
+ * @param {{ transport: SsclTransport, overrides: Partial<PullSession> | ((session: PullSession) => Partial<PullSession>) }} params
  * @returns {() => void} puts the pull session back as it was before
  */
 export const overridePullSession = ({ transport, overrides }) => {
   const original = transport.withPullSession
-  transport.withPullSession = (work) =>
-    original((session) => work({ ...session, ...overrides }))
+  const overridesFor = (session) =>
+    typeof overrides === 'function' ? overrides(session) : overrides
+  transport.withPullSession = function withOverriddenPullSession(work) {
+    return original((session) => work({ ...session, ...overridesFor(session) }))
+  }
   return function restorePullSession() {
     transport.withPullSession = original
   }
@@ -175,22 +178,17 @@ export const overridePullSession = ({ transport, overrides }) => {
  * @param {{ transport: SsclTransport, beforeDownload: (params: { session: PullSession, filename: string }) => Promise<void> }} params
  * @returns {() => void} puts the pull session back as it was before
  */
-export const runBeforeEachDownload = ({ transport, beforeDownload }) => {
-  const original = transport.withPullSession
-  transport.withPullSession = (work) =>
-    original((session) =>
-      work({
-        ...session,
-        download: async (file) => {
-          await beforeDownload({ session, filename: file.filename })
-          return session.download(file)
-        }
-      })
-    )
-  return function restorePullSession() {
-    transport.withPullSession = original
-  }
-}
+export const runBeforeEachDownload = ({ transport, beforeDownload }) =>
+  overridePullSession({
+    transport,
+    overrides: (session) => ({
+      /** @param {Parameters<PullSession['download']>[0]} file */
+      async download(file) {
+        await beforeDownload({ session, filename: file.filename })
+        return session.download(file)
+      }
+    })
+  })
 
 /**
  * A file name no other test uses, so a test on a shared SFTP server can tell

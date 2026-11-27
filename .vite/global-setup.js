@@ -47,10 +47,8 @@ export default async function setup() {
     execSync(`${COMPOSE} up -d cdp-uploader --wait`, { stdio: 'inherit' })
   }
 
-  const newSftpKeys = ensureSftpTestKeys()
-  if (newSftpKeys || !isServiceRunning('sscl-sftp')) {
-    execSync(`${COMPOSE} up -d --force-recreate sscl-sftp --wait`, {
-      stdio: 'inherit'
-    })
-  }
+  // Always brought up, so compose recreates a container another checkout
+  // started with its own keys. New keys need a recreate even then.
+  const recreate = ensureSftpTestKeys() ? '--force-recreate ' : ''
+  execSync(`${COMPOSE} up -d ${recreate}sscl-sftp --wait`, { stdio: 'inherit' })
 }

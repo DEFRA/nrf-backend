@@ -33,6 +33,7 @@ export function ensureSftpTestKeys({ dir = sftpTestKeysDir } = {}) {
   mkdirSync(dir, { recursive: true })
   const host = generateSshTestKeyPair()
   const client = generateSshTestKeyPair({ comment: 'nrf-backend-test' })
+  /** @param {{ keyFileName: string, content: string, mode: number }} params */
   const write = ({ keyFileName, content, mode }) =>
     writeFileSync(path.join(dir, keyFileName), `${content}\n`, { mode })
   write({
