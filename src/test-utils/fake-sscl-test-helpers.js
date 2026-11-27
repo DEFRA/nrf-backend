@@ -29,6 +29,19 @@ export const pushedByNrf = ({
   })
 
 /**
+ * Encrypted to NRF and signed by SSCL.
+ * @param {{ text: string, pgp: PgpTestKeys }} params
+ * @returns {Promise<Buffer>}
+ */
+export const sentBySscl = ({ text, pgp }) =>
+  encryptAndSign({
+    data: Buffer.from(text),
+    encryptionKey: pgp.nrf.publicKey,
+    signingKey: pgp.ssclSigning.privateKey,
+    passphrase: pgp.ssclSigning.passphrase
+  })
+
+/**
  * @param {{
  *   data: Buffer,
  *   keys: import('./fake-sscl.js').FakeSsclKeys,

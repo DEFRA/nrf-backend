@@ -4,7 +4,8 @@ import {
   fakeSsclTestMaxFileBytes,
   pushedByNrf,
   readAsNrf,
-  receiveAsFakeSscl
+  receiveAsFakeSscl,
+  sentBySscl
 } from './fake-sscl-test-helpers.js'
 import {
   fakeSsclReplyTime,
@@ -61,6 +62,21 @@ describe('fake SSCL test helpers', { timeout: 20000 }, () => {
         decryptionKey: recipient.privateKey,
         passphrase: recipient.passphrase,
         verificationKey: signer.publicKey,
+        maxDecompressedBytes: fakeSsclTestMaxFileBytes
+      })
+      expect(contents.toString()).toBe(text)
+    })
+  })
+
+  describe('sentBySscl', () => {
+    it('encrypts to NRF and signs as SSCL', async () => {
+      const data = await sentBySscl({ text, pgp })
+
+      const contents = await decryptAndVerify({
+        data,
+        decryptionKey: pgp.nrf.privateKey,
+        passphrase: pgp.nrf.passphrase,
+        verificationKey: pgp.ssclSigning.publicKey,
         maxDecompressedBytes: fakeSsclTestMaxFileBytes
       })
       expect(contents.toString()).toBe(text)

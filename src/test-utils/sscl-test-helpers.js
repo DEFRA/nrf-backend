@@ -1,4 +1,26 @@
 /**
+ * @typedef {import('../services/sftp/sftp-transport.js').SsclTransport} SsclTransport
+ * @typedef {import('../services/sftp/sftp-transport.js').PullSession} PullSession
+ * @typedef {import('../services/sftp/sscl-client.js').PullResult} PullResult
+ * @typedef {Awaited<ReturnType<typeof import('./sftp-fault-server.js').startSftpFaultServer>>} SftpFaultServer
+ * @typedef {import('./sftp-fault-server.js').SftpOperation} SftpOperation
+ */
+
+export const ssclTestLimits = { maxFileBytes: 1024 * 1024, maxFilesPerRun: 50 }
+
+/**
+ * The keys the SSCL client holds, from the PGP test keys.
+ * @param {import('./pgp-test-keys.js').PgpTestKeys} pgp
+ * @returns {import('../services/sftp/sscl-client.js').SsclPgpKeys}
+ */
+export const nrfPgpKeysFor = (pgp) => ({
+  nrfPrivateKey: pgp.nrf.privateKey,
+  nrfPassphrase: pgp.nrf.passphrase,
+  ssclEncryptionPublicKey: pgp.ssclEncryption.publicKey,
+  ssclSigningPublicKey: pgp.ssclSigning.publicKey
+})
+
+/**
  * Wraps base64 over several lines, as it is in many key files.
  * @param {{ base64: string, width?: number }} params
  * @returns {string[]}
@@ -12,3 +34,59 @@ export const wrapBase64 = ({ base64, width = 64 }) =>
  */
 export const withCode = (code) =>
   Object.assign(new Error(`code ${code}`), { code })
+
+/**
+ * Each pulled file's name and status, in order.
+ * @param {Pick<PullResult, 'files'>} pulled
+ */
+export const pulledStatuses = ({ files }) =>
+  files.map(({ filename, status }) => [filename, status])
+
+/**
+ * The names of the files in a transport's pull folder.
+ * @param {SsclTransport} transport
+ */
+export const pullFolderNames = async (transport) =>
+  (await transport.withPullSession((session) => session.list())).map(
+    (file) => file.name
+  )
+
+/**
+ * Replaces some of a transport's pull session operations, e.g. to make a
+ * download fail.
+ * @param {{ transport: SsclTransport, overrides: Partial<PullSession> }} params
+ * @returns {() => void} puts the pull session back as it was before
+ */
+export const overridePullSession = ({ transport, overrides }) => {
+  const original = transport.withPullSession
+  transport.withPullSession = (work) =>
+    original((session) => work({ ...session, ...overrides }))
+  return function restorePullSession() {
+    transport.withPullSession = original
+  }
+}
+
+/**
+ * Makes a fault server answer one operation on one file with an SFTP status
+ * code, and every other request as normal.
+ * @param {{ server: Pick<SftpFaultServer, 'setFault'>, operation: SftpOperation, filename: string, status: number }} params
+ */
+export const refuseOn = ({ server, operation, filename, status }) =>
+  server.setFault((request) =>
+    request.operation === operation && request.path.endsWith(`/${filename}`)
+      ? { status }
+      : undefined
+  )
+
+/**
+ * An onFile handler that keeps what it is given.
+ */
+export const collectPulledFiles = () => {
+  const stored = []
+  return {
+    stored,
+    onFile: async (file) => {
+      stored.push(file)
+    }
+  }
+}
