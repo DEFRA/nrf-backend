@@ -40,6 +40,7 @@ const pushTestFile = async ({ client, now }) => {
   const data = Buffer.from(
     `NRF to SSCL connectivity test file\nSent: ${now.toISOString()}\n`
   )
+  /** @param {Date} time */
   const push = async (time) => {
     const filename = ssclFilename({ fileType: 'NRLINV', time })
     await client.pushFile({ filename, data })
@@ -61,6 +62,7 @@ const pushTestFile = async ({ client, now }) => {
 const pullTestFiles = async ({ client }) => {
   const { files, notProcessed } = await client.pullFiles({
     stopAfterMs: pullTimeLimitMs,
+    /** @param {{ filename: string, data: Buffer, sha256: string }} file */
     async onFile({ filename, data, sha256 }) {
       logger.info(
         { sscl: { filename, decryptedSize: data.length, sha256 } },

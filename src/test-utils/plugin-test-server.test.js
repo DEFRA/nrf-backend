@@ -1,13 +1,5 @@
 import { registerOnTestServer } from './plugin-test-server.js'
-
-const testPlugin = {
-  plugin: {
-    name: 'test-plugin',
-    register(server) {
-      server.route({ method: 'GET', path: '/test', handler: () => 'ok' })
-    }
-  }
-}
+import { failingTestPlugin, testPlugin } from './fixtures/plugins.js'
 
 describe('registerOnTestServer', () => {
   it('gives a server with only the given plugin registered', async () => {
@@ -18,15 +10,8 @@ describe('registerOnTestServer', () => {
   })
 
   it('fails when the plugin fails to register', async () => {
-    const failing = {
-      plugin: {
-        name: 'failing-plugin',
-        register() {
-          throw new Error('bad config')
-        }
-      }
-    }
-
-    await expect(registerOnTestServer(failing)).rejects.toThrow('bad config')
+    await expect(registerOnTestServer(failingTestPlugin)).rejects.toThrow(
+      'bad config'
+    )
   })
 })

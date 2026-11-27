@@ -2,6 +2,7 @@ import SftpClient from 'ssh2-sftp-client'
 
 import { config } from '../config.js'
 import { createHostVerifier } from '../common/helpers/sscl/host-key.js'
+import { resetSsclClient } from '../services/sftp/get-sscl-client.js'
 import { withSftpSession } from '../services/sftp/sftp-client.js'
 import { readSftpTestKey, sftpTestKeyFiles } from './sftp-test-keys.js'
 import { pgpConfigFor, toBase64 } from './sscl-test-helpers.js'
@@ -200,4 +201,31 @@ export const loadSftpTestServerConfig = ({
       pgp: pgpConfigFor(keys)
     }
   })
+}
+
+/**
+ * Time limit for each route test: a request opens a push and a pull session,
+ * which is slow where the SFTP image runs emulated.
+ */
+export const sftpRouteTestTimeoutMs = 30000
+
+/**
+ * A request to the SSCL test route, for `server.inject`.
+ * @param {object} [options] - other inject options, such as headers or payload
+ */
+export const sftpTestFileRequest = (options) => ({
+  method: 'POST',
+  url: '/sftp/test-file',
+  ...options
+})
+
+/**
+ * Points the MOVEit settings at the SFTP container with the test route on,
+ * and drops any SSCL client built from earlier settings.
+ * @param {{ keys: PgpTestKeys } & SftpContainerFoldersParam} params
+ */
+export const loadSftpRouteTestConfig = ({ keys, folders }) => {
+  loadSftpTestServerConfig({ keys, folders })
+  config.set('sscl.testEnabled', true)
+  resetSsclClient()
 }

@@ -10,7 +10,8 @@ import {
 import { createInMemorySsclClient } from '../../test-utils/in-memory-sscl.js'
 import {
   fakeSsclStartupReplyFilename as replyFilename,
-  ssclTestInvoiceFilename as testFilename
+  ssclTestInvoiceFilename as testFilename,
+  ssclTestInvoiceTime as now
 } from '../../test-utils/fixtures/sscl.js'
 
 const mockLogger = vi.hoisted(() => ({
@@ -21,8 +22,6 @@ const mockLogger = vi.hoisted(() => ({
 vi.mock('../../common/helpers/logging/logger.js', () => ({
   createLogger: () => mockLogger
 }))
-
-const now = new Date('2026-11-09T17:30:05Z')
 
 describe('runSsclTestExchange', () => {
   let sscl
@@ -104,6 +103,16 @@ describe('runSsclTestExchange', () => {
     expect(result.ok).toBe(ok)
   })
 
+  it('stops starting new files in the pull after 60 seconds', async () => {
+    const pullFiles = vi.spyOn(client, 'pullFiles')
+
+    await runSsclTestExchange({ client, now })
+
+    expect(pullFiles).toHaveBeenCalledWith(
+      expect.objectContaining({ stopAfterMs: 60000 })
+    )
+  })
+
   it('is still ok when files are left for a later pull', async () => {
     client.pullFiles = async () => ({ files: [], notProcessed: 3 })
 
@@ -115,10 +124,11 @@ describe('runSsclTestExchange', () => {
 
   it('carries on with the other steps when pushing fails, without exposing the error', async () => {
     const error = new Error('connect ECONNREFUSED 10.0.0.1:3128')
-    sscl.transport.pushFile = () => Promise.reject(error)
+    sscl.transport.pushFile = vi.fn(() => Promise.reject(error))
 
     const result = await runSsclTestExchange({ client, now })
 
+    expect(sscl.transport.pushFile).toHaveBeenCalledTimes(1)
     expect(result.ok).toBe(false)
     expect(result.pushed).toEqual({ ok: false })
     expect(result.pulled.ok).toBe(true)

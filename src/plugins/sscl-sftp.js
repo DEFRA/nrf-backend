@@ -17,13 +17,11 @@ const ssclSftp = {
     name: 'sscl-sftp',
     register: async (server) => {
       await assertSsclConfig()
-      if (!config.get('sscl.testEnabled')) {
-        logger.info({}, 'SSCL SFTP test route is disabled')
-        return
+      const testEnabled = config.get('sscl.testEnabled')
+      if (testEnabled) {
+        server.route(sftpTestFile)
       }
-
-      server.route(sftpTestFile)
-      logger.info({}, 'SSCL SFTP test route enabled')
+      logger.info({ sscl: { testEnabled } }, 'SSCL SFTP plugin registered')
     }
   }
 }

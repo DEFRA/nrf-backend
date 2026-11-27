@@ -13,35 +13,23 @@ import { ssclTestLimits } from '../test-utils/sscl-test-helpers.js'
 import {
   asSftpTestUser,
   clearSftpTestFolders,
-  loadSftpTestServerConfig,
+  loadSftpRouteTestConfig,
   namesInSftpTestFolder,
   putInSftpTestFolder,
   sftpRouteTestFolders as folders,
+  sftpRouteTestTimeoutMs,
+  sftpTestFileRequest,
   sftpTestHookTimeoutMs,
   sftpTestUsers
 } from '../test-utils/sftp-test-server.js'
 
-const testEnabledSetting = 'sscl.testEnabled'
-// Each request opens a push and a pull session, which is slow where the
-// SFTP image runs emulated.
-const routeTestTimeoutMs = 30000
-
-/** @param {object} [options] */
-const postTestFile = (options) => ({
-  method: 'POST',
-  url: '/sftp/test-file',
-  ...options
-})
-
-describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
+describe('POST /sftp/test-file', { timeout: sftpRouteTestTimeoutMs }, () => {
   const original = config.get('sscl')
   let keys
 
   beforeAll(async () => {
     keys = await generatePgpTestKeys()
-    loadSftpTestServerConfig({ keys, folders })
-    config.set(testEnabledSetting, true)
-    resetSsclClient()
+    loadSftpRouteTestConfig({ keys, folders })
   })
 
   afterAll(() => {
@@ -55,14 +43,18 @@ describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
 
   const getServer = setupTestServer()
 
-  it('logs a connection as the push user and as the pull user', async () => {
+  it('logs a connection as the push user to push, then as the pull user to pull', async () => {
     const info = vi.spyOn(createLogger(), 'info')
 
-    await getServer().inject(postTestFile())
+    const response = await getServer().inject(sftpTestFileRequest())
 
+    expect(response.statusCode).toBe(200)
     const connectedAs = info.mock.calls
       .filter(([, message]) => message === 'SFTP connected')
       .map(([context]) => context.sftp.username)
+    // The push and list steps run before the pull
+    expect(connectedAs.at(0)).toBe(sftpTestUsers.push)
+    expect(connectedAs.at(-1)).toBe(sftpTestUsers.pull)
     expect(new Set(connectedAs)).toEqual(
       new Set([sftpTestUsers.push, sftpTestUsers.pull])
     )
@@ -77,7 +69,7 @@ describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
     })
     await putInSftpTestFolder({ direction: 'pull', folders, ...reply })
 
-    const response = await getServer().inject(postTestFile())
+    const response = await getServer().inject(sftpTestFileRequest())
 
     expect(response.statusCode).toBe(200)
     const body = JSON.parse(response.payload)
@@ -126,14 +118,16 @@ describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
 
   it('refuses a wrong service API key', async () => {
     const response = await getServer().inject(
-      postTestFile({ headers: { 'x-api-key': 'wrong' } })
+      sftpTestFileRequest({ headers: { 'x-api-key': 'wrong' } })
     )
 
     expect(response.statusCode).toBe(401)
   })
 
   it('refuses a request with no service API key', async () => {
-    const response = await getServer().injectWithoutApiKey(postTestFile())
+    const response = await getServer().injectWithoutApiKey(
+      sftpTestFileRequest()
+    )
 
     expect(response.statusCode).toBe(401)
   })
@@ -142,29 +136,25 @@ describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
     ['an empty', {}],
     ['a', { filename: '../../etc/passwd' }]
   ])('refuses a request with %s JSON body', async (_case, payload) => {
-    const response = await getServer().inject(postTestFile({ payload }))
+    const response = await getServer().inject(sftpTestFileRequest({ payload }))
 
     expect(response.statusCode).toBe(400)
   })
 
   describe('with a push folder that does not exist', () => {
     beforeAll(() => {
-      loadSftpTestServerConfig({
+      loadSftpRouteTestConfig({
         keys,
         folders: { push: '/Interfaces/DEF/Missing/NRLIn', pull: folders.pull }
       })
-      config.set(testEnabledSetting, true)
-      resetSsclClient()
     })
 
     afterAll(() => {
-      loadSftpTestServerConfig({ keys, folders })
-      config.set(testEnabledSetting, true)
-      resetSsclClient()
+      loadSftpRouteTestConfig({ keys, folders })
     })
 
     it('reports a failed step as ok false with no detail of the error', async () => {
-      const response = await getServer().inject(postTestFile())
+      const response = await getServer().inject(sftpTestFileRequest())
 
       expect(response.statusCode).toBe(200)
       const body = JSON.parse(response.payload)
@@ -185,13 +175,11 @@ describe('POST /sftp/test-file', { timeout: routeTestTimeoutMs }, () => {
     })
 
     afterAll(() => {
-      loadSftpTestServerConfig({ keys, folders })
-      config.set(testEnabledSetting, true)
-      resetSsclClient()
+      loadSftpRouteTestConfig({ keys, folders })
     })
 
     it('fails with a 500 that does not name the missing setting', async () => {
-      const response = await getServer().inject(postTestFile())
+      const response = await getServer().inject(sftpTestFileRequest())
 
       expect(response.statusCode).toBe(500)
       expect(response.payload).not.toMatch(/sscl|host/i)
@@ -203,7 +191,7 @@ describe('POST /sftp/test-file when switched off', () => {
   const getServer = setupTestServer()
 
   it('is not found', async () => {
-    const response = await getServer().inject(postTestFile())
+    const response = await getServer().inject(sftpTestFileRequest())
 
     expect(response.statusCode).toBe(404)
   })

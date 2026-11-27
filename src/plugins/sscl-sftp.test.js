@@ -68,11 +68,11 @@ describe('ssclSftp plugin', () => {
   })
 
   it.each([
-    [false, []],
-    [true, ['/sftp/test-file']]
+    ['off', false, []],
+    ['on', true, ['/sftp/test-file']]
   ])(
-    'with SSCL_SFTP_TEST_ENABLED=%s registers routes %j',
-    async (testEnabled, paths) => {
+    'with the test route switched %s registers routes %j',
+    async (_switched, testEnabled, paths) => {
       loadUsableMoveitTestConfig({ keys })
       config.set(testEnabledSetting, testEnabled)
 

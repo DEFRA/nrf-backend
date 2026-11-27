@@ -24,6 +24,7 @@ export const fakeSsclStartupReplyFilename =
 export const fakeSsclStartupReplyText =
   'Fake SSCL reply about startup at 2026-11-18T14:30:05.000Z\n'
 /** The name of the test invoice file without its .dat.pgp extension. */
+export const ssclTestInvoiceTime = new Date('2026-11-09T17:30:05Z')
 export const ssclTestInvoiceStem = 'rainv_NRLINV_20261109173005'
 export const ssclTestInvoiceFilename = `${ssclTestInvoiceStem}.dat.pgp`
 /** Stands in for an SFTP fault server where only its settings are read. */
