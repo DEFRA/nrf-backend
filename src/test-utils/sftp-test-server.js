@@ -22,6 +22,15 @@ export const sftpContainerFolders = {
   pull: '/Interfaces/DEF/Test/NRLOut'
 }
 
+/**
+ * Separate folders for the route tests, which run alongside the SFTP
+ * integration tests.
+ */
+export const sftpRouteTestFolders = {
+  push: '/Interfaces/DEF/RouteTest/NRLIn',
+  pull: '/Interfaces/DEF/RouteTest/NRLOut'
+}
+
 /** @type {{ push: 'push', pull: 'pull' }} */
 export const sftpTestDirections = { push: 'push', pull: 'pull' }
 

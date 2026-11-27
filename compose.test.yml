@@ -100,7 +100,7 @@ services:
     platform: linux/amd64
     ports:
       - '127.0.0.1:2223:22'
-    command: CDDEFTNRLOut::::Interfaces/DEF/Test/NRLOut CDDEFTNRLIn::::Interfaces/DEF/Test/NRLIn
+    command: CDDEFTNRLOut::::Interfaces/DEF/Test/NRLOut,Interfaces/DEF/RouteTest/NRLOut CDDEFTNRLIn::::Interfaces/DEF/Test/NRLIn,Interfaces/DEF/RouteTest/NRLIn
     volumes:
       - ./.sftp-test-keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
       - ./.sftp-test-keys/client.pub:/home/CDDEFTNRLOut/.ssh/keys/client.pub:ro
